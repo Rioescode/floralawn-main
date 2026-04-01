@@ -67,7 +67,7 @@ export default function RootLayout({ children }) {
 					<ClientLayout>{children}</ClientLayout>
 				</AuthProvider>
 				<Script
-					src={`https://maps.googleapis.com/maps/api/js?key=AIzaSyAVRh02464atGqKOKlz26ZXBrxZ0GXVQ54&libraries=places,drawing,geometry`}
+					src={`https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=places,drawing,geometry`}
 					strategy="beforeInteractive"
 				/>
 				<BottomNav />
