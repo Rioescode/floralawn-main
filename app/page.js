@@ -166,56 +166,23 @@ export default function HomePage() {
                 Flora Lawn & Landscaping provides professional lawn care and landscaping services for homes across Rhode Island and Massachusetts.
               </p>
 
-              {/* DUAL PATHWAY AI SEARCH & QUICK QUOTE */}
-              <div className="w-full max-w-2xl space-y-6">
+              {/* DUAL CTA BUTTONS */}
+              <div className="flex flex-col sm:flex-row items-center gap-6 pt-4">
+                <Link 
+                  href="/contact"
+                  className="w-full sm:w-auto bg-white/5 hover:bg-white/10 backdrop-blur-xl border border-white/10 text-white font-black px-10 py-5 rounded-2xl flex items-center justify-center gap-4 transition-all active:scale-95 shadow-2xl uppercase tracking-tighter text-base group"
+                >
+                  <EnvelopeIcon className="w-5 h-5 text-green-400 group-hover:scale-110 transition-transform" />
+                  Custom Quote
+                </Link>
                 
-                {/* AI SEARCH BAR */}
-                <div className="relative group">
-                  <div className="bg-slate-900/80 backdrop-blur-3xl border border-white/20 rounded-[2rem] p-2 flex flex-col sm:flex-row gap-2 shadow-6xl">
-                    <div className="flex-1 flex items-center px-6 py-4 gap-4">
-                      <MapPinIcon className="w-8 h-8 text-slate-400" />
-                      <input 
-                        ref={addressRef}
-                        type="text" 
-                        placeholder="Find Your Property Address..." 
-                        className="w-full bg-transparent border-none focus:outline-none focus:ring-0 text-white text-lg font-bold placeholder-slate-500"
-                      />
-                    </div>
-                    <button 
-                      onClick={() => { if (addressRef.current?.value) router.push(`/auto-lawn?address=${encodeURIComponent(addressRef.current.value)}`); }}
-                      className="bg-green-600 hover:bg-green-500 text-white font-black px-12 py-5 rounded-[1.5rem] flex items-center justify-center gap-3 transition-all active:scale-95 shadow-xl whitespace-nowrap"
-                    >
-                      AI Scan <ArrowRightIcon className="w-6 h-6" />
-                    </button>
-                  </div>
-                  <div className="mt-3 flex items-center justify-center gap-6 px-4">
-                    <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                      <SparklesIcon className="w-4 h-4 text-green-400" /> AI Pricing
-                    </div>
-                    <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest text-emerald-400">
-                      <CheckBadgeIconSolid className="w-4 h-4" /> RI & MA Coverage
-                    </div>
-                  </div>
-                </div>
-
-                {/* DUAL CTA BUTTONS (SIDE-BY-SIDE) */}
-                <div className="flex flex-col sm:flex-row items-center gap-6 pt-12">
-                  <Link 
-                    href="/contact"
-                    className="w-full sm:w-auto bg-white/5 hover:bg-white/10 backdrop-blur-xl border border-white/10 text-white font-black px-10 py-5 rounded-2xl flex items-center justify-center gap-4 transition-all active:scale-95 shadow-2xl uppercase tracking-tighter text-base group"
-                  >
-                    <EnvelopeIcon className="w-5 h-5 text-green-400 group-hover:scale-110 transition-transform" />
-                    Custom Quote
-                  </Link>
-                  
-                  <a 
-                    href="tel:4013890913"
-                    className="w-full sm:w-auto bg-green-600/10 hover:bg-green-600/20 backdrop-blur-xl border border-green-500/20 text-green-400 font-black px-10 py-5 rounded-2xl flex items-center justify-center gap-4 transition-all active:scale-95 shadow-2xl uppercase tracking-tighter text-base group"
-                  >
-                    <PhoneIcon className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                    (401) 389-0913
-                  </a>
-                </div>
+                <a 
+                  href="tel:4013890913"
+                  className="w-full sm:w-auto bg-green-600/10 hover:bg-green-600/20 backdrop-blur-xl border border-green-500/20 text-green-400 font-black px-10 py-5 rounded-2xl flex items-center justify-center gap-4 transition-all active:scale-95 shadow-2xl uppercase tracking-tighter text-base group"
+                >
+                  <PhoneIcon className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                  (401) 389-0913
+                </a>
               </div>
 
             </motion.div>
@@ -376,33 +343,13 @@ export default function HomePage() {
            <h2 className="text-5xl md:text-7xl font-black text-white tracking-tighter italic mb-8 uppercase leading-none">
               Ready for Your <span className="text-green-500">Estate</span> Status?
            </h2>
-           <p className="text-xl text-slate-400 mb-16 font-semibold italic">
+           <p className="text-xl text-slate-400 mb-12 font-semibold italic">
               Start your instant AI satellite quote now and secure your spot on our schedule.
            </p>
-
-           <div className="mb-12 relative max-w-2xl mx-auto">
-              <div className="bg-white/5 backdrop-blur-3xl border border-white/10 rounded-[2.5rem] p-2 flex flex-col sm:flex-row gap-2 shadow-6xl">
-                 <div className="flex-1 flex items-center px-6 py-4 gap-4">
-                    <MapPinIcon className="w-8 h-8 text-green-500" />
-                    <input 
-                      ref={footerAddressRef}
-                      type="text" 
-                      placeholder="Enter Property Address..." 
-                      className="w-full bg-transparent border-none focus:outline-none focus:ring-0 text-white text-xl font-black placeholder-slate-600 uppercase"
-                    />
-                 </div>
-                 <button 
-                   onClick={() => {
-                      if (footerAddressRef.current?.value) router.push(`/auto-lawn?address=${encodeURIComponent(footerAddressRef.current.value)}`);
-                   }}
-                   className="bg-green-600 hover:bg-green-500 text-white font-black px-12 py-6 rounded-[1.8rem] flex items-center justify-center gap-4 transition-all active:scale-95 shadow-2xl uppercase text-lg"
-                 >
-                   Get Free Quote <ArrowRightIcon className="w-6 h-6" />
-                 </button>
-              </div>
-           </div>
-
-           <div className="flex flex-col sm:flex-row items-center justify-center gap-10">
+           <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
+              <Link href="/contact" className="bg-green-600 hover:bg-green-500 text-white font-black px-14 py-6 rounded-2xl flex items-center gap-4 transition-all active:scale-95 shadow-2xl uppercase text-lg">
+                Get Free Quote <ArrowRightIcon className="w-6 h-6" />
+              </Link>
               <a href="tel:4013890913" className="flex items-center text-white gap-4 group">
                  <div className="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center group-hover:bg-green-600/20 transition-all border border-white/10">
                     <PhoneIcon className="w-8 h-8 text-green-500" />

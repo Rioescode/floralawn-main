@@ -409,20 +409,7 @@ export default function ContactPage() {
                         </div>
 
                         {/* LOCATION INFO */}
-                        <div className="grid md:grid-cols-2 gap-8">
-                           <div>
-                              <label className="text-[10px] font-black italic text-slate-500 uppercase tracking-widest mb-3 block">Street Address *</label>
-                              <input 
-                                ref={addressRef}
-                                required 
-                                type="text" 
-                                name="address" 
-                                value={formData.address} 
-                                onChange={handleChange} 
-                                className="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl px-8 py-5 text-slate-900 focus:outline-none focus:border-green-500 transition-all font-bold placeholder-slate-300" 
-                                placeholder="123 Rhode Island Ave" 
-                              />
-                           </div>
+                        <div className="grid md:grid-cols-1 gap-8">
                            <div>
                               <label className="text-[10px] font-black italic text-slate-500 uppercase tracking-widest mb-3 block">City *</label>
                               <select required name="city" value={formData.city} onChange={handleChange} className="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl px-8 py-5 text-slate-900 focus:outline-none focus:border-green-500 transition-all font-bold appearance-none">
