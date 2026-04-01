@@ -421,6 +421,111 @@ export default function ContactPage() {
                            <textarea required name="message" value={formData.message} onChange={handleChange} className="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl px-8 py-6 text-slate-900 focus:outline-none focus:border-green-500 transition-all font-bold h-40 resize-none placeholder-slate-300" placeholder="Describe your property needs..." />
                         </div>
 
+                        {/* MEDIA STRATEGY - TOGGLE SECTION */}
+                        {!showMediaSection ? (
+                           <button 
+                             type="button"
+                             onClick={() => setShowMediaSection(true)}
+                             className="w-full p-8 bg-slate-50 border-2 border-dashed border-slate-200 rounded-[2.5rem] flex items-center justify-between group hover:border-green-500/50 hover:bg-green-50/30 transition-all"
+                           >
+                              <div className="flex items-center gap-6">
+                                 <div className="w-14 h-14 bg-white rounded-2xl shadow-xl flex items-center justify-center text-green-600 transition-all group-hover:scale-110 group-hover:rotate-3">
+                                    <PhotoIcon className="w-6 h-6" />
+                                 </div>
+                                 <div className="text-left">
+                                    <div className="flex items-center gap-2 mb-1.5">
+                                       <span className="bg-green-600 text-white text-[8px] font-black uppercase tracking-[0.2em] px-2 py-0.5 rounded-full leading-none">Elite Benefit</span>
+                                       <div className="w-1 h-1 rounded-full bg-slate-300" />
+                                       <span className="text-[9px] font-black italic text-slate-400 uppercase tracking-widest">Optional</span>
+                                    </div>
+                                    <p className="text-lg font-black italic text-slate-900 group-hover:text-green-600 transition-colors leading-tight">Add Visuals & Get 10% Off</p>
+                                 </div>
+                              </div>
+                              <div className="bg-yellow-400 text-slate-900 font-black px-5 py-3 rounded-2xl text-[11px] uppercase tracking-widest shadow-2xl flex items-center gap-2 group-hover:bg-slate-950 group-hover:text-white transition-all transform group-hover:translate-x-1">
+                                 Unlock 10% <ArrowRightIcon className="w-4 h-4" />
+                              </div>
+                           </button>
+                        ) : (
+                           <div className="bg-slate-50 p-8 rounded-[2.5rem] border-2 border-dashed border-green-500/30 transition-all group relative animate-in fade-in slide-in-from-top-4 duration-500">
+                              {/* CLOSE BUTTON */}
+                              <button 
+                                 type="button" 
+                                 onClick={() => setShowMediaSection(false)}
+                                 className="absolute -top-3 -right-3 w-8 h-8 bg-slate-900 text-white rounded-full flex items-center justify-center hover:bg-red-500 transition-colors z-20"
+                              >
+                                 <span className="text-xl leading-none">×</span>
+                              </button>
+
+                              {/* DISCOUNT BADGE */}
+                              <div className="absolute -top-4 right-10 bg-yellow-400 text-slate-900 font-black px-4 py-2 rounded-xl text-[10px] uppercase tracking-widest shadow-xl flex items-center gap-2 animate-bounce">
+                                 <SparklesIcon className="w-3 h-3" /> 10% Visual Credit Applied
+                              </div>
+
+                              <div className="flex flex-col md:flex-row items-center justify-between gap-8 mb-8">
+                                 <div>
+                                    <h3 className="text-xl font-black italic text-slate-900 uppercase tracking-tighter mb-2 flex items-center gap-3">
+                                       Property Visuals <span className="text-green-600 text-[10px] bg-green-100 px-3 py-1 rounded-full border border-green-200 uppercase tracking-widest leading-none underline decoration-2 decoration-green-600 underline-offset-4">10% Credit Active</span>
+                                    </h3>
+                                    <p className="text-xs text-slate-500 font-bold italic leading-relaxed">
+                                       Upload your property photos or clips below to lock in your <span className="text-slate-950 underline decoration-yellow-500 decoration-2 font-black">10% OFF</span> estimate reward.
+                                    </p>
+                                 </div>
+                                 <button 
+                                    type="button" 
+                                    onClick={() => fileInputRef.current?.click()}
+                                    className="bg-slate-950 text-white font-black px-8 py-4 rounded-2xl flex items-center gap-3 hover:bg-green-600 transition-all shrink-0 shadow-2xl"
+                                 >
+                                    <DocumentPlusIcon className="w-5 h-5" /> Add Files
+                                 </button>
+                                 <input 
+                                    ref={fileInputRef}
+                                    type="file" 
+                                    multiple 
+                                    accept="image/*,video/*"
+                                    onChange={handleMediaChange}
+                                    className="hidden" 
+                                 />
+                              </div>
+
+                              {mediaPreviews.length > 0 ? (
+                                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                                    {mediaPreviews.map((preview, idx) => (
+                                       <div key={idx} className="relative aspect-square rounded-2xl overflow-hidden border-2 border-slate-100 group/item bg-white">
+                                          {preview.isVideo ? (
+                                             <video src={preview.url} className="w-full h-full object-cover" />
+                                          ) : (
+                                             <img src={preview.url} alt="Preview" className="w-full h-full object-cover" />
+                                          )}
+                                          <div className="absolute inset-0 bg-slate-950/40 opacity-0 group-hover/item:opacity-100 transition-opacity flex items-center justify-center">
+                                             <button 
+                                                type="button"
+                                                onClick={() => removeMedia(idx)}
+                                                className="w-10 h-10 bg-red-500 text-white rounded-xl flex items-center justify-center hover:scale-110 transition-transform"
+                                             >
+                                                <TrashIcon className="w-5 h-5" />
+                                             </button>
+                                          </div>
+                                          {preview.isVideo && (
+                                             <div className="absolute top-2 right-2 p-1.5 bg-slate-950/60 rounded-lg text-white font-black text-[8px] uppercase tracking-widest backdrop-blur-md border border-white/10">
+                                                VIDEO
+                                             </div>
+                                          )}
+                                       </div>
+                                    ))}
+                                 </div>
+                              ) : (
+                                 <div className="flex items-center gap-6 p-8 bg-white rounded-2xl border border-slate-100 opacity-60">
+                                    <div className="flex -space-x-3">
+                                       <div className="w-12 h-12 bg-slate-50 rounded-xl flex items-center justify-center shadow-lg border border-slate-100"><PhotoIcon className="w-6 h-6 text-slate-400" /></div>
+                                       <div className="w-12 h-12 bg-slate-50 rounded-xl flex items-center justify-center shadow-lg border border-slate-100"><VideoCameraIcon className="w-6 h-6 text-slate-400" /></div>
+                                    </div>
+                                    <p className="text-[10px] font-black italic uppercase tracking-widest text-slate-400">
+                                       No visuals attached. Upload now for 10% off.
+                                    </p>
+                                 </div>
+                              )}
+                           </div>
+                        )}
 
                         {/* PRESERVED MARKETING PREFERENCES */}
                         <div className="p-8 bg-slate-50 rounded-3xl border-2 border-dotted border-slate-200">

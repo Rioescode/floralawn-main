@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { sendEmail } from '@/libs/resend';
 import { supabase, supabaseAdmin } from '@/lib/supabase';
 
+export const dynamic = 'force-dynamic';
+
 // GET - Fetch sent invitations for a user or all (admin)
 export async function GET(request) {
   try {
