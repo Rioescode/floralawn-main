@@ -55,6 +55,7 @@ export default function InstantQuoteMap({ onQuoteComplete, selectedPlace, setSel
   const [mulchColor, setMulchColor] = useState('Black');
   const [customMulchYards, setCustomMulchYards] = useState(0);
   const [treeTrimCount, setTreeTrimCount] = useState(0);
+  const [shrubCounts, setShrubCounts] = useState({ small: 0, medium: 0, large: 0 });
   
   const [customJobs, setCustomJobs] = useState([{ id: Date.now(), details: '', price: 0 }]);
   
@@ -99,7 +100,8 @@ export default function InstantQuoteMap({ onQuoteComplete, selectedPlace, setSel
     snowBase: 75,
     fertBase: 95,
     fertPer1k: 12,
-    shrubBase: 125,
+    shrubBase: 75,
+    shrubPrices: { small: 25, medium: 45, large: 75 },
     gutterBase: 150
   };
 
@@ -211,7 +213,11 @@ export default function InstantQuoteMap({ onQuoteComplete, selectedPlace, setSel
     if (id === 'tree_trimming') return treeTrimPrice || 75;
     if (id === 'snow_removal') return pricingConfig.snowBase || 75;
     if (id === 'fertilization') return Math.round((pricingConfig.fertBase || 95) + (area / 1000) * (pricingConfig.fertPer1k || 12));
-    if (id === 'shrub_pruning') return pricingConfig.shrubBase || 125;
+    if (id === 'shrub_pruning') {
+       const sp = pricingConfig.shrubPrices || { small: 25, medium: 45, large: 75 };
+       const totalShrubs = (shrubCounts.small * sp.small) + (shrubCounts.medium * sp.medium) + (shrubCounts.large * sp.large);
+       return totalShrubs;
+    }
     if (id === 'gutter_cleaning') return pricingConfig.gutterBase || 150;
     if (id === 'custom_job') return customJobs.reduce((sum, job) => sum + (Number(job.price) || 0), 0);
     return 0;
@@ -444,10 +450,10 @@ export default function InstantQuoteMap({ onQuoteComplete, selectedPlace, setSel
   return (
     <div className="w-full">
       {selectedPlace && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col lg:flex-row gap-8 min-h-[900px]">
-          <AnimatePresence mode="wait">
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col lg:flex-row gap-8 min-h-[600px] lg:min-h-[900px]">
+          <AnimatePresence>
             {selectedPlace && !isAiScanning && (
-              <motion.div initial={{ opacity: 0, x: -50 }} animate={{ opacity: 1, x: 0 }} className="w-full lg:w-[500px] bg-slate-900 border border-white/10 rounded-[3.5rem] p-8 flex flex-col shadow-6xl max-h-[900px] overflow-hidden text-left font-bold">
+              <motion.div initial={{ opacity: 0, x: -50 }} animate={{ opacity: 1, x: 0 }} className="w-full lg:w-[500px] bg-slate-900 border border-white/10 rounded-[2.5rem] lg:rounded-[3.5rem] p-6 lg:p-8 flex flex-col shadow-6xl lg:max-h-[900px] overflow-hidden text-left font-bold">
                 <div className="mb-4 pb-4 border-b border-white/10 flex flex-col gap-4 flex-shrink-0">
                   <div className="flex justify-between items-start font-bold">
                     <div className="max-w-[280px]">
@@ -505,11 +511,28 @@ export default function InstantQuoteMap({ onQuoteComplete, selectedPlace, setSel
                                     )}
                                     {s.id === 'mulch' && (
                                        <div className="space-y-6 font-bold">
-                                          <div className="flex justify-between items-center text-[10px] font-black text-amber-500 uppercase px-2 font-bold"><p>Mulch Bed Total</p><p className="text-sm italic font-bold">{mulchSqFt.toLocaleString()} SQFT</p></div>
-                                          <div className="flex gap-2">
-                                             {['Black', 'Brown', 'Red'].map(c => (
-                                                <button key={c} onClick={() => setMulchColor(c)} className={`flex-1 py-4 rounded-xl border text-[9px] font-black uppercase transition-all ${mulchColor === c ? 'bg-amber-600 border-amber-500 text-white shadow-xl' : 'bg-white/5 border-white/5 text-slate-400'}`}><span>{c}</span></button>
-                                             ))}
+                                          <div className="flex justify-between items-center text-[10px] font-black text-amber-500 uppercase px-2 font-bold">
+                                             <p>Mulch Bed Total</p>
+                                             <div className="text-right">
+                                                <p className="text-sm italic font-bold leading-none">{mulchSqFt.toLocaleString()} SQFT</p>
+                                                {mulchSqFt > 0 && <p className="text-[10px] opacity-60 font-black">≈ {((mulchSqFt * (pricingConfig.mulchDepth/12))/27).toFixed(1)} YARDS</p>}
+                                             </div>
+                                          </div>
+                                          <div className="space-y-4">
+                                             <div className="flex bg-slate-950/50 p-1 rounded-xl gap-2 border border-white/5">
+                                                <input 
+                                                   type="number" 
+                                                   placeholder="Manual SQFT Override..." 
+                                                   value={mulchSqFt || ''} 
+                                                   onChange={(e) => setMulchSqFt(Number(e.target.value))}
+                                                   className="w-full bg-transparent border-none focus:ring-0 text-white font-black p-3 text-xs placeholder-slate-600 uppercase tracking-widest"
+                                                />
+                                             </div>
+                                             <div className="flex gap-2">
+                                                {['Black', 'Brown', 'Red'].map(c => (
+                                                   <button key={c} onClick={() => setMulchColor(c)} className={`flex-1 py-4 rounded-xl border text-[9px] font-black uppercase transition-all ${mulchColor === c ? 'bg-amber-600 border-amber-500 text-white shadow-xl' : 'bg-white/5 border-white/5 text-slate-400'}`}><span>{c}</span></button>
+                                                ))}
+                                             </div>
                                           </div>
                                           <button onClick={(e) => { e.stopPropagation(); startDrawing('mulch'); }} className="w-full py-5 bg-amber-600 hover:bg-amber-500 text-white font-black uppercase rounded-2xl text-[10px] shadow-xl flex items-center justify-center gap-3 transition-all font-bold">
                                              {mulchSqFt > 0 ? <><PlusIcon className="w-4 h-4" /> Add Another Bed</> : <><MapPinIcon className="w-4 h-4" /> Precision Draw Beds</>}
@@ -519,9 +542,53 @@ export default function InstantQuoteMap({ onQuoteComplete, selectedPlace, setSel
                                     {s.id === 'overseeding' && (
                                        <div className="space-y-6 p-4 rounded-3xl bg-emerald-500/5 border border-emerald-500/10 font-bold">
                                           <div className="flex justify-between items-center mb-1"><p className="text-[10px] font-black text-emerald-400 uppercase">Isolated Seeding Total</p><p className="text-sm font-black text-emerald-300 italic">{(overseedSqFt || 0).toLocaleString()} SQFT</p></div>
+                                          <div className="flex bg-slate-950/50 p-1 rounded-xl gap-2 border border-white/5">
+                                                <input 
+                                                   type="number" 
+                                                   placeholder="Manual SQFT..." 
+                                                   value={overseedSqFt || ''} 
+                                                   onChange={(e) => setOverseedSqFt(Number(e.target.value))}
+                                                   className="w-full bg-transparent border-none focus:ring-0 text-white font-black p-3 text-xs placeholder-slate-600 uppercase tracking-widest"
+                                                />
+                                          </div>
                                           <button onClick={(e) => { e.stopPropagation(); startDrawing('overseed'); }} className="w-full py-5 bg-emerald-600 hover:bg-emerald-500 text-white font-black uppercase rounded-2xl text-[10px] shadow-xl flex items-center justify-center gap-3 transition-all font-bold">
                                              {overseedSqFt > 0 ? <><PlusIcon className="w-4 h-4" /> Add Seed Spot</> : <><SparklesIcon className="w-4 h-4" /> Focus Measure Spots</>}
                                           </button>
+                                       </div>
+                                    )}
+                                    {(s.id === 'spring' || s.id === 'fall') && (
+                                       <div className="space-y-6 font-bold">
+                                          <div className="space-y-3">
+                                             <p className="text-[9px] font-black text-orange-400 uppercase tracking-widest px-2">Disposal Strategy</p>
+                                             <div className="flex bg-slate-950/50 p-1 rounded-xl gap-2 border border-white/5">
+                                                {['woods', 'haul'].map(opt => (
+                                                   <button key={opt} onClick={() => setDebrisDisposal(opt)} className={`flex-1 py-3 rounded-lg text-[9px] font-black uppercase transition-all ${debrisDisposal === opt ? 'bg-orange-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}>{opt === 'woods' ? 'To The Woods' : 'Haul Away (Fee)'}</button>
+                                                ))}
+                                             </div>
+                                          </div>
+                                          <div className="space-y-3">
+                                             <p className="text-[9px] font-black text-orange-400 uppercase tracking-widest px-2">Debris Intensity</p>
+                                             <div className="flex bg-slate-950/50 p-1 rounded-xl gap-2 border border-white/5">
+                                                {[1, 2, 3].map(v => (
+                                                   <button key={v} onClick={() => s.id === 'spring' ? setSpringIntensity(v) : setFallIntensity(v)} className={`flex-1 py-3 rounded-lg text-[9px] font-black uppercase transition-all ${(s.id === 'spring' ? springIntensity : fallIntensity) === v ? 'bg-orange-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}>{v === 1 ? 'Light' : v === 2 ? 'Medium' : 'Heavy'}</button>
+                                                ))}
+                                             </div>
+                                          </div>
+                                       </div>
+                                    )}
+                                    {s.id === 'shrub_pruning' && (
+                                       <div className="space-y-6 font-bold">
+                                          <p className="text-[9px] font-black text-green-400 uppercase tracking-widest px-2 leading-none mb-1">Plant Count by Size</p>
+                                          {['small', 'medium', 'large'].map(size => (
+                                             <div key={size} className="flex justify-between items-center bg-slate-950/50 p-5 rounded-2xl border border-white/5">
+                                                <p className="text-[11px] font-black uppercase text-white">{size} Plants</p>
+                                                <div className="flex items-center gap-6">
+                                                   <button onClick={() => setShrubCounts({...shrubCounts, [size]: Math.max(0, shrubCounts[size] - 1)})} className="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center text-white text-xl">-</button>
+                                                   <span className="text-2xl font-black text-white italic min-w-[30px] text-center">{shrubCounts[size]}</span>
+                                                   <button onClick={() => setShrubCounts({...shrubCounts, [size]: shrubCounts[size] + 1})} className="w-12 h-12 rounded-xl bg-green-600 flex items-center justify-center text-white text-xl">+</button>
+                                                </div>
+                                             </div>
+                                          ))}
                                        </div>
                                     )}
                                     {s.id === 'custom_job' && (
@@ -558,10 +625,10 @@ export default function InstantQuoteMap({ onQuoteComplete, selectedPlace, setSel
                            </motion.div>
                          )}
                       </div>
-                      <p className="text-7xl font-black text-green-500 italic tracking-tighter leading-none">${totalQuote.toLocaleString()}</p>
+                      <p className="text-5xl lg:text-7xl font-black text-green-500 italic tracking-tighter leading-none">${totalQuote.toLocaleString()}</p>
                    </div>
                    <div className="flex gap-4 font-bold">
-                      <button onClick={downloadQuotePDF} className="w-20 h-20 bg-white/5 hover:bg-white/10 text-white rounded-[2rem] flex items-center justify-center transition-all shadow-xl group"><ArrowDownTrayIcon className="w-8 h-8 group-hover:translate-y-1 transition-transform" /></button>
+                      <button onClick={downloadQuotePDF} className="w-16 h-16 lg:w-20 lg:h-20 bg-white/5 hover:bg-white/10 text-white rounded-[1.5rem] lg:rounded-[2rem] flex items-center justify-center transition-all shadow-xl group"><ArrowDownTrayIcon className="w-6 h-6 lg:w-8 lg:h-8 group-hover:translate-y-1 transition-transform" /></button>
                       <button onClick={() => {
                         const payload = { 
                           area: currentArea, 
@@ -570,7 +637,7 @@ export default function InstantQuoteMap({ onQuoteComplete, selectedPlace, setSel
                           address: selectedPlace.name 
                         };
                         onQuoteComplete(payload);
-                      }} className="flex-grow h-20 bg-green-500 hover:bg-green-400 text-black font-black uppercase rounded-[2rem] shadow-4xl flex justify-center items-center gap-4 transition-all active:scale-95">Confirm Rate <ArrowRightIcon className="w-6 h-6" /></button>
+                      }} className="flex-grow h-16 lg:h-20 bg-green-500 hover:bg-green-400 text-black font-black uppercase rounded-[1.5rem] lg:rounded-[2rem] shadow-4xl flex justify-center items-center gap-3 lg:gap-4 transition-all active:scale-95 text-sm lg:text-base">Confirm Rate <ArrowRightIcon className="w-5 h-5 lg:w-6 lg:h-6" /></button>
                    </div>
                 </div>
               </motion.div>
@@ -656,7 +723,13 @@ export default function InstantQuoteMap({ onQuoteComplete, selectedPlace, setSel
                         <div className="space-y-5">
                            <div><label className="text-[9px] font-black text-slate-500 uppercase mb-2 block">Fertilizer Base ($)</label><input type="number" value={pricingConfig.fertBase} onChange={(e) => savePricing({...pricingConfig, fertBase: Number(e.target.value)})} className="w-full bg-slate-900 border border-white/10 rounded-2xl p-5 text-2xl font-black text-white" /></div>
                            <div><label className="text-[9px] font-black text-slate-500 uppercase mb-2 block">Gutter Base ($)</label><input type="number" value={pricingConfig.gutterBase} onChange={(e) => savePricing({...pricingConfig, gutterBase: Number(e.target.value)})} className="w-full bg-slate-900 border border-white/10 rounded-2xl p-5 text-2xl font-black text-white" /></div>
-                           <div><label className="text-[9px] font-black text-slate-500 uppercase mb-2 block">Shrub Base ($)</label><input type="number" value={pricingConfig.shrubBase} onChange={(e) => savePricing({...pricingConfig, shrubBase: Number(e.target.value)})} className="w-full bg-slate-900 border border-white/10 rounded-2xl p-5 text-2xl font-black text-white" /></div>
+                           <div><label className="text-[10px] font-black text-green-500 uppercase tracking-widest block mb-4 border-b border-white/5 pb-2">Shrub Size Rates</label>
+                              <div className="grid grid-cols-3 gap-2">
+                                 <div><label className="text-[8px] uppercase text-slate-600 block mb-1">Small</label><input type="number" value={pricingConfig.shrubPrices.small} onChange={(e) => savePricing({...pricingConfig, shrubPrices: {...pricingConfig.shrubPrices, small: Number(e.target.value)}})} className="w-full bg-slate-900 border border-white/10 rounded-xl p-3 text-sm font-black text-white" /></div>
+                                 <div><label className="text-[8px] uppercase text-slate-600 block mb-1">Medium</label><input type="number" value={pricingConfig.shrubPrices.medium} onChange={(e) => savePricing({...pricingConfig, shrubPrices: {...pricingConfig.shrubPrices, medium: Number(e.target.value)}})} className="w-full bg-slate-900 border border-white/10 rounded-xl p-3 text-sm font-black text-white" /></div>
+                                 <div><label className="text-[8px] uppercase text-slate-600 block mb-1">Large</label><input type="number" value={pricingConfig.shrubPrices.large} onChange={(e) => savePricing({...pricingConfig, shrubPrices: {...pricingConfig.shrubPrices, large: Number(e.target.value)}})} className="w-full bg-slate-900 border border-white/10 rounded-xl p-3 text-sm font-black text-white" /></div>
+                              </div>
+                           </div>
                            <div><label className="text-[9px] font-black text-slate-500 uppercase mb-2 block">Disposal Fee (Haul)</label><input type="number" value={pricingConfig.disposalHaulFee} onChange={(e) => savePricing({...pricingConfig, disposalHaulFee: Number(e.target.value)})} className="w-full bg-slate-900 border border-white/10 rounded-2xl p-5 text-2xl font-black text-white" /></div>
                         </div>
                      </div>

@@ -199,7 +199,7 @@ export default function HomePage() {
                 </div>
 
                 {/* DUAL CTA BUTTONS (SIDE-BY-SIDE) */}
-                <div className="flex flex-col sm:flex-row items-center gap-4 pt-6">
+                <div className="flex flex-col sm:flex-row items-center gap-6 pt-12">
                   <Link 
                     href="/contact"
                     className="w-full sm:w-auto bg-white/5 hover:bg-white/10 backdrop-blur-xl border border-white/10 text-white font-black px-10 py-5 rounded-2xl flex items-center justify-center gap-4 transition-all active:scale-95 shadow-2xl uppercase tracking-tighter text-base group"
@@ -249,11 +249,10 @@ export default function HomePage() {
       </section>
 
       {/* TRUST RIBBON */}
-      <section className="bg-slate-50 py-10 border-y border-slate-200">
+      <section className="bg-slate-50 py-20 border-y border-slate-200">
         <div className="max-w-7xl mx-auto px-4">
            <div className="flex flex-wrap justify-center md:justify-between items-center gap-8 text-slate-500 font-extrabold text-xs uppercase tracking-[0.3em] italic">
               <div className="flex items-center gap-3"><StarIconSolid className="w-5 h-5 text-yellow-400" /> 4.9 GOOGLE RATED</div>
-              <div className="flex items-center gap-3"><ShieldCheckIcon className="w-5 h-5 text-green-500" /> FULLY INSURED & BONDED</div>
               <div className="flex items-center gap-3"><ClockIcon className="w-5 h-5 text-green-500" /> SAME-DAY DIGITAL QUOTES</div>
               <div className="flex items-center gap-3"><SparklesIcon className="w-5 h-5 text-green-500" /> 2025 NEIGHBORHOOD FAV</div>
            </div>
