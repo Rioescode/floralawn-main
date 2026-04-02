@@ -362,25 +362,69 @@ export default function ContactPage() {
                               <input required type="text" name="name" value={formData.name} onChange={handleChange} className="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl px-8 py-5 text-slate-900 focus:outline-none focus:border-green-500 transition-all font-bold placeholder-slate-300" placeholder="e.g. Michael Rossi" />
                            </div>
                            <div>
-                              <label className="text-[10px] font-black italic text-slate-500 uppercase tracking-widest mb-3 block">Phone Number *</label>
+                              <div className="flex items-center justify-between mb-3">
+                                 <label className="text-[10px] font-black italic text-slate-500 uppercase tracking-widest block">Phone Number *</label>
+                                 <div className="flex gap-1">
+                                    {['401', '508', '617', '774'].map(code => (
+                                       <button 
+                                         key={code} 
+                                         type="button" 
+                                         onClick={() => setFormData(prev => ({ ...prev, phone: prev.phone ? prev.phone : `(${code}) ` }))}
+                                         className="text-[9px] font-bold bg-slate-100 text-slate-500 px-2 py-1 rounded-md hover:bg-green-100 hover:text-green-700 transition-colors"
+                                       >
+                                         {code}
+                                       </button>
+                                    ))}
+                                 </div>
+                              </div>
                               <input required type="tel" name="phone" value={formData.phone} onChange={handleChange} className="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl px-8 py-5 text-slate-900 focus:outline-none focus:border-green-500 transition-all font-bold placeholder-slate-300" placeholder="(401) 000-0000" />
                            </div>
                         </div>
 
                         <div>
-                           <label className="text-[10px] font-black italic text-slate-500 uppercase tracking-widest mb-3 block">Email Address *</label>
+                           <div className="flex items-center justify-between mb-3">
+                              <label className="text-[10px] font-black italic text-slate-500 uppercase tracking-widest block">Email Address *</label>
+                              <div className="flex gap-1">
+                                 {['@gmail.com', '@yahoo.com', '@hotmail.com'].map(ext => (
+                                    <button 
+                                      key={ext} 
+                                      type="button" 
+                                      onClick={() => setFormData(prev => ({ ...prev, email: prev.email.includes('@') ? prev.email.split('@')[0] + ext : prev.email + ext }))}
+                                      className="text-[9px] font-bold bg-slate-100 text-slate-500 px-2 py-1 rounded-md hover:bg-green-100 hover:text-green-700 transition-colors"
+                                    >
+                                      {ext}
+                                    </button>
+                                 ))}
+                              </div>
+                           </div>
                            <input required type="email" name="email" value={formData.email} onChange={handleChange} className="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl px-8 py-5 text-slate-900 focus:outline-none focus:border-green-500 transition-all font-bold placeholder-slate-300" placeholder="your@email.com" />
                         </div>
 
                         {/* LOCATION INFO */}
-                        <div className="grid md:grid-cols-1 gap-8">
+                        <div className="grid md:grid-cols-2 gap-8">
+                           <div>
+                              <label className="text-[10px] font-black italic text-slate-500 uppercase tracking-widest mb-3 block">Street Address *</label>
+                              <input 
+                                ref={addressRef}
+                                required 
+                                type="text" 
+                                name="address" 
+                                value={formData.address} 
+                                onChange={handleChange} 
+                                className="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl px-8 py-5 text-slate-900 focus:outline-none focus:border-green-500 transition-all font-bold placeholder-slate-300" 
+                                placeholder="Enter your address..." 
+                              />
+                           </div>
                            <div>
                               <label className="text-[10px] font-black italic text-slate-500 uppercase tracking-widest mb-3 block">City *</label>
-                              <select required name="city" value={formData.city} onChange={handleChange} className="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl px-8 py-5 text-slate-900 focus:outline-none focus:border-green-500 transition-all font-bold appearance-none">
-                                 <option value="">Select City...</option>
-                                 {['Pawtucket', 'Providence', 'East Providence', 'North Providence', 'Johnston', 'Cranston', 'Warwick', 'Attleboro', 'North Attleboro', 'Cumberland', 'Woonsocket', 'Lincoln', 'Barrington', 'Bristol', 'Warren'].map(c => <option key={c} value={c}>{c}</option>)}
-                                 <option value="Other">Other City</option>
-                              </select>
+                              <input 
+                                readOnly 
+                                required 
+                                name="city" 
+                                value={formData.city} 
+                                className="w-full bg-slate-50/70 border-2 border-slate-50 rounded-2xl px-8 py-5 text-slate-500 transition-all font-bold placeholder-slate-400" 
+                                placeholder="Auto-filled from address..." 
+                              />
                            </div>
                         </div>
 
@@ -411,7 +455,7 @@ export default function ContactPage() {
 
                         {/* MESSAGE AREA */}
                         <div>
-                           <label className="text-[10px] font-black italic text-slate-500 uppercase tracking-widest mb-3 block">Message / Inquiry Details *</label>
+                           <label className="text-[10px] font-black italic text-slate-500 uppercase tracking-widest mb-3 block">Message Details *</label>
                            {showMessageHelper && (
                              <div className="mb-4 flex items-center justify-between p-4 bg-green-50 border border-green-100 rounded-xl">
                                 <span className="text-xs font-bold text-green-700">Need help writing?</span>
@@ -434,7 +478,7 @@ export default function ContactPage() {
                                  </div>
                                  <div className="text-left">
                                     <div className="flex items-center gap-2 mb-1.5">
-                                       <span className="bg-green-600 text-white text-[8px] font-black uppercase tracking-[0.2em] px-2 py-0.5 rounded-full leading-none">Elite Benefit</span>
+                                       <span className="bg-green-600 text-white text-[8px] font-black uppercase tracking-[0.2em] px-2 py-0.5 rounded-full leading-none">Photo Reward</span>
                                        <div className="w-1 h-1 rounded-full bg-slate-300" />
                                        <span className="text-[9px] font-black italic text-slate-400 uppercase tracking-widest">Optional</span>
                                     </div>
@@ -442,7 +486,7 @@ export default function ContactPage() {
                                  </div>
                               </div>
                               <div className="bg-yellow-400 text-slate-900 font-black px-5 py-3 rounded-2xl text-[11px] uppercase tracking-widest shadow-2xl flex items-center gap-2 group-hover:bg-slate-950 group-hover:text-white transition-all transform group-hover:translate-x-1">
-                                 Unlock 10% <ArrowRightIcon className="w-4 h-4" />
+                                 Unlock Reward <ArrowRightIcon className="w-4 h-4" />
                               </div>
                            </button>
                         ) : (
