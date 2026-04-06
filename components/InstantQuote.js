@@ -450,10 +450,10 @@ export default function InstantQuoteMap({ onQuoteComplete, selectedPlace, setSel
   return (
     <div className="w-full">
       {selectedPlace && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col lg:flex-row gap-8 min-h-[600px] lg:min-h-[900px]">
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col lg:flex-row gap-4 lg:gap-8 lg:min-h-[900px]">
           <AnimatePresence>
             {selectedPlace && !isAiScanning && (
-              <motion.div initial={{ opacity: 0, x: -50 }} animate={{ opacity: 1, x: 0 }} className="w-full lg:w-[500px] bg-slate-900 border border-white/10 rounded-[2.5rem] lg:rounded-[3.5rem] p-6 lg:p-8 flex flex-col shadow-6xl lg:max-h-[900px] overflow-hidden text-left font-bold">
+              <motion.div initial={{ opacity: 0, x: -50 }} animate={{ opacity: 1, x: 0 }} className="w-full lg:w-[500px] bg-slate-900 border border-white/10 rounded-[2rem] lg:rounded-[3.5rem] p-5 lg:p-8 flex flex-col shadow-6xl lg:max-h-[900px] overflow-hidden text-left font-bold">
                 <div className="mb-4 pb-4 border-b border-white/10 flex flex-col gap-4 flex-shrink-0">
                   <div className="flex justify-between items-start font-bold">
                     <div className="max-w-[280px]">
@@ -465,9 +465,9 @@ export default function InstantQuoteMap({ onQuoteComplete, selectedPlace, setSel
                       <button onClick={() => setShowSettings(true)} className="w-10 h-10 bg-white/5 hover:bg-white/10 rounded-xl flex items-center justify-center transition-all text-slate-500 group"><Cog6ToothIcon className="w-5 h-5 group-hover:rotate-90 group-hover:text-white transition-all duration-500" /></button>
                     )}
                   </div>
-                  <div className="bg-green-500/10 border border-green-500/20 rounded-3xl p-6 text-center">
+                  <div className="bg-green-500/10 border border-green-500/20 rounded-2xl lg:rounded-3xl p-4 lg:p-6 text-center">
                     <p className="text-[8px] font-black text-green-500 uppercase tracking-widest mb-1 opacity-60">Property Scale</p>
-                    <div className="flex items-baseline justify-center gap-2 font-bold"><p className="text-5xl font-black text-white italic tracking-tighter leading-none">{currentArea.toLocaleString()}</p><span className="text-base font-black text-green-500 italic">SQFT</span></div>
+                    <div className="flex items-baseline justify-center gap-2 font-bold"><p className="text-4xl lg:text-5xl font-black text-white italic tracking-tighter leading-none">{currentArea.toLocaleString()}</p><span className="text-sm lg:text-base font-black text-green-500 italic">SQFT</span></div>
                     <div className="flex gap-4 mt-4 font-bold">
                        <button onClick={() => window.startAiScan()} className="flex-1 py-3 bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 font-black uppercase text-[8px] rounded-xl hover:bg-emerald-600/40 tracking-widest flex items-center justify-center gap-2 transition-all"><SparklesIcon className="w-3 h-3" /> AI Re-Scan</button>
                        <button onClick={() => startDrawing('lawn')} className="flex-1 py-3 bg-white/5 border border-white/10 text-slate-400 font-black uppercase text-[8px] rounded-xl hover:bg-white/10 tracking-widest flex items-center justify-center gap-2 transition-all"><MapPinIcon className="w-3 h-3" /> Calibration</button>
@@ -614,21 +614,21 @@ export default function InstantQuoteMap({ onQuoteComplete, selectedPlace, setSel
                   </div>
                 </div>
 
-                <div className="pt-6 border-t border-white/10 flex-shrink-0 font-bold">
-                   <div className="flex justify-between items-end mb-6 px-4 font-bold">
+                <div className="pt-4 lg:pt-6 border-t border-white/10 flex-shrink-0 font-bold">
+                   <div className="flex justify-between items-end mb-4 lg:mb-6 px-2 lg:px-4 font-bold">
                       <div className="text-left font-bold">
-                         <p className="text-sm font-black text-slate-500 uppercase tracking-[0.1em] leading-none mb-2 italic">Total Estimate</p>
+                         <p className="text-xs lg:text-sm font-black text-slate-500 uppercase tracking-[0.1em] leading-none mb-2 italic">Total Estimate</p>
                          {totalDiscount > 0 && (
-                           <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="flex items-center gap-3">
-                             <span className="text-[11px] font-black bg-green-500 text-black px-3 py-1 rounded-lg uppercase tracking-wider">-{Math.round(discountRate * 100)}% REWARD</span>
-                             <span className="text-sm font-black text-slate-500 line-through opacity-60">${quoteBeforeDiscount.toLocaleString()}</span>
+                           <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="flex flex-col lg:flex-row lg:items-center gap-1 lg:gap-3">
+                             <span className="text-[9px] lg:text-[11px] font-black bg-green-500 text-black px-2 py-0.5 lg:px-3 lg:py-1 rounded-lg uppercase tracking-wider inline-block">-{Math.round(discountRate * 100)}% REWARD</span>
+                             <span className="text-xs lg:text-sm font-black text-slate-500 line-through opacity-60">${quoteBeforeDiscount.toLocaleString()}</span>
                            </motion.div>
                          )}
                       </div>
-                      <p className="text-5xl lg:text-7xl font-black text-green-500 italic tracking-tighter leading-none">${totalQuote.toLocaleString()}</p>
+                      <p className="text-4xl lg:text-7xl font-black text-green-500 italic tracking-tighter leading-none">${totalQuote.toLocaleString()}</p>
                    </div>
-                   <div className="flex gap-4 font-bold">
-                      <button onClick={downloadQuotePDF} className="w-16 h-16 lg:w-20 lg:h-20 bg-white/5 hover:bg-white/10 text-white rounded-[1.5rem] lg:rounded-[2rem] flex items-center justify-center transition-all shadow-xl group"><ArrowDownTrayIcon className="w-6 h-6 lg:w-8 lg:h-8 group-hover:translate-y-1 transition-transform" /></button>
+                   <div className="flex gap-3 lg:gap-4 font-bold">
+                      <button onClick={downloadQuotePDF} className="shrink-0 w-14 h-14 lg:w-20 lg:h-20 bg-white/5 hover:bg-white/10 text-white rounded-2xl lg:rounded-[2rem] flex items-center justify-center transition-all shadow-xl group"><ArrowDownTrayIcon className="w-5 h-5 lg:w-8 lg:h-8 group-hover:translate-y-1 transition-transform" /></button>
                       <button onClick={() => {
                         const payload = { 
                           area: currentArea, 
@@ -637,21 +637,21 @@ export default function InstantQuoteMap({ onQuoteComplete, selectedPlace, setSel
                           address: selectedPlace.name 
                         };
                         onQuoteComplete(payload);
-                      }} className="flex-grow h-16 lg:h-20 bg-green-500 hover:bg-green-400 text-black font-black uppercase rounded-[1.5rem] lg:rounded-[2rem] shadow-4xl flex justify-center items-center gap-3 lg:gap-4 transition-all active:scale-95 text-sm lg:text-base">Confirm Rate <ArrowRightIcon className="w-5 h-5 lg:w-6 lg:h-6" /></button>
+                      }} className="flex-grow h-14 lg:h-20 bg-green-500 hover:bg-green-400 text-black font-black uppercase rounded-2xl lg:rounded-[2rem] shadow-4xl flex justify-center items-center gap-2 lg:gap-4 transition-all active:scale-95 text-xs lg:text-base">Confirm Rate <ArrowRightIcon className="w-4 h-4 lg:w-6 lg:h-6" /></button>
                    </div>
                 </div>
               </motion.div>
             )}
           </AnimatePresence>
 
-          <div className="flex-grow relative rounded-[4rem] overflow-hidden shadow-6xl border-8 border-white bg-slate-950 flex flex-col">
-             <div ref={mapRef} className="w-full h-full" />
+          <div className="order-first lg:order-none min-h-[400px] lg:min-h-0 flex-grow relative rounded-[2rem] lg:rounded-[4rem] overflow-hidden shadow-6xl border-4 lg:border-8 border-white bg-slate-950 flex flex-col">
+             <div ref={mapRef} className="w-full h-full min-h-[400px] lg:min-h-full" />
              <AnimatePresence>
                 {isDrawingMode && (
-                  <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="absolute top-12 left-1/2 -translate-x-1/2 z-50 bg-slate-900 border-4 border-white px-10 py-6 rounded-[2rem] shadow-6xl flex items-center gap-6 font-bold">
-                     <div className={`w-12 h-12 rounded-full flex items-center justify-center animate-pulse ${drawingTarget === 'overseed' ? 'bg-emerald-500' : drawingTarget === 'mulch' ? 'bg-amber-500' : 'bg-green-500'}`}><SparklesIcon className="w-6 h-6 text-black" /></div>
-                     <div className="text-left"><p className="text-2xl font-black text-white italic uppercase tracking-tighter leading-none mb-1">MEASURING {drawingTarget.toUpperCase()}</p><p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Isolated spot detection active...</p></div>
-                     <button onClick={() => { setIsDrawingMode(false); drawingManagerRef.current.setDrawingMode(null); }} className="ml-4 p-2 bg-white/5 rounded-full"><XMarkIcon className="w-6 h-6 text-white" /></button>
+                  <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="absolute top-4 lg:top-12 left-1/2 -translate-x-1/2 z-50 bg-slate-900 border-4 border-white px-4 lg:px-10 py-4 lg:py-6 rounded-[2rem] shadow-6xl flex items-center gap-4 lg:gap-6 font-bold w-[90%] lg:w-auto">
+                     <div className={`shrink-0 w-10 h-10 lg:w-12 lg:h-12 rounded-full flex items-center justify-center animate-pulse ${drawingTarget === 'overseed' ? 'bg-emerald-500' : drawingTarget === 'mulch' ? 'bg-amber-500' : 'bg-green-500'}`}><SparklesIcon className="w-5 h-5 lg:w-6 lg:h-6 text-black" /></div>
+                     <div className="text-left"><p className="text-lg lg:text-2xl font-black text-white italic uppercase tracking-tighter leading-none mb-1">MEASURING {drawingTarget.toUpperCase()}</p><p className="text-[8px] lg:text-[10px] font-black text-slate-500 uppercase tracking-widest hidden sm:block">Isolated spot detection active...</p></div>
+                     <button onClick={() => { setIsDrawingMode(false); drawingManagerRef.current.setDrawingMode(null); }} className="ml-auto p-2 bg-white/5 rounded-full"><XMarkIcon className="w-5 h-5 lg:w-6 lg:h-6 text-white" /></button>
                   </motion.div>
                 )}
              </AnimatePresence>

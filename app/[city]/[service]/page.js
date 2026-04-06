@@ -81,10 +81,10 @@ export default async function ServicePage({ params }) {
   const h1 = service.h1Variations[Math.floor(Math.random() * service.h1Variations.length)].replace('{city}', cityName);
 
   const baseUrl = getBaseUrl();
-  const serviceSchema = generateServiceSchema(service, city.name);
+  const serviceSchema = generateServiceSchema(service, cityName);
   const breadcrumbSchema = generateBreadcrumbSchema([
     { name: 'Home', url: baseUrl },
-    { name: city.name, url: `${baseUrl}/${params.city}` },
+    { name: cityName, url: `${baseUrl}/${params.city}` },
     { name: service.title, url: `${baseUrl}/${params.city}/${params.service}` }
   ]);
 
