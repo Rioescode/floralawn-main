@@ -73,6 +73,7 @@ export default function SchedulePage() {
     service_type: 'lawn_mowing', status: 'active', notes: '', scheduled_day: ''
   });
   const [addingCustomer, setAddingCustomer] = useState(false);
+  const [newlyAddedIds, setNewlyAddedIds] = useState(new Set());
   const newCustomerAddressRef = useRef(null);
   const [homeBase, setHomeBase] = useState(''); // Home base address
   const [proximityData, setProximityData] = useState({}); // Store proximity calculations
@@ -1334,7 +1335,6 @@ export default function SchedulePage() {
 
   const addNewCustomer = async () => {
     if (!newCustomerForm.name.trim()) { alert('Name is required'); return; }
-    if (!newCustomerForm.phone.trim()) { alert('Phone is required'); return; }
     if (!newCustomerForm.price) { alert('Price is required'); return; }
     setAddingCustomer(true);
     try {
@@ -1357,6 +1357,7 @@ export default function SchedulePage() {
         .single();
       if (error) throw error;
       setCustomers(prev => [...prev, data]);
+      setNewlyAddedIds(prev => new Set([...prev, data.id]));
       setShowAddCustomerModal(false);
       alert(`✅ ${data.name} added successfully!`);
     } catch (err) {
@@ -1928,6 +1929,9 @@ export default function SchedulePage() {
 
         {/* Status badges - positioned absolutely */}
         <div className="absolute top-2.5 right-2.5 flex gap-1.5 z-10">
+          {newlyAddedIds.has(customer.id) && (
+            <span className="px-2 py-0.5 bg-gradient-to-r from-violet-500 to-purple-600 text-white text-[10px] font-black rounded-full tracking-wider uppercase animate-pulse shadow-lg shadow-purple-500/30">✦ New</span>
+          )}
           {isCompleted && (
             <span className="px-2 py-0.5 bg-green-500 text-white text-[10px] font-bold rounded-full tracking-wider uppercase">✓ Done</span>
           )}
@@ -2895,7 +2899,7 @@ export default function SchedulePage() {
                 {/* Phone + Email */}
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Phone <span className="text-red-400">*</span></label>
+                    <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Phone</label>
                     <input
                       type="tel"
                       value={newCustomerForm.phone}
