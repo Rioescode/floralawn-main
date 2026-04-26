@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase, supabaseAdmin } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import CustomerMap from '@/app/components/CustomerMap';
@@ -65,6 +65,8 @@ export default function SchedulePage() {
   const [showSmartAssignModal, setShowSmartAssignModal] = useState(false);
   const [smartAssignLoading, setSmartAssignLoading] = useState(false);
   const [editingNotes, setEditingNotes] = useState({});
+  const [editingAddress, setEditingAddress] = useState({}); // { [customerId]: currentAddressString }
+  const addressInputRefs = useRef({});
   const [homeBase, setHomeBase] = useState(''); // Home base address
   const [proximityData, setProximityData] = useState({}); // Store proximity calculations
   const [loadingProximity, setLoadingProximity] = useState(false);
@@ -1250,6 +1252,54 @@ export default function SchedulePage() {
     setSearchTerm('');
   };
 
+  // ---------- Address editing with Google Places ----------
+  const startEditingAddress = (customer) => {
+    setEditingAddress(prev => ({ ...prev, [customer.id]: customer.address || '' }));
+    // Init autocomplete after the input renders
+    setTimeout(() => initAddressAutocomplete(customer.id), 150);
+  };
+
+  const cancelEditingAddress = (customerId) => {
+    setEditingAddress(prev => { const s = { ...prev }; delete s[customerId]; return s; });
+  };
+
+  const initAddressAutocomplete = (customerId) => {
+    const inputEl = addressInputRefs.current[customerId];
+    if (!inputEl || !window.google?.maps) return;
+    try {
+      const ac = new window.google.maps.places.Autocomplete(inputEl, {
+        componentRestrictions: { country: 'us' },
+        fields: ['formatted_address'],
+        types: ['address']
+      });
+      ac.addListener('place_changed', () => {
+        const place = ac.getPlace();
+        if (place.formatted_address) {
+          setEditingAddress(prev => ({ ...prev, [customerId]: place.formatted_address }));
+          inputEl.value = place.formatted_address;
+        }
+      });
+    } catch (err) {
+      console.error('Autocomplete init error:', err);
+    }
+  };
+
+  const updateCustomerAddress = async (customerId, address) => {
+    if (!address.trim()) return;
+    try {
+      const { error } = await supabase
+        .from('customers')
+        .update({ address: address.trim() })
+        .eq('id', customerId);
+      if (error) throw error;
+      setCustomers(prev => prev.map(c => c.id === customerId ? { ...c, address: address.trim() } : c));
+      setEditingAddress(prev => { const s = { ...prev }; delete s[customerId]; return s; });
+    } catch (err) {
+      console.error('Error updating address:', err);
+      alert('Failed to update address');
+    }
+  };
+
   // Load home base address from Supabase
   const loadHomeBaseAddress = async () => {
     try {
@@ -1920,17 +1970,40 @@ export default function SchedulePage() {
               )}
             </div>
 
-            {/* Full address */}
-            {customer.address && (
-              <a 
-                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(customer.address)}`}
-                target="_blank" rel="noopener noreferrer"
-                onClick={(e) => e.stopPropagation()}
-                className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-blue-400 transition-colors"
-              >
-                <MapPinIcon className="h-3.5 w-3.5 shrink-0" />{customer.address}
-              </a>
-            )}
+            {/* Full address — click to edit with Google Places */}
+            <div className="pt-0.5" onClick={(e) => e.stopPropagation()}>
+              {editingAddress[customer.id] !== undefined ? (
+                <div className="space-y-2">
+                  <input
+                    ref={el => addressInputRefs.current[customer.id] = el}
+                    type="text"
+                    defaultValue={editingAddress[customer.id]}
+                    onChange={(e) => setEditingAddress(prev => ({ ...prev, [customer.id]: e.target.value }))}
+                    placeholder="Start typing address..."
+                    className="w-full p-2 bg-white/5 border border-blue-500/30 rounded-xl text-xs text-gray-300 outline-none focus:border-blue-400/60 placeholder-gray-600"
+                    autoFocus
+                  />
+                  <div className="flex justify-end gap-2">
+                    <button onClick={() => cancelEditingAddress(customer.id)} className="px-3 py-1 text-xs text-gray-500 hover:text-white transition-colors">Cancel</button>
+                    <button
+                      onClick={() => updateCustomerAddress(customer.id, addressInputRefs.current[customer.id]?.value || editingAddress[customer.id])}
+                      className="px-3 py-1 bg-blue-500/20 text-blue-400 rounded-lg text-xs font-medium hover:bg-blue-500/30 transition-all"
+                    >Save</button>
+                  </div>
+                </div>
+              ) : (
+                <div
+                  onClick={() => startEditingAddress(customer)}
+                  className="flex items-center gap-1.5 cursor-pointer group/addr"
+                >
+                  <MapPinIcon className="h-3.5 w-3.5 shrink-0 text-gray-600 group-hover/addr:text-blue-400 transition-colors" />
+                  <span className="text-xs text-gray-500 group-hover/addr:text-blue-400 transition-colors">
+                    {customer.address || <span className="italic text-gray-700">Click to add address...</span>}
+                  </span>
+                  <PencilIcon className="h-3 w-3 text-gray-700 opacity-0 group-hover/addr:opacity-100 transition-opacity shrink-0" />
+                </div>
+              )}
+            </div>
 
             {/* Route details */}
             {customer.route_order && customer.travel_time_to_next && (
