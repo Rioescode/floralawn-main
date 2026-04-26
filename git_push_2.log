@@ -1,0 +1,24 @@
+git : To https://github.co
+m/Rioescode/floralawn-main
+.git
+En línea: 1 Carácter: 63
++ ...  BUILD FIX: API 
+Routes Dynamic"; git push 
+-u origin main 2>&1 | 
+Out-S ...
++                         
+             ~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~
+    + CategoryInfo        
+      : NotSpecified: (T  
+  o https://gith...rala   
+ wn-main.git:String) [    
+], RemoteException
+    + FullyQualifiedError 
+   Id : NativeCommandErr  
+  or
+ 
+   3c69328..31970ea  main 
+-> main
+branch 'main' set up to track 'origin/main'.
+

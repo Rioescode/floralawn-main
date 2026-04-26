@@ -1,0 +1,2718 @@
+"use client";
+
+import { useState, useEffect } from 'react';
+import { supabase, supabaseAdmin } from '@/lib/supabase';
+import { useRouter } from 'next/navigation';
+import CustomerMap from '@/app/components/CustomerMap';
+import {
+  CalendarDaysIcon,
+  UserIcon,
+  PhoneIcon,
+  MapPinIcon,
+  CurrencyDollarIcon,
+  ClockIcon,
+  PlusIcon,
+  PencilIcon,
+  CheckIcon,
+  XMarkIcon,
+  BanknotesIcon,
+  ChartBarIcon,
+  DocumentTextIcon,
+  MagnifyingGlassIcon,
+  MapIcon,
+  CheckCircleIcon,
+  XCircleIcon
+} from '@heroicons/react/24/outline';
+
+const DAYS_OF_WEEK = [
+  'Monday Week 1',
+  'Monday Week 2',
+  'Tuesday Week 1', 
+  'Tuesday Week 2',
+  'Wednesday Week 1',
+  'Wednesday Week 2',
+  'Thursday Week 1',
+  'Thursday Week 2',
+  'Friday Week 1',
+  'Friday Week 2',
+  'Saturday Week 1',
+  'Saturday Week 2',
+  'Sunday Week 1',
+  'Sunday Week 2'
+];
+
+export default function SchedulePage() {
+  const [customers, setCustomers] = useState([]);
+  const [filteredCustomers, setFilteredCustomers] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [daySearchTerms, setDaySearchTerms] = useState({});
+  const [draggedCustomer, setDraggedCustomer] = useState(null);
+  const [dragOverDay, setDragOverDay] = useState(null);
+  const [selectedWeek, setSelectedWeek] = useState('Week 1'); // New state for week selection
+  const [selectedDay, setSelectedDay] = useState(null); // New state for single day selection
+  const [schedule, setSchedule] = useState({});
+  const [unassignedCustomers, setUnassignedCustomers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState(null);
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [selectedCustomers, setSelectedCustomers] = useState([]);
+  const [selectedDayCustomers, setSelectedDayCustomers] = useState({}); // Track selected customers per day
+  const [completedCustomers, setCompletedCustomers] = useState({}); // Track completed customers per day
+  const [movedCustomers, setMovedCustomers] = useState({}); // Track customers moved to next day
+  const [viewMode, setViewMode] = useState('schedule'); // 'schedule' or 'map'
+  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [showBulkAssignModal, setShowBulkAssignModal] = useState(false);
+  const [showSmartAssignModal, setShowSmartAssignModal] = useState(false);
+  const [smartAssignLoading, setSmartAssignLoading] = useState(false);
+  const [editingNotes, setEditingNotes] = useState({});
+  const [homeBase, setHomeBase] = useState(''); // Home base address
+  const [proximityData, setProximityData] = useState({}); // Store proximity calculations
+  const [loadingProximity, setLoadingProximity] = useState(false);
+  const [loadingHomeBase, setLoadingHomeBase] = useState(false);
+  const [showMarkDoneModal, setShowMarkDoneModal] = useState(false);
+  const [selectedCustomerForDone, setSelectedCustomerForDone] = useState(null);
+  const [completionMessage, setCompletionMessage] = useState('');
+  const [sendEmail, setSendEmail] = useState(true);
+  const [sendSMS, setSendSMS] = useState(false);
+  const [markingDone, setMarkingDone] = useState(false);
+  const [earnings, setEarnings] = useState({
+    daily: {},
+    weekly: 0,
+    biWeekly: 0,
+    totalWeekly: 0,
+    totalBiWeekly: 0,
+    grandTotal: 0,
+    week1: 0,
+    week2: 0
+  });
+  const router = useRouter();
+
+  // Helper functions for localStorage persistence
+  const getTodayKey = () => {
+    const today = new Date();
+    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  };
+
+  const saveCompletedCustomersToStorage = (completedData) => {
+    if (typeof window !== 'undefined') {
+      const todayKey = getTodayKey();
+      localStorage.setItem(`completedCustomers_${todayKey}`, JSON.stringify(completedData));
+    }
+  };
+
+  const loadCompletedCustomersFromStorage = () => {
+    if (typeof window !== 'undefined') {
+      const todayKey = getTodayKey();
+      const saved = localStorage.getItem(`completedCustomers_${todayKey}`);
+      return saved ? JSON.parse(saved) : {};
+    }
+    return {};
+  };
+
+  const saveMovedCustomersToStorage = (movedData) => {
+    if (typeof window !== 'undefined') {
+      const todayKey = getTodayKey();
+      localStorage.setItem(`movedCustomers_${todayKey}`, JSON.stringify(movedData));
+    }
+  };
+
+  const loadMovedCustomersFromStorage = () => {
+    if (typeof window !== 'undefined') {
+      const todayKey = getTodayKey();
+      const saved = localStorage.getItem(`movedCustomers_${todayKey}`);
+      return saved ? JSON.parse(saved) : {};
+    }
+    return {};
+  };
+
+  const saveScheduleToStorage = (scheduleData) => {
+    if (typeof window !== 'undefined') {
+      const todayKey = getTodayKey();
+      localStorage.setItem(`schedule_${todayKey}`, JSON.stringify(scheduleData));
+    }
+  };
+
+  const loadScheduleFromStorage = () => {
+    if (typeof window !== 'undefined') {
+      const todayKey = getTodayKey();
+      const saved = localStorage.getItem(`schedule_${todayKey}`);
+      return saved ? JSON.parse(saved) : null;
+    }
+    return null;
+  };
+
+  // Function to get current week based on date
+  const getCurrentWeek = () => {
+    const now = new Date();
+    const weekNumber = Math.ceil(now.getDate() / 7);
+    return weekNumber % 2 === 0 ? 'Week 1' : 'Week 2';
+  };
+
+  // Function to get date for a day string (e.g., "Tuesday Week 2")
+  const getDateForDay = (dayString) => {
+    if (!dayString) return new Date().toISOString();
+    
+    const parts = dayString.split(' ');
+    const dayName = parts[0]; // "Tuesday"
+    const week = parts[1] + ' ' + parts[2]; // "Week 2"
+    
+    const dayOrder = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const dayIndex = dayOrder.indexOf(dayName);
+    
+    if (dayIndex === -1) return new Date().toISOString();
+    
+    const now = new Date();
+    const currentDay = now.getDay();
+    const currentWeek = getCurrentWeek();
+    
+    // Calculate days difference
+    let daysDiff = dayIndex - currentDay;
+    
+    // Adjust for week difference
+    if (week !== currentWeek) {
+      daysDiff += week === 'Week 1' ? -7 : 7;
+    }
+    
+    // If day is in the past, move to next occurrence
+    if (daysDiff < 0) {
+      daysDiff += 14; // Move to next bi-weekly cycle
+    }
+    
+    const targetDate = new Date(now);
+    targetDate.setDate(now.getDate() + daysDiff);
+    
+    return targetDate.toISOString();
+  };
+
+  // Function to get current day name
+  const getCurrentDayName = () => {
+    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    return days[new Date().getDay()];
+  };
+
+  // Set initial week based on current date
+  useEffect(() => {
+    const currentWeek = getCurrentWeek();
+    setSelectedWeek(currentWeek);
+  }, []);
+
+  // Load completed customers from appointments table
+  const loadCompletedCustomersFromDB = async () => {
+    try {
+      const { data: completedAppointments, error } = await supabase
+        .from('appointments')
+        .select('customer_id, date, status')
+        .eq('status', 'completed')
+        .gte('date', new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]); // Last 14 days
+
+      if (error) {
+        console.error('Error loading completed customers:', error);
+        return;
+      }
+
+      // Get customer IDs and fetch their scheduled_day
+      if (completedAppointments && completedAppointments.length > 0) {
+        const customerIds = [...new Set(completedAppointments.map(apt => apt.customer_id).filter(Boolean))];
+        
+        if (customerIds.length > 0) {
+          const { data: customersData } = await supabase
+            .from('customers')
+            .select('id, scheduled_day')
+            .in('id', customerIds);
+
+          // Group by scheduled_day
+          const completedByDay = {};
+          
+          completedAppointments.forEach(apt => {
+            const customer = customersData?.find(c => c.id === apt.customer_id);
+            if (customer && customer.scheduled_day) {
+              const dayKey = customer.scheduled_day;
+              if (!completedByDay[dayKey]) {
+                completedByDay[dayKey] = [];
+              }
+              if (!completedByDay[dayKey].includes(apt.customer_id)) {
+                completedByDay[dayKey].push(apt.customer_id);
+              }
+            }
+          });
+
+          // Merge with existing localStorage data
+          setCompletedCustomers(prev => {
+            const merged = { ...prev };
+            Object.keys(completedByDay).forEach(day => {
+              merged[day] = [...new Set([...(merged[day] || []), ...completedByDay[day]])];
+            });
+            return merged;
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error loading completed customers from DB:', error);
+    }
+  };
+
+  // Load persisted states on component mount
+  useEffect(() => {
+    const savedCompleted = loadCompletedCustomersFromStorage();
+    const savedMoved = loadMovedCustomersFromStorage();
+    
+    setCompletedCustomers(savedCompleted);
+    setMovedCustomers(savedMoved);
+    
+    // Also load from database
+    loadCompletedCustomersFromDB();
+  }, []);
+
+  // Save completed customers to localStorage whenever it changes
+  useEffect(() => {
+    saveCompletedCustomersToStorage(completedCustomers);
+  }, [completedCustomers]);
+
+  // Save moved customers to localStorage whenever it changes
+  useEffect(() => {
+    saveMovedCustomersToStorage(movedCustomers);
+  }, [movedCustomers]);
+
+  // Apply saved schedule changes when customers or moved customers change
+  useEffect(() => {
+    if (customers.length > 0 && Object.keys(movedCustomers).length > 0) {
+      organizeSchedule();
+    }
+  }, [customers, movedCustomers]);
+
+  useEffect(() => {
+    checkAuth();
+  }, []);
+
+  useEffect(() => {
+    if (user) {
+      fetchCustomers();
+      loadHomeBaseAddress();
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (customers.length > 0) {
+      organizeSchedule();
+    }
+  }, [customers]);
+
+  // New useEffect for search functionality
+  useEffect(() => {
+    if (!searchTerm.trim()) {
+      setFilteredCustomers(customers);
+      organizeSchedule();
+      } else {
+      const filtered = customers.filter(customer => 
+        customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        customer.phone.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (customer.address && customer.address.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (customer.notes && customer.notes.toLowerCase().includes(searchTerm.toLowerCase()))
+      );
+      setFilteredCustomers(filtered);
+      organizeScheduleWithFiltered(filtered);
+    }
+  }, [searchTerm, customers]);
+
+  const checkAuth = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        router.push('/login');
+        return;
+      }
+      
+      if (user.email !== 'esckoofficial@gmail.com') {
+        router.push('/');
+        return;
+      }
+      
+      setUser(user);
+    } catch (error) {
+      console.error('Auth error:', error);
+      router.push('/login');
+    }
+  };
+
+  const fetchCustomers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('customers')
+        .select('*')
+        .in('status', ['active', 'pending'])
+        .in('frequency', ['weekly', 'bi_weekly'])
+        .order('name');
+
+      if (error) throw error;
+      
+      // Set customers with proximity data
+      const customersWithProximity = data || [];
+      setCustomers(customersWithProximity);
+      
+      // Update proximity data state from database fields
+      const proximityFromDB = {};
+      customersWithProximity.forEach(customer => {
+        if (customer.distance_miles || customer.travel_time) {
+          proximityFromDB[customer.id] = {
+            distanceText: customer.distance_miles ? `${customer.distance_miles} mi` : null,
+            durationText: customer.travel_time || null,
+            distance: customer.distance_miles ? parseFloat(customer.distance_miles) * 1609.34 : null // Convert to meters
+          };
+        }
+      });
+      setProximityData(proximityFromDB);
+      
+    } catch (error) {
+      console.error('Error fetching customers:', error);
+    } finally {
+        setLoading(false);
+      }
+  };
+
+  const organizeSchedule = () => {
+    const scheduleByDay = {};
+    const unassigned = [];
+
+    // Initialize schedule for each day
+    DAYS_OF_WEEK.forEach(day => {
+      scheduleByDay[day] = [];
+    });
+
+    customers.forEach(customer => {
+      if (customer.scheduled_day && DAYS_OF_WEEK.includes(customer.scheduled_day)) {
+        scheduleByDay[customer.scheduled_day].push(customer);
+      } else {
+        unassigned.push(customer);
+      }
+    });
+
+    // Apply moved customers from localStorage
+    const savedMoved = loadMovedCustomersFromStorage();
+    
+    // Create a map of customer IDs to customer objects for quick lookup
+    const customerMap = {};
+    customers.forEach(customer => {
+      customerMap[customer.id] = customer;
+    });
+
+    // Apply moved customers to their new days
+    Object.entries(savedMoved).forEach(([day, movedCustomerIds]) => {
+      if (movedCustomerIds && movedCustomerIds.length > 0) {
+        movedCustomerIds.forEach(customerId => {
+          const customer = customerMap[customerId];
+          if (customer) {
+            // Remove from original day
+            const originalDay = customer.scheduled_day;
+            if (originalDay && scheduleByDay[originalDay]) {
+              scheduleByDay[originalDay] = scheduleByDay[originalDay].filter(c => c.id !== customerId);
+            }
+            
+            // Add to new day
+            if (scheduleByDay[day]) {
+              // Check if customer is not already in the day to avoid duplicates
+              const existsInDay = scheduleByDay[day].some(c => c.id === customerId);
+              if (!existsInDay) {
+                scheduleByDay[day].push(customer);
+              }
+            }
+          }
+        });
+      }
+    });
+
+    setSchedule(scheduleByDay);
+    setUnassignedCustomers(unassigned);
+    calculateEarnings(scheduleByDay, customers);
+    
+    // Save the modified schedule to localStorage
+    saveScheduleToStorage(scheduleByDay);
+  };
+
+  const organizeScheduleWithFiltered = (filteredCustomerList) => {
+    const scheduleByDay = {};
+    const unassigned = [];
+
+    // Initialize schedule for each day
+    DAYS_OF_WEEK.forEach(day => {
+      scheduleByDay[day] = [];
+    });
+
+    filteredCustomerList.forEach(customer => {
+      if (customer.scheduled_day && DAYS_OF_WEEK.includes(customer.scheduled_day)) {
+        scheduleByDay[customer.scheduled_day].push(customer);
+      } else {
+        unassigned.push(customer);
+      }
+    });
+
+    // Apply moved customers from localStorage
+    const savedMoved = loadMovedCustomersFromStorage();
+    
+    // Create a map of customer IDs to customer objects for quick lookup
+    const customerMap = {};
+    filteredCustomerList.forEach(customer => {
+      customerMap[customer.id] = customer;
+    });
+
+    // Apply moved customers to their new days
+    Object.entries(savedMoved).forEach(([day, movedCustomerIds]) => {
+      if (movedCustomerIds && movedCustomerIds.length > 0) {
+        movedCustomerIds.forEach(customerId => {
+          const customer = customerMap[customerId];
+          if (customer) {
+            // Remove from original day
+            const originalDay = customer.scheduled_day;
+            if (originalDay && scheduleByDay[originalDay]) {
+              scheduleByDay[originalDay] = scheduleByDay[originalDay].filter(c => c.id !== customerId);
+            }
+            
+            // Add to new day
+            if (scheduleByDay[day]) {
+              // Check if customer is not already in the day to avoid duplicates
+              const existsInDay = scheduleByDay[day].some(c => c.id === customerId);
+              if (!existsInDay) {
+                scheduleByDay[day].push(customer);
+              }
+            }
+          }
+        });
+      }
+    });
+
+    setSchedule(scheduleByDay);
+    setUnassignedCustomers(unassigned);
+    calculateEarnings(scheduleByDay, filteredCustomerList);
+    
+    // Save the modified schedule to localStorage
+    saveScheduleToStorage(scheduleByDay);
+  };
+
+  // Calculate earnings for weekly and bi-weekly customers
+  const calculateEarnings = (scheduleByDay, allCustomers) => {
+    const dailyEarnings = {};
+    let weeklyTotal = 0;
+    let biWeeklyTotal = 0;
+    let weeklyCustomers = 0;
+    let biWeeklyCustomers = 0;
+    
+    // Week-specific earnings
+    let week1Earnings = 0;
+    let week2Earnings = 0;
+
+    // Calculate earnings for each specific day (including week)
+    DAYS_OF_WEEK.forEach(day => {
+      const dayCustomers = scheduleByDay[day] || [];
+      
+      const weeklyEarnings = dayCustomers
+        .filter(c => c.frequency === 'weekly')
+        .reduce((sum, c) => sum + parseFloat(c.price || 0), 0);
+      
+      const biWeeklyEarnings = dayCustomers
+        .filter(c => c.frequency === 'bi_weekly')
+        .reduce((sum, c) => sum + parseFloat(c.price || 0), 0);
+
+      dailyEarnings[day] = {
+        weekly: weeklyEarnings,
+        biWeekly: biWeeklyEarnings,
+        total: weeklyEarnings + biWeeklyEarnings,
+        weeklyCount: dayCustomers.filter(c => c.frequency === 'weekly').length,
+        biWeeklyCount: dayCustomers.filter(c => c.frequency === 'bi_weekly').length,
+        totalCount: dayCustomers.length
+      };
+
+      weeklyTotal += weeklyEarnings;
+      biWeeklyTotal += biWeeklyEarnings;
+      
+      // Calculate week-specific earnings
+      if (day.includes('Week 1')) {
+        week1Earnings += weeklyEarnings + biWeeklyEarnings;
+      } else if (day.includes('Week 2')) {
+        week2Earnings += weeklyEarnings + biWeeklyEarnings;
+      }
+    });
+
+    // Count total customers by frequency
+    allCustomers.forEach(customer => {
+      if (customer.frequency === 'weekly') weeklyCustomers++;
+      if (customer.frequency === 'bi_weekly') biWeeklyCustomers++;
+    });
+
+    // Calculate monthly projections
+    const totalWeeklyMonthly = weeklyTotal * 4; // 4 weeks per month
+    const totalBiWeeklyMonthly = biWeeklyTotal * 2; // 2 times per month
+    const grandTotalMonthly = totalWeeklyMonthly + totalBiWeeklyMonthly;
+
+    setEarnings({
+      daily: dailyEarnings,
+      weekly: weeklyTotal,
+      biWeekly: biWeeklyTotal,
+      totalWeekly: totalWeeklyMonthly,
+      totalBiWeekly: totalBiWeeklyMonthly,
+      grandTotal: grandTotalMonthly,
+      weeklyCustomers,
+      biWeeklyCustomers,
+      week1: week1Earnings,
+      week2: week2Earnings
+    });
+  };
+
+  const assignCustomerToDay = async (customerId, day) => {
+    try {
+      const { error } = await supabase
+        .from('customers')
+        .update({ scheduled_day: day })
+        .eq('id', customerId);
+
+      if (error) throw error;
+      
+      // Update local state
+      setCustomers(prev => prev.map(customer => 
+        customer.id === customerId 
+          ? { ...customer, scheduled_day: day }
+          : customer
+      ));
+      
+      setShowAssignModal(false);
+      setSelectedCustomer(null);
+
+      // Recalculate earnings
+      const updatedCustomers = customers.map(customer => 
+        customer.id === customerId 
+          ? { ...customer, scheduled_day: day }
+          : customer
+      );
+      organizeScheduleWithFiltered(updatedCustomers);
+
+      // Recalculate route for the day if home base is set
+      if (homeBase.trim()) {
+        await calculateDayRoute(day);
+      }
+    } catch (error) {
+      console.error('Error assigning customer:', error);
+      alert('Error assigning customer to day');
+    }
+  };
+
+  // New bulk assignment function
+  const assignMultipleCustomersToDay = async (customerIds, day) => {
+    try {
+      const { error } = await supabase
+        .from('customers')
+        .update({ scheduled_day: day })
+        .in('id', customerIds);
+
+      if (error) throw error;
+      
+      // Update local state
+      setCustomers(prev => prev.map(customer => 
+        customerIds.includes(customer.id)
+          ? { ...customer, scheduled_day: day }
+          : customer
+      ));
+      
+      setShowBulkAssignModal(false);
+      setSelectedCustomers([]);
+      
+      alert(`Successfully assigned ${customerIds.length} customers to ${day}`);
+
+      // Recalculate earnings
+      const updatedCustomers = customers.map(customer => 
+        customerIds.includes(customer.id)
+          ? { ...customer, scheduled_day: day }
+          : customer
+      );
+      organizeScheduleWithFiltered(updatedCustomers);
+
+      // Recalculate route for the day if home base is set
+      if (homeBase.trim()) {
+        await calculateDayRoute(day);
+      }
+    } catch (error) {
+      console.error('Error assigning customers:', error);
+      alert('Error assigning customers to day');
+    }
+  };
+
+  const unassignCustomer = async (customerId) => {
+    try {
+      const { error } = await supabase
+        .from('customers')
+        .update({ scheduled_day: null })
+        .eq('id', customerId);
+
+      if (error) throw error;
+      
+      setCustomers(prev => prev.map(customer => 
+        customer.id === customerId 
+          ? { ...customer, scheduled_day: null }
+          : customer
+      ));
+
+      // Recalculate earnings
+      const updatedCustomers = customers.map(customer => 
+        customer.id === customerId 
+          ? { ...customer, scheduled_day: null }
+          : customer
+      );
+      organizeScheduleWithFiltered(updatedCustomers);
+    } catch (error) {
+      console.error('Error unassigning customer:', error);
+      alert('Error unassigning customer');
+    }
+  };
+
+  const removeCustomer = async (customerId, customerName) => {
+    if (!confirm(`Are you sure you want to permanently remove ${customerName} from your customers? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('customers')
+        .delete()
+        .eq('id', customerId);
+
+      if (error) throw error;
+      
+      // Remove from local state
+      setCustomers(prev => prev.filter(customer => customer.id !== customerId));
+    } catch (error) {
+      console.error('Error removing customer:', error);
+      alert('Error removing customer');
+    }
+  };
+
+  const scratchCustomer = async (customerId, customerName) => {
+    if (!confirm(`Are you sure you want to scratch ${customerName} from this year's schedule? They will be marked as cancelled and removed from the active schedule.`)) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('customers')
+        .update({ status: 'cancelled', scheduled_day: null })
+        .eq('id', customerId);
+
+      if (error) throw error;
+      
+      // Remove from local state because schedule only shows active/pending
+      setCustomers(prev => prev.filter(customer => customer.id !== customerId));
+      
+      alert(`${customerName} has been scratched for this year.`);
+    } catch (error) {
+      console.error('Error scratching customer:', error);
+      alert('Error scratching customer');
+    }
+  };
+
+  const handleBulkDeleteCustomers = async () => {
+    if (!selectedCustomers.length) return;
+    if (!confirm(`Are you sure you want to permanently delete these ${selectedCustomers.length} customers? This action cannot be undone.`)) return;
+
+    setLoading(true);
+    try {
+      const { error } = await supabase
+        .from('customers')
+        .delete()
+        .in('id', selectedCustomers);
+
+      if (error) throw error;
+
+      alert(`Successfully deleted ${selectedCustomers.length} customers.`);
+      setSelectedCustomers([]);
+      fetchCustomers();
+    } catch (error) {
+      console.error('Error deleting customers:', error);
+      alert('Error deleting customers. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleBulkScratchCustomers = async () => {
+    if (!selectedCustomers.length) return;
+    if (!confirm(`Are you sure you want to scratch ${selectedCustomers.length} customers from this year's schedule? This marks them as cancelled.`)) return;
+
+    setLoading(true);
+    try {
+      const { error } = await supabase
+        .from('customers')
+        .update({ status: 'cancelled', scheduled_day: null })
+        .in('id', selectedCustomers);
+
+      if (error) throw error;
+
+      alert(`Successfully scratched ${selectedCustomers.length} customers.`);
+      setSelectedCustomers([]);
+      fetchCustomers();
+    } catch (error) {
+      console.error('Error scratching customers:', error);
+      alert('Error scratching customers. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Multi-select functions
+  const toggleCustomerSelection = (customerId, event) => {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    setSelectedCustomers(prev => 
+      prev.includes(customerId)
+        ? prev.filter(id => id !== customerId)
+        : [...prev, customerId]
+    );
+  };
+
+  const selectAllUnassigned = () => {
+    if (selectedCustomers.length === unassignedCustomers.length) {
+      setSelectedCustomers([]);
+      } else {
+      setSelectedCustomers(unassignedCustomers.map(c => c.id));
+    }
+  };
+
+  const clearSelection = () => {
+    setSelectedCustomers([]);
+  };
+
+  // Functions for day-specific bulk operations
+  const toggleDayCustomerSelection = (day, customerId) => {
+    setSelectedDayCustomers(prev => ({
+      ...prev,
+      [day]: prev[day]?.includes(customerId) 
+        ? prev[day].filter(id => id !== customerId)
+        : [...(prev[day] || []), customerId]
+    }));
+  };
+
+  const selectAllDayCustomers = (day) => {
+    const dayCustomers = schedule[day] || [];
+    const allSelected = selectedDayCustomers[day]?.length === dayCustomers.length;
+    
+    setSelectedDayCustomers(prev => ({
+      ...prev,
+      [day]: allSelected ? [] : dayCustomers.map(c => c.id)
+    }));
+  };
+
+  const clearDaySelection = (day) => {
+    setSelectedDayCustomers(prev => ({
+      ...prev,
+      [day]: []
+    }));
+  };
+
+  // Toggle customer completion status
+  const toggleCustomerCompletion = (day, customerId) => {
+    setCompletedCustomers(prev => ({
+      ...prev,
+      [day]: prev[day]?.includes(customerId) 
+        ? prev[day].filter(id => id !== customerId)
+        : [...(prev[day] || []), customerId]
+    }));
+  };
+
+  // Mark customer as done and send message
+  const handleMarkCustomerAsDone = async () => {
+    if (!selectedCustomerForDone) return;
+
+    try {
+      setMarkingDone(true);
+      const customer = selectedCustomerForDone;
+
+      // Update customer's last_service date
+      const { error: updateError } = await supabase
+        .from('customers')
+        .update({ 
+          last_service: new Date().toISOString().split('T')[0]
+        })
+        .eq('id', customer.id);
+
+      if (updateError) throw updateError;
+
+      // Create or update appointment record with completed status
+      const today = new Date().toISOString().split('T')[0];
+      const serviceDate = customer.day ? getDateForDay(customer.day) : new Date().toISOString();
+      
+      // Check if appointment exists
+      const { data: existingAppointment } = await supabase
+        .from('appointments')
+        .select('id')
+        .eq('customer_id', customer.id)
+        .eq('date', serviceDate.split('T')[0])
+        .single();
+
+      if (existingAppointment) {
+        // Update existing appointment
+        const { error: appointmentError } = await supabase
+          .from('appointments')
+          .update({ 
+            status: 'completed',
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', existingAppointment.id);
+        
+        if (appointmentError) {
+          console.error('Error updating appointment:', appointmentError);
+        }
+      } else {
+        // Create new appointment record
+        const { error: appointmentError } = await supabase
+          .from('appointments')
+          .insert({
+            customer_id: customer.id,
+            customer_name: customer.name,
+            customer_email: customer.email,
+            customer_phone: customer.phone,
+            service_type: customer.service_type || 'lawn_mowing',
+            date: serviceDate,
+            status: 'completed',
+            city: customer.address?.split(',')[1]?.trim() || '',
+            street_address: customer.address?.split(',')[0] || '',
+            notes: `Completed on ${customer.day || 'schedule'}`
+          });
+        
+        if (appointmentError) {
+          console.error('Error creating appointment:', appointmentError);
+        }
+      }
+
+      // Create completed_job record
+      try {
+        const appointmentId = existingAppointment?.id || null;
+        const amountDue = customer.price || 0;
+        
+        // Check if completed_job already exists for this appointment
+        if (appointmentId) {
+          const { data: existingJob } = await supabaseAdmin
+            .from('completed_jobs')
+            .select('id')
+            .eq('appointment_id', appointmentId)
+            .single();
+          
+          if (!existingJob) {
+            // Create completed_job record
+            const { error: jobError } = await supabaseAdmin
+              .from('completed_jobs')
+              .insert({
+                appointment_id: appointmentId,
+                customer_id: customer.user_id || null,
+                customer_name: customer.name,
+                customer_email: customer.email || '',
+                customer_phone: customer.phone || null,
+                customer_address: customer.address || null,
+                service_type: customer.service_type || 'lawn_mowing',
+                service_description: customer.notes || `Completed on ${customer.day || 'schedule'}`,
+                job_date: serviceDate,
+                completed_date: new Date().toISOString(),
+                amount_due: amountDue,
+                amount_paid: 0,
+                payment_status: 'unpaid'
+              });
+            
+            if (jobError) {
+              console.error('Error creating completed job:', jobError);
+            }
+          }
+        } else {
+          // No appointment exists, create completed_job directly
+          const { error: jobError } = await supabaseAdmin
+            .from('completed_jobs')
+            .insert({
+              appointment_id: null,
+              customer_id: customer.user_id || null,
+              customer_name: customer.name,
+              customer_email: customer.email || '',
+              customer_phone: customer.phone || null,
+              customer_address: customer.address || null,
+              service_type: customer.service_type || 'lawn_mowing',
+              service_description: customer.notes || `Completed on ${customer.day || 'schedule'}`,
+              job_date: serviceDate,
+              completed_date: new Date().toISOString(),
+              amount_due: amountDue,
+              amount_paid: 0,
+              payment_status: 'unpaid'
+            });
+          
+          if (jobError) {
+            console.error('Error creating completed job:', jobError);
+          }
+        }
+      } catch (jobError) {
+        console.error('Error creating completed job record:', jobError);
+        // Don't fail the whole operation if completed_job creation fails
+      }
+
+      // Award loyalty points for completed service
+      try {
+        if (customer.id && customer.price) {
+          const pointsToAward = Math.max(10, Math.floor(customer.price));
+          
+          const loyaltyResponse = await fetch('/api/loyalty', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'earn',
+              userId: customer.user_id,
+              customerId: customer.id,
+              points: pointsToAward,
+              serviceId: existingAppointment?.id,
+              serviceType: customer.service_type || 'Service',
+              serviceDate: serviceDate,
+              description: `Completed ${customer.service_type || 'service'}`
+            })
+          });
+          
+          if (!loyaltyResponse.ok) {
+            console.error('Failed to award loyalty points:', await loyaltyResponse.text());
+          }
+        }
+      } catch (loyaltyError) {
+        console.error('Error awarding loyalty points:', loyaltyError);
+      }
+
+      // Mark as completed in local state
+      toggleCustomerCompletion(customer.day, customer.id);
+
+      // Send message if requested
+      if (sendEmail || sendSMS) {
+        // Create a temporary appointment-like object for the API
+        const appointmentData = {
+          id: `customer-${customer.id}`,
+          customer_name: customer.name,
+          customer_email: customer.email,
+          customer_phone: customer.phone,
+          service_type: customer.service_type || 'lawn_mowing',
+          date: new Date().toISOString(),
+          city: customer.address?.split(',')[1]?.trim() || '',
+          street_address: customer.address?.split(',')[0] || ''
+        };
+
+        // Use the same API endpoint but with customer data
+        const response = await fetch('/api/customers/send-message', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            appointmentId: appointmentData.id,
+            message: completionMessage,
+            sendEmail: sendEmail,
+            sendSMS: sendSMS,
+            customerData: appointmentData // Pass customer data directly
+          })
+        });
+
+        const result = await response.json();
+        if (!result.success) {
+          console.error('Error sending message:', result.error);
+          alert('Customer marked as done, but failed to send message. You can send it manually.');
+        } else {
+          // If SMS link is provided, open it
+          if (result.smsLink && sendSMS) {
+            window.open(result.smsLink, '_blank');
+          }
+        }
+      }
+
+      // Archive completion record for today
+      try {
+        const today = new Date().toISOString().split('T')[0];
+        await fetch('/api/archive-daily-completions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ date: today })
+        });
+      } catch (archiveError) {
+        console.error('Error archiving completion:', archiveError);
+        // Don't fail the whole operation
+      }
+
+      // Close modal and reset
+      setShowMarkDoneModal(false);
+      setSelectedCustomerForDone(null);
+      setCompletionMessage('');
+      setSendEmail(true);
+      setSendSMS(false);
+
+      alert('Customer marked as done' + (sendEmail || sendSMS ? ' and message sent!' : '!'));
+    } catch (error) {
+      console.error('Error marking customer as done:', error);
+      alert('Failed to mark customer as done. Please try again.');
+    } finally {
+      setMarkingDone(false);
+    }
+  };
+
+  // Move incomplete customers to next day (temporary for current session)
+  const moveIncompleteToNextDay = (currentDay) => {
+    const dayCustomers = schedule[currentDay] || [];
+    const completedIds = completedCustomers[currentDay] || [];
+    const incompleteCustomers = dayCustomers.filter(customer => !completedIds.includes(customer.id));
+    
+    if (incompleteCustomers.length === 0) {
+      alert('All customers are marked as complete!');
+      return;
+    }
+
+    // Find next day in the same week
+    const currentWeek = currentDay.includes('Week 1') ? 'Week 1' : 'Week 2';
+    const baseDay = currentDay.replace(' Week 1', '').replace(' Week 2', '');
+    const dayOrder = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    const currentDayIndex = dayOrder.indexOf(baseDay);
+    
+    let nextDay = null;
+    // Find next day in the same week
+    for (let i = currentDayIndex + 1; i < dayOrder.length; i++) {
+      nextDay = `${dayOrder[i]} ${currentWeek}`;
+      break;
+    }
+    
+    // If no next day in same week, use Monday of next week
+    if (!nextDay) {
+      const nextWeek = currentWeek === 'Week 1' ? 'Week 2' : 'Week 1';
+      nextDay = `Monday ${nextWeek}`;
+    }
+
+    // Track moved customers
+    const movedCustomerIds = incompleteCustomers.map(c => c.id);
+    setMovedCustomers(prev => ({
+      ...prev,
+      [nextDay]: [...(prev[nextDay] || []), ...movedCustomerIds]
+    }));
+
+    // Update schedule temporarily (not database)
+    const updatedSchedule = {
+      ...schedule,
+      [currentDay]: dayCustomers.filter(customer => completedIds.includes(customer.id)),
+      [nextDay]: [...(schedule[nextDay] || []), ...incompleteCustomers]
+    };
+    
+    setSchedule(updatedSchedule);
+    
+    // Save the updated schedule to localStorage
+    saveScheduleToStorage(updatedSchedule);
+
+    alert(`✅ ${incompleteCustomers.length} incomplete customers moved to ${nextDay} for today's session`);
+  };
+
+  // Move single customer to next day (temporary for current session)
+  const moveSingleCustomerToNextDay = (currentDay, customerId) => {
+    const customer = schedule[currentDay]?.find(c => c.id === customerId);
+    if (!customer) return;
+
+    // Find next day using same logic as moveIncompleteToNextDay
+    const currentWeek = currentDay.includes('Week 1') ? 'Week 1' : 'Week 2';
+    const baseDay = currentDay.replace(' Week 1', '').replace(' Week 2', '');
+    const dayOrder = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    const currentDayIndex = dayOrder.indexOf(baseDay);
+    
+    let nextDay = null;
+    // Find next day in the same week
+    for (let i = currentDayIndex + 1; i < dayOrder.length; i++) {
+      nextDay = `${dayOrder[i]} ${currentWeek}`;
+      break;
+    }
+    
+    // If no next day in same week, use Monday of next week
+    if (!nextDay) {
+      const nextWeek = currentWeek === 'Week 1' ? 'Week 2' : 'Week 1';
+      nextDay = `Monday ${nextWeek}`;
+    }
+
+    // Track moved customer
+    setMovedCustomers(prev => ({
+      ...prev,
+      [nextDay]: [...(prev[nextDay] || []), customerId]
+    }));
+
+    // Update schedule temporarily (not database)
+    const updatedSchedule = {
+      ...schedule,
+      [currentDay]: schedule[currentDay].filter(c => c.id !== customerId),
+      [nextDay]: [...(schedule[nextDay] || []), customer]
+    };
+    
+    setSchedule(updatedSchedule);
+    
+    // Save the updated schedule to localStorage
+    saveScheduleToStorage(updatedSchedule);
+
+    alert(`✅ ${customer.name} moved to ${nextDay} for today's session`);
+  };
+
+  const bulkRemoveFromDay = async (day, customerIds) => {
+    if (customerIds.length === 0) return;
+    
+    const customerNames = customerIds.map(id => {
+      const customer = schedule[day]?.find(c => c.id === id);
+      return customer?.name || 'Unknown';
+    }).join(', ');
+    
+    if (!confirm(`Remove ${customerIds.length} customers from ${day}?\n\nCustomers: ${customerNames}\n\nThey will be moved to unassigned.`)) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('customers')
+        .update({ scheduled_day: null })
+        .in('id', customerIds);
+
+      if (error) throw error;
+      
+      // Update local state
+      setCustomers(prev => prev.map(customer => 
+        customerIds.includes(customer.id)
+          ? { ...customer, scheduled_day: null }
+          : customer
+      ));
+      
+      // Recalculate earnings
+      const updatedCustomers = customers.map(customer => 
+        customerIds.includes(customer.id)
+          ? { ...customer, scheduled_day: null }
+          : customer
+      );
+      organizeScheduleWithFiltered(updatedCustomers);
+      
+      // Clear selection for this day
+      clearDaySelection(day);
+      
+      alert(`✅ Successfully removed ${customerIds.length} customers from ${day}`);
+    } catch (error) {
+      console.error('Error removing customers from day:', error);
+      alert('❌ Error removing customers from day');
+    }
+  };
+
+  const getFrequencyColor = (frequency) => {
+    switch (frequency) {
+      case 'weekly':
+        return 'bg-green-100 text-green-800';
+      case 'bi_weekly':
+        return 'bg-blue-100 text-blue-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const updateCustomerNotes = async (customerId, notes) => {
+    try {
+      const { error } = await supabase
+        .from('customers')
+        .update({ notes: notes })
+        .eq('id', customerId);
+
+      if (error) throw error;
+
+      // Update local state
+      setCustomers(prev => prev.map(customer => 
+        customer.id === customerId ? { ...customer, notes } : customer
+      ));
+      
+      // Clear editing state for this customer
+      setEditingNotes(prev => {
+        const newState = { ...prev };
+        delete newState[customerId];
+        return newState;
+      });
+    } catch (error) {
+      console.error('Error updating notes:', error);
+      alert('Failed to update notes');
+    }
+  };
+
+  const startEditingNotes = (customer) => {
+    setEditingNotes(prev => ({
+      ...prev,
+      [customer.id]: customer.notes || ''
+    }));
+  };
+
+  const cancelEditingNotes = (customerId) => {
+    setEditingNotes(prev => {
+      const newState = { ...prev };
+      delete newState[customerId];
+      return newState;
+    });
+  };
+
+  const handleNoteTextChange = (customerId, value) => {
+    setEditingNotes(prev => ({
+      ...prev,
+      [customerId]: value
+    }));
+  };
+
+  const clearSearch = () => {
+    setSearchTerm('');
+  };
+
+  // Load home base address from Supabase
+  const loadHomeBaseAddress = async () => {
+    try {
+      setLoadingHomeBase(true);
+      const { data, error } = await supabase
+        .from('business_settings')
+        .select('home_base_address')
+        .eq('user_id', user.id)
+        .single();
+
+      if (error && error.code !== 'PGRST116') { // PGRST116 is "not found"
+        throw error;
+      }
+
+      if (data?.home_base_address) {
+        setHomeBase(data.home_base_address);
+      }
+    } catch (error) {
+      console.error('Error loading home base address:', error);
+    } finally {
+      setLoadingHomeBase(false);
+    }
+  };
+
+  // Save home base address to Supabase
+  const saveHomeBaseAddress = async (address) => {
+    try {
+      const { error } = await supabase
+        .from('business_settings')
+        .upsert({
+          user_id: user.id,
+          home_base_address: address,
+          updated_at: new Date().toISOString()
+        });
+
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error saving home base address:', error);
+    }
+  };
+
+  // Calculate proximity from home base
+  const calculateProximityFromHomeBase = async (homeAddress) => {
+    if (!homeAddress.trim()) {
+      alert('Please enter a home base address first');
+      return;
+    }
+
+    setLoadingProximity(true);
+    
+    try {
+      // Save home base address to Supabase
+      await saveHomeBaseAddress(homeAddress);
+      
+      const customersWithAddresses = customers.filter(c => c.address && c.address.trim());
+      
+      if (customersWithAddresses.length === 0) {
+        alert('No customers with addresses found');
+        setLoadingProximity(false);
+        return;
+      }
+
+      console.log('Calculating proximity for:', homeAddress);
+      console.log('Customers with addresses:', customersWithAddresses.length);
+
+      const response = await fetch('/api/calculate-proximity', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          homeBase: homeAddress,
+          customers: customersWithAddresses
+        })
+      });
+
+      const data = await response.json();
+      console.log('Proximity calculation response:', data);
+
+      if (data.success) {
+        // Save proximity data to database
+        const proximityUpdates = [];
+        for (const [customerId, proximityInfo] of Object.entries(data.proximityData)) {
+          proximityUpdates.push({
+            id: customerId,
+            distance_miles: proximityInfo.distance ? (proximityInfo.distance / 1609.34).toFixed(1) : null,
+            travel_time: proximityInfo.durationText || null,
+            proximity_updated_at: new Date().toISOString()
+          });
+        }
+
+        // Update customers in database with proximity data
+        for (const update of proximityUpdates) {
+          const { error } = await supabase
+            .from('customers')
+            .update({
+              distance_miles: update.distance_miles,
+              travel_time: update.travel_time,
+              proximity_updated_at: update.proximity_updated_at
+            })
+            .eq('id', update.id);
+
+          if (error) {
+            console.error('Error updating customer proximity:', error);
+          }
+        }
+
+        // Refresh customer data to show updated proximity
+        await fetchCustomers();
+        
+        setProximityData(data.proximityData);
+        alert(`✅ Successfully calculated proximity for ${Object.keys(data.proximityData).length} customers!\n\nHome base: ${data.homeBaseCoords?.formatted_address || homeAddress}\n\nProximity data has been saved to customer records.`);
+      } else {
+        console.error('Proximity calculation failed:', data.error);
+        alert(`❌ ${data.error}\n\nTips:\n• Use full address format: "123 Main St, City, State ZIP"\n• Check spelling and try again\n• Make sure the address exists`);
+      }
+    } catch (error) {
+      console.error('Error calculating proximity:', error);
+      alert('❌ Network error. Please check your connection and try again.');
+    } finally {
+      setLoadingProximity(false);
+    }
+  };
+
+  // Smart assignment function using Google Distance Matrix API
+  const smartAssignCustomers = async () => {
+    if (unassignedCustomers.length === 0) {
+      alert('No unassigned customers to organize');
+      return;
+    }
+
+    setSmartAssignLoading(true);
+    setShowSmartAssignModal(true);
+
+    try {
+      // Get customers with addresses
+      const customersWithAddresses = unassignedCustomers.filter(c => c.address && c.address.trim());
+      
+      if (customersWithAddresses.length === 0) {
+        alert('No customers with addresses found. Please add addresses to customers first.');
+        setSmartAssignLoading(false);
+        setShowSmartAssignModal(false);
+        return;
+      }
+
+      // Call our API to calculate distances and group customers
+      const response = await fetch('/api/smart-assign', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          customers: customersWithAddresses,
+          currentSchedule: schedule,
+          maxCustomersPerDay: 8 // Configurable limit
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        console.log('Smart assignment results:', data);
+        
+        // Apply the smart assignments
+        const assignments = data.assignments;
+        let totalAssigned = 0;
+        
+        // Update customers in database for each day
+        for (const [day, customerIds] of Object.entries(assignments)) {
+          if (customerIds.length > 0) {
+            console.log(`Assigning ${customerIds.length} customers to ${day}`);
+            
+            const { error } = await supabase
+              .from('customers')
+              .update({ scheduled_day: day })
+              .in('id', customerIds);
+
+            if (error) {
+              console.error(`Error assigning customers to ${day}:`, error);
+              throw error;
+            }
+            
+            totalAssigned += customerIds.length;
+          }
+        }
+
+        // Update local state
+        setCustomers(prev => prev.map(customer => {
+          for (const [day, customerIds] of Object.entries(assignments)) {
+            if (customerIds.includes(customer.id)) {
+              return { ...customer, scheduled_day: day };
+            }
+          }
+          return customer;
+        }));
+
+        // Show success message with cluster info
+        let successMessage = `Successfully organized ${totalAssigned} customers by proximity!\n\n`;
+        if (data.clustersInfo) {
+          successMessage += 'Clusters created:\n';
+          data.clustersInfo.forEach((cluster, index) => {
+            successMessage += `• Group ${index + 1}: ${cluster.totalCustomers} customers (avg distance: ${cluster.averageDistance} miles)\n`;
+          });
+        }
+        
+        alert(successMessage);
+        setShowSmartAssignModal(false);
+      } else {
+        console.error('Smart assignment failed:', data.error);
+        alert(data.error || 'Failed to organize customers');
+      }
+    } catch (error) {
+      console.error('Error in smart assignment:', error);
+      alert('Failed to organize customers. Please try again.');
+    } finally {
+      setSmartAssignLoading(false);
+    }
+  };
+
+  // Calculate route for customers on a specific day
+  const calculateDayRoute = async (day) => {
+    try {
+      const dayCustomers = customers.filter(c => c.scheduled_day === day && c.address);
+      
+      if (dayCustomers.length === 0) {
+        console.log(`No customers with addresses found for ${day}`);
+        return;
+      }
+
+      console.log(`Calculating optimized route for ${day} with ${dayCustomers.length} customers`);
+
+      const response = await fetch('/api/calculate-day-route', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          homeBase: homeBase,
+          customers: dayCustomers,
+          day: day
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      if (data.success) {
+        console.log(`Optimized route calculated for ${day}:`, data);
+        
+        // Update customers with route information and optimized order
+        const routeUpdates = [];
+        data.routeData.forEach((routeInfo, index) => {
+          routeUpdates.push({
+            id: routeInfo.id,
+            route_order: routeInfo.order,
+            travel_time_to_next: routeInfo.travelTimeToNext,
+            distance_to_next: routeInfo.distanceToNext,
+            route_updated_at: new Date().toISOString()
+          });
+        });
+
+        // Update database with route information
+        for (const update of routeUpdates) {
+          const { error } = await supabase
+            .from('customers')
+            .update({
+              route_order: update.route_order,
+              travel_time_to_next: update.travel_time_to_next,
+              distance_to_next: update.distance_to_next,
+              route_updated_at: update.route_updated_at
+            })
+            .eq('id', update.id);
+
+          if (error) {
+            console.error('Error updating customer route:', error);
+          }
+        }
+
+        // Refresh customer data to show updated route order
+        await fetchCustomers();
+        
+        alert(`✅ Route optimized for ${day}!\n\n🏠 Starting from home base\n📍 Customers reordered by proximity\n\nTotal customers: ${dayCustomers.length}\nTotal distance: ${data.totalDistance}\nTotal time: ${data.totalTime}\n\nCustomers are now arranged in the most efficient order!`);
+      } else {
+        console.error('Route calculation failed:', data.error);
+        alert(`❌ Route optimization failed: ${data.error}`);
+      }
+    } catch (error) {
+      console.error('Error calculating day route:', error);
+      
+      // More specific error messages
+      if (error.message.includes('Failed to fetch')) {
+        alert('❌ Network error: Unable to connect to route calculation service.\n\nPlease check your internet connection and try again.');
+      } else if (error.message.includes('HTTP error')) {
+        alert('❌ Server error: Route calculation service is temporarily unavailable.\n\nPlease try again in a moment.');
+      } else {
+        alert('❌ Error optimizing route: ' + error.message + '\n\nPlease try again or contact support if the problem persists.');
+      }
+    }
+  };
+
+  // Handle keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Ctrl/Cmd + K to focus search
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        document.getElementById('customer-search')?.focus();
+      }
+      // Escape to clear search
+      if (e.key === 'Escape' && searchTerm) {
+        clearSearch();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [searchTerm]);
+
+  // Function to highlight search terms in text
+  const highlightSearchTerm = (text, searchTerm) => {
+    if (!searchTerm.trim() || !text) return text;
+    
+    const regex = new RegExp(`(${searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+    const parts = text.split(regex);
+    
+    return parts.map((part, index) => 
+      regex.test(part) ? (
+        <span key={index} className="bg-yellow-200 font-medium">{part}</span>
+      ) : part
+    );
+  };
+
+  // Handle day-specific search
+  const handleDaySearch = (day, searchTerm) => {
+    setDaySearchTerms(prev => ({
+      ...prev,
+      [day]: searchTerm
+    }));
+  };
+
+  // Get customers from other days that match search term
+  const getSearchableCustomers = (currentDay, searchTerm) => {
+    if (!searchTerm.trim()) return [];
+    
+    const otherDayCustomers = [];
+    DAYS_OF_WEEK.forEach(day => {
+      if (day !== currentDay && schedule[day]) {
+        schedule[day].forEach(customer => {
+          if (customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+              customer.phone.toLowerCase().includes(searchTerm.toLowerCase()) ||
+              (customer.address && customer.address.toLowerCase().includes(searchTerm.toLowerCase()))) {
+            otherDayCustomers.push({ ...customer, currentDay: day });
+          }
+        });
+      }
+    });
+    
+    // Also search unassigned customers
+    unassignedCustomers.forEach(customer => {
+      if (customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          customer.phone.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (customer.address && customer.address.toLowerCase().includes(searchTerm.toLowerCase()))) {
+        otherDayCustomers.push({ ...customer, currentDay: 'Unassigned' });
+      }
+    });
+    
+    return otherDayCustomers;
+  };
+
+  // Reassign customer to new day
+  const reassignCustomerToDay = async (customerId, newDay, fromDay) => {
+    try {
+      const { error } = await supabase
+        .from('customers')
+        .update({ scheduled_day: newDay })
+        .eq('id', customerId);
+
+      if (error) throw error;
+      
+      // Update local state
+      setCustomers(prev => prev.map(customer => 
+        customer.id === customerId 
+          ? { ...customer, scheduled_day: newDay }
+          : customer
+      ));
+      
+      // Clear search term for this day
+      setDaySearchTerms(prev => ({
+        ...prev,
+        [newDay]: ''
+      }));
+
+      // Recalculate route for both days if home base is set
+      if (homeBase.trim()) {
+        if (fromDay !== 'Unassigned') {
+          await calculateDayRoute(fromDay);
+        }
+        await calculateDayRoute(newDay);
+      }
+    } catch (error) {
+      console.error('Error reassigning customer:', error);
+      alert('Error reassigning customer');
+    }
+  };
+
+  // Drag and drop handlers
+  const handleDragStart = (e, customer) => {
+    setDraggedCustomer(customer);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/html', e.target.outerHTML);
+  };
+
+  const handleDragOver = (e, day) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setDragOverDay(day);
+  };
+
+  const handleDragLeave = (e) => {
+    // Only clear if we're leaving the drop zone completely
+    if (!e.currentTarget.contains(e.relatedTarget)) {
+      setDragOverDay(null);
+    }
+  };
+
+  const handleDrop = async (e, newDay) => {
+    e.preventDefault();
+    setDragOverDay(null);
+    
+    if (!draggedCustomer) return;
+    
+    const fromDay = draggedCustomer.scheduled_day || 'Unassigned';
+    
+    // Don't do anything if dropping on the same day
+    if (fromDay === newDay) {
+      setDraggedCustomer(null);
+      return;
+    }
+    
+    try {
+      await reassignCustomerToDay(draggedCustomer.id, newDay, fromDay);
+      setDraggedCustomer(null);
+    } catch (error) {
+      console.error('Error in drag and drop:', error);
+      setDraggedCustomer(null);
+    }
+  };
+
+  const handleDragEnd = () => {
+    setDraggedCustomer(null);
+    setDragOverDay(null);
+  };
+
+  // Reorder customers within the same day
+  const reorderCustomersInDay = async (day, fromIndex, toIndex) => {
+    if (fromIndex === toIndex) return;
+    
+    const dayCustomers = [...schedule[day]];
+    const [movedCustomer] = dayCustomers.splice(fromIndex, 1);
+    dayCustomers.splice(toIndex, 0, movedCustomer);
+    
+    // Update route orders in database
+    try {
+      for (let i = 0; i < dayCustomers.length; i++) {
+        const customer = dayCustomers[i];
+        await supabase
+          .from('customers')
+          .update({ 
+            route_order: i + 1,
+            route_updated_at: new Date().toISOString()
+          })
+          .eq('id', customer.id);
+      }
+      
+      // Refresh customer data
+      await fetchCustomers();
+    } catch (error) {
+      console.error('Error reordering customers:', error);
+      alert('Error reordering customers');
+    }
+  };
+
+  const CustomerCard = ({ customer, showAssignButton = false, showUnassignButton = false, showCheckbox = false, onDragStart, onDragOver, onDragLeave, onDrop, onDragEnd, reorderCustomersInDay, index, day, daySelectionHandler }) => {
+    const proximity = proximityData[customer.id];
+    const [isExpanded, setIsExpanded] = useState(false);
+    const [isDragOver, setIsDragOver] = useState(false);
+    
+    // Determine distance and travel time - prioritize database fields
+    const distanceDisplay = customer.distance_miles ? `${customer.distance_miles} mi` : proximity?.distanceText;
+    const travelTimeDisplay = customer.travel_time || proximity?.durationText;
+    const hasProximityData = distanceDisplay || travelTimeDisplay;
+
+    const handleDragOverCard = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDragOver(true);
+      
+      // If we have a dragged customer and it's from the same day, handle reordering
+      if (draggedCustomer && draggedCustomer.scheduled_day === customer.scheduled_day && reorderCustomersInDay && index !== undefined) {
+        const draggedIndex = schedule[customer.scheduled_day]?.findIndex(c => c.id === draggedCustomer.id);
+        if (draggedIndex !== -1 && draggedIndex !== index) {
+          // Visual feedback for reordering
+          e.dataTransfer.dropEffect = 'move';
+        }
+      }
+    };
+
+    const handleDragLeaveCard = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDragOver(false);
+    };
+
+    const handleDropOnCard = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDragOver(false);
+      
+      // Handle reordering within the same day
+      if (draggedCustomer && draggedCustomer.scheduled_day === customer.scheduled_day && reorderCustomersInDay && index !== undefined) {
+        const draggedIndex = schedule[customer.scheduled_day]?.findIndex(c => c.id === draggedCustomer.id);
+        if (draggedIndex !== -1 && draggedIndex !== index) {
+          reorderCustomersInDay(customer.scheduled_day, draggedIndex, index);
+        }
+      }
+    };
+
+    const handleDragStartCard = (e) => {
+      if (onDragStart) onDragStart(e, customer);
+    };
+    
+    const isCompleted = day && completedCustomers[day]?.includes(customer.id);
+    const isMoved = day && movedCustomers[day]?.includes(customer.id);
+    const isSelected = day && daySelectionHandler ? selectedDayCustomers[day]?.includes(customer.id) : selectedCustomers.includes(customer.id);
+    
+    return (
+      <div 
+        className={`relative group rounded-xl overflow-hidden transition-all duration-300 ${
+          isCompleted ? 'bg-green-500/10 border border-green-500/30' 
+          : isMoved ? 'bg-orange-500/10 border border-orange-500/30'
+          : isSelected ? 'bg-green-500/10 border border-green-500/30'
+          : isDragOver ? 'bg-blue-500/15 border border-blue-500/40 scale-[1.02]'
+          : 'bg-white/[0.04] border border-white/[0.08] hover:bg-white/[0.08] hover:border-white/[0.15]'
+        } ${draggedCustomer?.id === customer.id ? 'opacity-40 scale-95' : ''}`}
+        draggable={true}
+        onDragStart={handleDragStartCard}
+        onDragOver={handleDragOverCard}
+        onDragLeave={handleDragLeaveCard}
+        onDrop={handleDropOnCard}
+        onDragEnd={onDragEnd}
+      >
+        {/* Reorder indicator */}
+        {isDragOver && draggedCustomer && draggedCustomer.scheduled_day === customer.scheduled_day && (
+          <div className="absolute -top-0.5 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-500 to-cyan-400 rounded-full"></div>
+        )}
+
+        {/* Status badges - positioned absolutely */}
+        <div className="absolute top-2.5 right-2.5 flex gap-1.5 z-10">
+          {isCompleted && (
+            <span className="px-2 py-0.5 bg-green-500 text-white text-[10px] font-bold rounded-full tracking-wider uppercase">✓ Done</span>
+          )}
+          {isMoved && (
+            <span className="px-2 py-0.5 bg-orange-500 text-white text-[10px] font-bold rounded-full">→ Moved</span>
+          )}
+          {customer.route_order && (
+            <span className="w-5 h-5 flex items-center justify-center bg-purple-500/20 text-purple-400 text-[10px] font-bold rounded-full">
+              {customer.route_order}
+            </span>
+          )}
+        </div>
+        
+        {/* Main clickable row */}
+        <div className="px-3.5 py-3 cursor-pointer" onClick={() => setIsExpanded(!isExpanded)}>
+          <div className="flex items-center gap-3">
+            {/* Checkbox */}
+            {showCheckbox && (
+              <div 
+                onClick={(e) => {
+                  e.preventDefault(); e.stopPropagation();
+                  if (day && daySelectionHandler) daySelectionHandler(day, customer.id);
+                  else toggleCustomerSelection(customer.id, e);
+                }}
+                className="shrink-0"
+              >
+                <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all cursor-pointer ${
+                  isSelected ? 'bg-green-500 border-green-500' : 'border-white/20 hover:border-white/40'
+                }`}>
+                  {isSelected && <span className="text-white text-xs">✓</span>}
+                </div>
+              </div>
+            )}
+
+            {/* Customer info */}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between gap-2">
+                <h3 className={`text-sm font-semibold truncate ${isCompleted ? 'line-through text-gray-500' : 'text-white'}`}>
+                  {highlightSearchTerm(customer.name, searchTerm)}
+                </h3>
+                <span className="shrink-0 text-sm font-bold text-green-400">${customer.price}</span>
+              </div>
+              
+              {/* Address + metadata row */}
+              <div className="flex items-center gap-2 mt-1 flex-wrap">
+                {customer.address && (
+                  <a 
+                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(customer.address)}`}
+                    target="_blank" rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    className="text-[11px] text-gray-500 hover:text-blue-400 truncate max-w-[180px] transition-colors"
+                  >
+                    📍 {customer.address.split(',')[0]}
+                  </a>
+                )}
+                <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider ${
+                  customer.frequency === 'weekly' ? 'bg-green-500/15 text-green-400' : 'bg-blue-500/15 text-blue-400'
+                }`}>
+                  {customer.frequency === 'bi_weekly' ? 'Bi-W' : 'W'}
+                </span>
+                {hasProximityData && (
+                  <span className="text-[10px] text-gray-600">{distanceDisplay}</span>
+                )}
+                {travelTimeDisplay && (
+                  <span className="text-[10px] text-gray-600">⏱ {travelTimeDisplay}</span>
+                )}
+              </div>
+            </div>
+
+            {/* Quick actions + expand */}
+            <div className="flex items-center gap-1 shrink-0">
+              {day && !isCompleted && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); toggleCustomerCompletion(day, customer.id); }}
+                  className="p-1.5 rounded-lg bg-green-500/10 text-green-400 hover:bg-green-500/20 transition-all"
+                  title="Mark complete"
+                >
+                  <CheckCircleIcon className="h-4 w-4" />
+                </button>
+              )}
+              {day && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); moveSingleCustomerToNextDay(day, customer.id); }}
+                  className="p-1.5 rounded-lg bg-orange-500/10 text-orange-400 hover:bg-orange-500/20 transition-all"
+                  title="Move to next day"
+                >
+                  <span className="text-xs">→</span>
+                </button>
+              )}
+              <div className={`ml-1 text-gray-600 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}>
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Expanded details */}
+        {isExpanded && (
+          <div className="border-t border-white/5 px-3.5 py-3 space-y-3">
+            {/* Contact row */}
+            <div className="flex items-center gap-4 text-xs">
+              <a href={`tel:${customer.phone}`} className="flex items-center gap-1.5 text-gray-400 hover:text-green-400 transition-colors" onClick={(e) => e.stopPropagation()}>
+                <PhoneIcon className="h-3.5 w-3.5" />{customer.phone}
+              </a>
+              {customer.email && (
+                <span className="text-gray-600 truncate">{customer.email}</span>
+              )}
+            </div>
+
+            {/* Full address */}
+            {customer.address && (
+              <a 
+                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(customer.address)}`}
+                target="_blank" rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-blue-400 transition-colors"
+              >
+                <MapPinIcon className="h-3.5 w-3.5 shrink-0" />{customer.address}
+              </a>
+            )}
+
+            {/* Route details */}
+            {customer.route_order && customer.travel_time_to_next && (
+              <div className="text-xs text-purple-400 flex items-center gap-2">
+                <span>→ {customer.travel_time_to_next} to next</span>
+                {customer.distance_to_next && <span className="text-gray-600">({customer.distance_to_next})</span>}
+              </div>
+            )}
+
+            {/* Notes */}
+            <div className="pt-1">
+              {editingNotes[customer.id] !== undefined ? (
+                <div className="space-y-2">
+                  <textarea
+                    value={editingNotes[customer.id]}
+                    onChange={(e) => handleNoteTextChange(customer.id, e.target.value)}
+                    placeholder="Add notes..."
+                    className="w-full p-2.5 bg-white/5 border border-white/10 rounded-xl text-xs text-gray-300 outline-none focus:border-green-500/40 placeholder-gray-600 resize-none"
+                    rows="2"
+                    autoFocus
+                  />
+                  <div className="flex justify-end gap-2">
+                    <button onClick={() => cancelEditingNotes(customer.id)} className="px-3 py-1 text-xs text-gray-500 hover:text-white transition-colors">Cancel</button>
+                    <button onClick={() => updateCustomerNotes(customer.id, editingNotes[customer.id])} className="px-3 py-1 bg-green-500/20 text-green-400 rounded-lg text-xs font-medium hover:bg-green-500/30 transition-all">Save</button>
+                  </div>
+                </div>
+              ) : (
+                <div 
+                  onClick={(e) => { e.stopPropagation(); startEditingNotes(customer); }}
+                  className="cursor-pointer p-2 rounded-lg bg-white/[0.03] hover:bg-white/[0.06] transition-all"
+                >
+                  {customer.notes ? (
+                    <p className="text-xs text-gray-400">{highlightSearchTerm(customer.notes, searchTerm)}</p>
+                  ) : (
+                    <p className="text-xs text-gray-600 italic">Tap to add notes...</p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Action buttons */}
+            <div className="flex flex-wrap gap-2 pt-1">
+              {day && isCompleted && (
+                <button onClick={(e) => { e.stopPropagation(); toggleCustomerCompletion(day, customer.id); }} className="px-3 py-1.5 text-[11px] font-medium text-green-400 bg-green-500/10 rounded-lg border border-green-500/20 hover:bg-green-500/20 transition-all">
+                  ↩ Undo Complete
+                </button>
+              )}
+              {day && !isCompleted && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedCustomerForDone({ ...customer, day });
+                    setCompletionMessage(`Your ${customer.service_type?.replace('_', ' ') || 'service'} has been completed successfully! Thank you for choosing Flora Lawn and Landscaping.`);
+                    setShowMarkDoneModal(true);
+                  }}
+                  className="px-3 py-1.5 text-[11px] font-medium text-blue-400 bg-blue-500/10 rounded-lg border border-blue-500/20 hover:bg-blue-500/20 transition-all flex items-center gap-1"
+                >
+                  <CheckCircleIcon className="h-3.5 w-3.5" />Mark Done & Send
+                </button>
+              )}
+              {showAssignButton && (
+                <button onClick={(e) => { e.stopPropagation(); setSelectedCustomer(customer); setShowAssignModal(true); }}
+                  className="px-3 py-1.5 text-[11px] font-medium text-green-400 bg-green-500/10 rounded-lg border border-green-500/20 hover:bg-green-500/20 transition-all flex items-center gap-1">
+                  <PlusIcon className="h-3.5 w-3.5" />Assign
+                </button>
+              )}
+              {showUnassignButton && (
+                <>
+                  <button onClick={(e) => { e.stopPropagation(); setSelectedCustomer(customer); setShowAssignModal(true); }}
+                    className="px-3 py-1.5 text-[11px] font-medium text-blue-400 bg-blue-500/10 rounded-lg border border-blue-500/20 hover:bg-blue-500/20 transition-all flex items-center gap-1">
+                    <PencilIcon className="h-3.5 w-3.5" />Reassign
+                  </button>
+                  <button onClick={(e) => { e.stopPropagation(); unassignCustomer(customer.id); }}
+                    className="px-3 py-1.5 text-[11px] font-medium text-orange-400 bg-orange-500/10 rounded-lg border border-orange-500/20 hover:bg-orange-500/20 transition-all">
+                    Remove
+                  </button>
+                </>
+              )}
+              {(showAssignButton || showUnassignButton) && (
+                <>
+                  <button onClick={(e) => { e.stopPropagation(); scratchCustomer(customer.id, customer.name); }}
+                    className="px-3 py-1.5 text-[11px] font-medium text-amber-400 bg-amber-500/10 rounded-lg border border-amber-500/20 hover:bg-amber-500/20 transition-all flex items-center gap-1">
+                    ✕ Scratch
+                  </button>
+                  <button onClick={(e) => { e.stopPropagation(); removeCustomer(customer.id, customer.name); }}
+                    className="px-3 py-1.5 text-[11px] font-medium text-red-400 bg-red-500/10 rounded-lg border border-red-500/20 hover:bg-red-500/20 transition-all flex items-center gap-1">
+                    🗑 Delete
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#0f1117] flex items-center justify-center">
+        <div className="relative">
+          <div className="animate-spin rounded-full h-16 w-16 border-4 border-white/10 border-t-green-500"></div>
+          <div className="absolute inset-0 flex items-center justify-center">
+            <span className="text-lg">🌿</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-[#0f1117] text-white">
+      {/* Ambient glow effects */}
+      <div className="fixed inset-0 pointer-events-none z-0">
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-green-500/10 rounded-full blur-[120px]"></div>
+        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-[120px]"></div>
+      </div>
+
+      <div className="relative z-10 max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6">
+        
+        {/* === HEADER === */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+          <div>
+            <h1 className="text-3xl sm:text-4xl font-black tracking-tight">
+              <span className="bg-gradient-to-r from-green-400 via-emerald-400 to-teal-400 bg-clip-text text-transparent">Schedule</span>
+            </h1>
+            <p className="text-sm text-gray-400 mt-1">
+              {getCurrentDayName()}, {getCurrentWeek()} &bull; {customers.length} active customers
+            </p>
+          </div>
+          
+          {/* View Toggle */}
+          <div className="flex items-center bg-white/5 backdrop-blur-xl rounded-2xl p-1 border border-white/10">
+            <button
+              onClick={() => setViewMode('schedule')}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 ${
+                viewMode === 'schedule'
+                  ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-lg shadow-green-500/25'
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              <CalendarDaysIcon className="h-4 w-4" />
+              Schedule
+            </button>
+            <button
+              onClick={() => setViewMode('map')}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 ${
+                viewMode === 'map'
+                  ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-500/25'
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              <MapIcon className="h-4 w-4" />
+              Map
+            </button>
+          </div>
+        </div>
+
+        {/* === COMMAND CENTER === */}
+        <div className="bg-white/[0.03] backdrop-blur-xl rounded-3xl border border-white/[0.08] overflow-hidden mb-6">
+          
+          {/* Top bar: Big earnings + week toggle */}
+          <div className="p-4 sm:p-5">
+            <div className="flex items-start justify-between gap-4">
+              {/* Monthly hero number */}
+              <div>
+                <p className="text-[10px] text-gray-500 uppercase tracking-widest font-semibold mb-1">Monthly Revenue</p>
+                <div className="flex items-baseline gap-3">
+                  <span className="text-3xl sm:text-4xl font-black bg-gradient-to-r from-green-400 to-emerald-300 bg-clip-text text-transparent">
+                    ${earnings.grandTotal.toFixed(0)}
+                  </span>
+                  <div className="flex gap-3 text-xs">
+                    <span className="text-gray-500">
+                      <span className="text-green-400 font-bold">${(selectedWeek === 'Week 1' ? earnings.week1 : earnings.week2).toFixed(0)}</span> this week
+                    </span>
+                    <span className="text-gray-600">•</span>
+                    <span className="text-gray-500">
+                      <span className="text-white font-semibold">{DAYS_OF_WEEK.filter(d => d.includes(selectedWeek)).reduce((t, d) => t + (schedule[d]?.length || 0), 0)}</span> customers
+                    </span>
+                  </div>
+                </div>
+                {/* Inline breakdown */}
+                <div className="flex gap-4 mt-2">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                    <span className="text-[11px] text-gray-400">
+                      Weekly <span className="text-white font-semibold">${DAYS_OF_WEEK.filter(d => d.includes(selectedWeek)).reduce((t, d) => t + (schedule[d] || []).filter(c => c.frequency === 'weekly').reduce((s, c) => s + parseFloat(c.price || 0), 0), 0).toFixed(0)}</span>
+                      <span className="text-gray-600 ml-1">({DAYS_OF_WEEK.filter(d => d.includes(selectedWeek)).reduce((t, d) => t + (schedule[d] || []).filter(c => c.frequency === 'weekly').length, 0)})</span>
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                    <span className="text-[11px] text-gray-400">
+                      Bi-Weekly <span className="text-white font-semibold">${DAYS_OF_WEEK.filter(d => d.includes(selectedWeek)).reduce((t, d) => t + (schedule[d] || []).filter(c => c.frequency === 'bi_weekly').reduce((s, c) => s + parseFloat(c.price || 0), 0), 0).toFixed(0)}</span>
+                      <span className="text-gray-600 ml-1">({DAYS_OF_WEEK.filter(d => d.includes(selectedWeek)).reduce((t, d) => t + (schedule[d] || []).filter(c => c.frequency === 'bi_weekly').length, 0)})</span>
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Week Toggle - compact */}
+              <div className="flex bg-white/5 rounded-xl p-0.5 border border-white/10 shrink-0">
+                {['Week 1', 'Week 2'].map(week => (
+                  <button
+                    key={week}
+                    onClick={() => { setSelectedWeek(week); setSelectedDay(null); }}
+                    className={`px-3 sm:px-4 py-2 rounded-lg text-xs font-bold transition-all duration-200 ${
+                      selectedWeek === week
+                        ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-lg shadow-green-500/30'
+                        : 'text-gray-500 hover:text-white'
+                    }`}
+                  >
+                    W{week.split(' ')[1]}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Day bar - full width strip */}
+          <div className="border-t border-white/[0.05] px-2 py-2.5 flex gap-1 overflow-x-auto" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+            <button
+              onClick={() => setSelectedDay(null)}
+              className={`shrink-0 px-3.5 py-2.5 rounded-xl text-[11px] font-bold transition-all ${
+                selectedDay === null
+                  ? 'bg-white/15 text-white'
+                  : 'text-gray-600 hover:text-gray-300 hover:bg-white/5'
+              }`}
+            >
+              ALL
+            </button>
+            {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(baseDay => {
+              const fullDay = `${baseDay} ${selectedWeek}`;
+              const count = schedule[fullDay]?.length || 0;
+              const completedCount = completedCustomers[fullDay]?.length || 0;
+              const isToday = fullDay === `${getCurrentDayName()} ${getCurrentWeek()}`;
+              const isSelected = selectedDay === fullDay;
+              const progress = count > 0 ? (completedCount / count) * 100 : 0;
+              const dayEarnings = earnings.daily[fullDay];
+
+              return (
+                <button
+                  key={baseDay}
+                  onClick={() => {
+                    setSelectedDay(fullDay);
+                    setTimeout(() => {
+                      document.getElementById(`day-${fullDay.replace(/ /g, '-')}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }, 100);
+                  }}
+                  className={`shrink-0 flex-1 min-w-[70px] py-2 px-2 rounded-xl transition-all duration-200 relative ${
+                    isSelected
+                      ? 'bg-gradient-to-b from-green-500/20 to-green-500/5 border border-green-500/30'
+                      : isToday
+                      ? 'bg-white/[0.06] border border-green-500/20'
+                      : count > 0
+                      ? 'bg-white/[0.03] hover:bg-white/[0.06] border border-transparent'
+                      : 'border border-transparent hover:bg-white/[0.03]'
+                  }`}
+                >
+                  <div className={`text-[10px] font-bold uppercase tracking-wider ${isSelected ? 'text-green-400' : isToday ? 'text-green-400' : count > 0 ? 'text-gray-300' : 'text-gray-600'}`}>
+                    {baseDay.slice(0, 3)}
+                  </div>
+                  <div className={`text-sm font-black mt-0.5 ${isSelected ? 'text-white' : count > 0 ? 'text-gray-200' : 'text-gray-700'}`}>
+                    {count}
+                  </div>
+                  {dayEarnings && dayEarnings.total > 0 && (
+                    <div className={`text-[9px] font-semibold mt-0.5 ${isSelected ? 'text-green-300' : 'text-gray-600'}`}>
+                      ${dayEarnings.total.toFixed(0)}
+                    </div>
+                  )}
+                  {/* Mini progress bar */}
+                  {count > 0 && (
+                    <div className="w-full h-0.5 bg-white/5 rounded-full mt-1.5 overflow-hidden">
+                      <div className="h-full bg-green-500 rounded-full transition-all duration-500" style={{ width: `${progress}%` }}></div>
+                    </div>
+                  )}
+                  {isToday && !isSelected && <span className="absolute top-1 right-1 w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></span>}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Search + Home Base row */}
+          <div className="border-t border-white/[0.05] px-4 py-2.5 flex items-center gap-3">
+            <MagnifyingGlassIcon className="h-4 w-4 text-gray-600 shrink-0" />
+            <input
+              id="customer-search"
+              type="text"
+              placeholder="Search customers..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="flex-1 bg-transparent outline-none text-sm text-gray-300 placeholder-gray-700 min-w-0"
+            />
+            {searchTerm && (
+              <>
+                <span className="text-[10px] text-gray-500 shrink-0">{filteredCustomers.length} found</span>
+                <button onClick={clearSearch} className="p-0.5 text-gray-600 hover:text-white"><XMarkIcon className="h-3.5 w-3.5" /></button>
+              </>
+            )}
+            <div className="w-px h-5 bg-white/10 shrink-0"></div>
+            <div className="flex items-center gap-2 shrink-0">
+              <MapPinIcon className="h-3.5 w-3.5 text-green-500" />
+              {homeBase ? (
+                <span className="text-[11px] text-gray-500 max-w-[120px] truncate">{homeBase}</span>
+              ) : (
+                <span className="text-[11px] text-gray-700 italic">No base set</span>
+              )}
+              <button
+                onClick={() => {
+                  const addr = prompt('Enter home base address:', homeBase);
+                  if (addr !== null) {
+                    setHomeBase(addr);
+                    if (addr.trim()) calculateProximityFromHomeBase(addr);
+                  }
+                }}
+                className="text-[10px] text-green-500 hover:text-green-400 font-semibold transition-colors"
+              >
+                {homeBase ? 'Edit' : 'Set'}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* === MAP VIEW === */}
+        {viewMode === 'map' && (
+          <div className="mb-6">
+            <div className="bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 p-4 sm:p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl">
+                    <MapIcon className="h-5 w-5 text-white" />
+                  </div>
+                  <h2 className="text-lg font-bold text-white">Customer Map</h2>
+                </div>
+                <span className="text-xs text-gray-500">{customers.filter(c => c.address).length} with addresses</span>
+              </div>
+              <CustomerMap
+                customers={customers.filter(c => c.address)}
+                homeBase={homeBase}
+                selectedWeek={selectedWeek}
+                completedCustomers={completedCustomers}
+                movedCustomers={movedCustomers}
+                onCustomerClick={(customer) => console.log('Customer clicked:', customer)}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* === UNASSIGNED CUSTOMERS === */}
+        {unassignedCustomers.length > 0 && viewMode === 'schedule' && (
+          <div className="mb-6">
+            <div className="bg-white/5 backdrop-blur-xl rounded-2xl border border-orange-500/20 p-4 sm:p-6">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-gradient-to-br from-orange-500 to-amber-600 rounded-xl shadow-lg shadow-orange-500/20">
+                    <ClockIcon className="h-5 w-5 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-bold text-white">Unassigned</h2>
+                    <p className="text-xs text-gray-400">{unassignedCustomers.length} waiting to be scheduled</p>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {Object.keys(proximityData).length > 0 && (
+                    <button
+                      onClick={() => {
+                        const sorted = [...unassignedCustomers].sort((a, b) => {
+                          const aP = proximityData[a.id]; const bP = proximityData[b.id];
+                          if (!aP && !bP) return 0; if (!aP) return 1; if (!bP) return -1;
+                          return aP.distance - bP.distance;
+                        });
+                        setUnassignedCustomers(sorted);
+                      }}
+                      className="px-3 py-2 text-xs font-semibold text-blue-400 bg-blue-500/10 rounded-xl hover:bg-blue-500/20 border border-blue-500/20 transition-all flex items-center gap-1"
+                    >
+                      <MapPinIcon className="h-3.5 w-3.5" />Sort by Distance
+                    </button>
+                  )}
+                  <button onClick={selectAllUnassigned} className="px-3 py-2 text-xs font-semibold text-gray-400 bg-white/5 rounded-xl hover:bg-white/10 border border-white/10 transition-all">
+                    {selectedCustomers.length === unassignedCustomers.length ? 'Deselect All' : 'Select All'}
+                  </button>
+                  <button
+                    onClick={smartAssignCustomers}
+                    disabled={smartAssignLoading || unassignedCustomers.filter(c => c.address).length === 0}
+                    className="px-3 py-2 text-xs font-semibold text-purple-300 bg-purple-500/10 rounded-xl hover:bg-purple-500/20 border border-purple-500/20 disabled:opacity-40 transition-all flex items-center gap-1"
+                  >
+                    {smartAssignLoading ? <><div className="animate-spin h-3 w-3 border-2 border-purple-400 border-t-transparent rounded-full"></div>Working...</> : <>🎯 Smart Assign</>}
+                  </button>
+                  {selectedCustomers.length > 0 && (
+                    <button
+                      onClick={() => setShowBulkAssignModal(true)}
+                      className="px-3 py-2 text-xs font-semibold text-white bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl hover:shadow-lg hover:shadow-green-500/25 transition-all flex items-center gap-1"
+                    >
+                      <PlusIcon className="h-3.5 w-3.5" />Assign {selectedCustomers.length}
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {selectedCustomers.length > 0 && (
+                <div className="mb-4 p-3 bg-white/5 border border-white/10 rounded-xl flex items-center justify-between gap-4 flex-wrap">
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm text-green-400 font-medium">
+                      <CheckIcon className="h-4 w-4 inline mr-1" />{selectedCustomers.length} selected
+                    </span>
+                    <span className="text-sm text-green-300 font-bold">
+                      ${selectedCustomers.reduce((s, id) => s + parseFloat(unassignedCustomers.find(c => c.id === id)?.price || 0), 0).toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleBulkScratchCustomers}
+                      className="px-3 py-1.5 text-[11px] font-bold text-amber-400 bg-amber-500/10 rounded-lg border border-amber-500/20 hover:bg-amber-500/20 transition-all"
+                    >
+                      ✕ Bulk Scratch
+                    </button>
+                    <button
+                      onClick={handleBulkDeleteCustomers}
+                      className="px-3 py-1.5 text-[11px] font-bold text-red-400 bg-red-500/10 rounded-lg border border-red-500/20 hover:bg-red-500/20 transition-all"
+                    >
+                      🗑 Bulk Delete
+                    </button>
+                    <button
+                      onClick={clearSelection}
+                      className="px-3 py-1.5 text-[11px] font-bold text-gray-400 bg-white/5 rounded-lg border border-white/10 hover:bg-white/10 transition-all"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                </div>
+              )}
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+                {unassignedCustomers.map(customer => (
+                  <CustomerCard key={customer.id} customer={customer} showAssignButton={true} showCheckbox={true} day={selectedDay} daySelectionHandler={toggleDayCustomerSelection} />
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* === DAILY SCHEDULE GRID === */}
+        {viewMode === 'schedule' && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {(selectedDay ? [selectedDay] : DAYS_OF_WEEK.filter(day => day.includes(selectedWeek))).map(day => {
+              const daySearchTerm = daySearchTerms[day] || '';
+              const searchResults = getSearchableCustomers(day, daySearchTerm);
+              const isToday = day === `${getCurrentDayName()} ${getCurrentWeek()}` && selectedWeek === getCurrentWeek();
+              const dayCustomers = schedule[day] || [];
+              const completedCount = completedCustomers[day]?.length || 0;
+              const earningsData = earnings.daily[day];
+              const progress = dayCustomers.length > 0 ? (completedCount / dayCustomers.length) * 100 : 0;
+
+              return (
+                <div
+                  key={day}
+                  id={`day-${day.replace(/ /g, '-')}`}
+                  className={`bg-white/5 backdrop-blur-xl rounded-2xl border overflow-hidden transition-all duration-300 hover:bg-white/[0.07] ${selectedDay ? 'lg:col-span-2' : ''} ${
+                    isToday ? 'border-green-500/30 shadow-lg shadow-green-500/10' : 'border-white/10'
+                  }`}
+                >
+                  {/* Day Header */}
+                  <div className="p-4 border-b border-white/5">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-base font-bold text-white">{day.split(' ')[0]}</span>
+                        <span className="text-xs text-gray-500 font-medium">{day.split(' ').slice(1).join(' ')}</span>
+                        <span className="text-xs text-gray-600 bg-white/5 px-2 py-0.5 rounded-full">{dayCustomers.length}</span>
+                        {isToday && (
+                          <span className="flex items-center gap-1 px-2 py-0.5 bg-green-500/20 text-green-400 text-[10px] font-bold rounded-full uppercase tracking-wider">
+                            <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></span>Today
+                          </span>
+                        )}
+                      </div>
+                      {earningsData && earningsData.total > 0 && (
+                        <span className="text-sm font-bold bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text text-transparent">
+                          ${earningsData.total.toFixed(0)}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Progress bar */}
+                    {dayCustomers.length > 0 && (
+                      <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-gradient-to-r from-green-500 to-emerald-400 rounded-full transition-all duration-700 ease-out"
+                          style={{ width: `${progress}%` }}
+                        ></div>
+                      </div>
+                    )}
+
+                    {/* Action buttons */}
+                    {dayCustomers.length > 0 && (
+                      <div className="flex flex-wrap items-center gap-1.5 mt-3">
+                        <button onClick={() => moveIncompleteToNextDay(day)} className="text-[10px] px-2.5 py-1.5 text-orange-400 bg-orange-500/10 rounded-lg hover:bg-orange-500/20 border border-orange-500/20 transition-all font-medium">
+                          ⏭️ Move Incomplete
+                        </button>
+                        <button onClick={() => selectAllDayCustomers(day)} className="text-[10px] px-2.5 py-1.5 text-gray-400 bg-white/5 rounded-lg hover:bg-white/10 border border-white/10 transition-all font-medium">
+                          {selectedDayCustomers[day]?.length === dayCustomers.length ? '✕ Deselect' : '☑ Select All'}
+                        </button>
+                        {selectedDayCustomers[day]?.length > 0 && (
+                          <button onClick={() => bulkRemoveFromDay(day, selectedDayCustomers[day])} className="text-[10px] px-2.5 py-1.5 text-red-400 bg-red-500/10 rounded-lg hover:bg-red-500/20 border border-red-500/20 transition-all font-medium">
+                            ✕ Remove ({selectedDayCustomers[day].length})
+                          </button>
+                        )}
+                        {dayCustomers.length > 1 && homeBase.trim() && (
+                          <button onClick={() => calculateDayRoute(day)} className="text-[10px] px-2.5 py-1.5 text-purple-400 bg-purple-500/10 rounded-lg hover:bg-purple-500/20 border border-purple-500/20 transition-all font-medium">
+                            🗺️ Optimize Route
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Day search */}
+                    <div className="mt-3 flex items-center bg-white/5 rounded-xl border border-white/5 px-3 py-2">
+                      <MagnifyingGlassIcon className="h-3.5 w-3.5 text-gray-600 mr-2 shrink-0" />
+                      <input
+                        type="text"
+                        placeholder="Search to reassign here..."
+                        value={daySearchTerm}
+                        onChange={(e) => handleDaySearch(day, e.target.value)}
+                        className="flex-1 bg-transparent outline-none text-xs text-gray-300 placeholder-gray-600"
+                      />
+                      {daySearchTerm && (
+                        <button onClick={() => handleDaySearch(day, '')} className="p-0.5 text-gray-600 hover:text-white">
+                          <XMarkIcon className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Search results */}
+                    {searchResults.length > 0 && (
+                      <div className="mt-2 p-3 bg-blue-500/10 border border-blue-500/20 rounded-xl">
+                        <p className="text-xs text-blue-400 font-semibold mb-2">Found {searchResults.length}:</p>
+                        <div className="space-y-1.5">
+                          {searchResults.map(customer => (
+                            <div key={customer.id} className="flex items-center justify-between bg-white/5 p-2 rounded-lg">
+                              <div className="min-w-0 flex-1">
+                                <p className="text-xs font-medium text-white truncate">{highlightSearchTerm(customer.name, daySearchTerm)}</p>
+                                <p className="text-[10px] text-gray-500">From: {customer.currentDay} &bull; ${customer.price}</p>
+                              </div>
+                              <button
+                                onClick={() => reassignCustomerToDay(customer.id, day, customer.currentDay)}
+                                className="ml-2 px-2.5 py-1 bg-green-500/20 text-green-400 text-[10px] rounded-lg hover:bg-green-500/30 font-semibold transition-all"
+                              >
+                                + Move
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Earnings breakdown */}
+                    {earningsData && earningsData.total > 0 && (
+                      <div className="mt-2 flex gap-2 text-[10px]">
+                        <span className="px-2 py-1 bg-green-500/10 text-green-400 rounded-lg font-medium">
+                          W: ${earningsData.weekly.toFixed(0)} ({earningsData.weeklyCount})
+                        </span>
+                        <span className="px-2 py-1 bg-blue-500/10 text-blue-400 rounded-lg font-medium">
+                          BW: ${earningsData.biWeekly.toFixed(0)} ({earningsData.biWeeklyCount})
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Customer List */}
+                  <div className="p-3">
+                    {selectedDayCustomers[day]?.length > 0 && (
+                      <div className="mb-3 p-2.5 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center justify-between">
+                        <span className="text-xs text-red-400 font-medium">{selectedDayCustomers[day].length} selected for removal</span>
+                        <span className="text-xs text-red-300 font-bold">${selectedDayCustomers[day].reduce((s, id) => s + parseFloat(schedule[day]?.find(c => c.id === id)?.price || 0), 0).toFixed(2)}</span>
+                      </div>
+                    )}
+                    
+                    {dayCustomers.length > 0 ? (
+                      <div
+                        className={`space-y-2.5 min-h-[80px] p-1 rounded-xl transition-colors ${
+                          dragOverDay === day ? 'bg-blue-500/10 border-2 border-dashed border-blue-500/30' : ''
+                        }`}
+                        onDragOver={(e) => handleDragOver(e, day)}
+                        onDragLeave={handleDragLeave}
+                        onDrop={(e) => handleDrop(e, day)}
+                      >
+                        {dayCustomers.map((customer, index) => (
+                          <CustomerCard
+                            key={customer.id}
+                            customer={customer}
+                            showUnassignButton={true}
+                            showCheckbox={true}
+                            onDragStart={(e) => handleDragStart(e, customer)}
+                            onDragEnd={handleDragEnd}
+                            reorderCustomersInDay={reorderCustomersInDay}
+                            index={index}
+                            day={day}
+                            daySelectionHandler={toggleDayCustomerSelection}
+                          />
+                        ))}
+                      </div>
+                    ) : (
+                      <div
+                        className={`text-center py-8 rounded-xl border-2 border-dashed transition-all ${
+                          dragOverDay === day ? 'border-blue-500/40 bg-blue-500/5' : 'border-white/5'
+                        }`}
+                        onDragOver={(e) => handleDragOver(e, day)}
+                        onDragLeave={handleDragLeave}
+                        onDrop={(e) => handleDrop(e, day)}
+                      >
+                        <UserIcon className="h-8 w-8 mx-auto mb-2 text-gray-700" />
+                        <p className="text-xs text-gray-600">
+                          {dragOverDay === day ? 'Drop customer here' : 'No customers scheduled'}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* === MODALS === */}
+
+        {/* Bulk Assign Modal */}
+        {showBulkAssignModal && selectedCustomers.length > 0 && (
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <div className="bg-[#1a1b23] rounded-2xl border border-white/10 max-w-lg w-full p-6 shadow-2xl">
+              <h3 className="text-lg font-bold text-white mb-4">
+                Assign {selectedCustomers.length} customers
+              </h3>
+              <div className="mb-4 p-3 bg-white/5 rounded-xl max-h-32 overflow-y-auto">
+                {selectedCustomers.map(id => {
+                  const c = unassignedCustomers.find(x => x.id === id);
+                  return c ? (
+                    <div key={id} className="flex justify-between items-center text-sm py-1">
+                      <span className="text-gray-300">{c.name}</span>
+                      <span className="text-green-400 font-medium">${c.price}</span>
+                    </div>
+                  ) : null;
+                })}
+                <div className="border-t border-white/10 mt-2 pt-2 flex justify-between">
+                  <span className="text-sm font-bold text-white">Total</span>
+                  <span className="text-sm font-bold text-green-400">${selectedCustomers.reduce((s, id) => s + parseFloat(unassignedCustomers.find(c => c.id === id)?.price || 0), 0).toFixed(2)}</span>
+                </div>
+              </div>
+              <div className="space-y-1.5 max-h-64 overflow-y-auto">
+                {DAYS_OF_WEEK.map(day => (
+                  <button
+                    key={day}
+                    onClick={() => assignMultipleCustomersToDay(selectedCustomers, day)}
+                    className="w-full text-left px-4 py-3 bg-white/5 border border-white/10 rounded-xl hover:bg-green-500/10 hover:border-green-500/30 transition-all"
+                  >
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-semibold text-white">{day}</span>
+                      <span className="text-xs text-gray-500">{schedule[day]?.length || 0} → <span className="text-green-400 font-medium">{(schedule[day]?.length || 0) + selectedCustomers.length}</span></span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+              <button
+                onClick={() => { setShowBulkAssignModal(false); setSelectedCustomers([]); }}
+                className="mt-4 w-full py-2.5 bg-white/5 text-gray-400 rounded-xl hover:bg-white/10 text-sm font-medium transition-all"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Single Customer Assign Modal */}
+        {showAssignModal && selectedCustomer && (
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <div className="bg-[#1a1b23] rounded-2xl border border-white/10 max-w-md w-full p-6 shadow-2xl">
+              <h3 className="text-lg font-bold text-white mb-4">
+                Assign {selectedCustomer.name}
+              </h3>
+              <div className="space-y-1.5 max-h-80 overflow-y-auto">
+                {DAYS_OF_WEEK.map(day => (
+                  <button
+                    key={day}
+                    onClick={() => assignCustomerToDay(selectedCustomer.id, day)}
+                    className="w-full text-left px-4 py-3 bg-white/5 border border-white/10 rounded-xl hover:bg-green-500/10 hover:border-green-500/30 transition-all"
+                  >
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-semibold text-white">{day}</span>
+                      <span className="text-xs text-gray-500">{schedule[day]?.length || 0} customers</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+              <button
+                onClick={() => { setShowAssignModal(false); setSelectedCustomer(null); }}
+                className="mt-4 w-full py-2.5 bg-white/5 text-gray-400 rounded-xl hover:bg-white/10 text-sm font-medium transition-all"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Smart Assignment Modal */}
+        {showSmartAssignModal && (
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <div className="bg-[#1a1b23] rounded-2xl border border-white/10 max-w-md w-full p-6 shadow-2xl text-center">
+              <div className="mx-auto w-14 h-14 flex items-center justify-center rounded-2xl bg-purple-500/20 text-2xl mb-4">🎯</div>
+              <h3 className="text-lg font-bold text-white mb-2">Smart Assignment</h3>
+              <p className="text-sm text-gray-400 mb-6">Optimizing schedule using Google Maps...</p>
+              {smartAssignLoading && (
+                <div className="flex items-center justify-center gap-2 mb-4">
+                  <div className="animate-spin rounded-full h-5 w-5 border-2 border-purple-400 border-t-transparent"></div>
+                  <span className="text-sm text-gray-400">Calculating routes...</span>
+                </div>
+              )}
+              <div className="text-xs text-gray-600 space-y-1">
+                <p>• Grouping customers by proximity</p>
+                <p>• Minimizing travel distances</p>
+                <p>• Balancing workload across days</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Mark as Done Modal */}
+        {showMarkDoneModal && selectedCustomerForDone && (
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <div className="bg-[#1a1b23] rounded-2xl border border-white/10 max-w-md w-full p-6 shadow-2xl">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-bold text-white">Mark as Done</h3>
+                <button
+                  onClick={() => { setShowMarkDoneModal(false); setSelectedCustomerForDone(null); setCompletionMessage(''); }}
+                  className="text-gray-500 hover:text-white transition-colors"
+                >
+                  <XCircleIcon className="h-6 w-6" />
+                </button>
+              </div>
+
+              <div className="mb-4 p-3 bg-white/5 rounded-xl">
+                <p className="text-sm font-semibold text-white">{selectedCustomerForDone.name}</p>
+                <p className="text-xs text-gray-400">{selectedCustomerForDone.service_type?.replace('_', ' ') || 'Service'} &bull; {selectedCustomerForDone.day}</p>
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-xs font-semibold text-gray-400 mb-2 uppercase tracking-wider">Message to Customer</label>
+                <textarea
+                  value={completionMessage}
+                  onChange={(e) => setCompletionMessage(e.target.value)}
+                  rows="3"
+                  className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-gray-200 outline-none focus:border-green-500/50 focus:ring-1 focus:ring-green-500/20 placeholder-gray-600 resize-none"
+                  placeholder="Enter a message..."
+                />
+              </div>
+
+              <div className="mb-5 space-y-2">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={sendEmail} onChange={(e) => setSendEmail(e.target.checked)} className="w-4 h-4 text-green-500 bg-white/5 border-white/20 rounded focus:ring-green-500/30" />
+                  <span className="text-sm text-gray-400">Send Email to {selectedCustomerForDone.email || 'N/A'}</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={sendSMS} onChange={(e) => setSendSMS(e.target.checked)} className="w-4 h-4 text-green-500 bg-white/5 border-white/20 rounded focus:ring-green-500/30" />
+                  <span className="text-sm text-gray-400">Send SMS to {selectedCustomerForDone.phone || 'N/A'}</span>
+                </label>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={handleMarkCustomerAsDone}
+                  disabled={markingDone}
+                  className="flex-1 py-2.5 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl font-semibold text-sm hover:shadow-lg hover:shadow-green-500/25 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                >
+                  {markingDone ? 'Processing...' : 'Mark Done & Send'}
+                </button>
+                <button
+                  onClick={() => { setShowMarkDoneModal(false); setSelectedCustomerForDone(null); setCompletionMessage(''); }}
+                  className="px-4 py-2.5 bg-white/5 text-gray-400 rounded-xl hover:bg-white/10 text-sm transition-all"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

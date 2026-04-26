@@ -1,0 +1,98 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body {
+  scroll-behavior: smooth !important;
+}
+
+/* It makes the HTML progress bar filling smooth when value change. */
+progress::-webkit-progress-value {
+  transition: 0.6s width ease-out;
+}
+
+@layer base {
+  .btn-gradient {
+    @apply !bg-gradient !bg-[length:300%_300%] hover:saturate-[1.2] shadow duration-100 !border-0 !border-transparent !bg-transparent animate-shimmer disabled:!bg-none disabled:!bg-gray-500/30  !text-white;
+  }
+  .btn {
+    @apply !capitalize;
+  }
+}
+
+/* Elite Google Maps Autocomplete Styling */
+.pac-container {
+  z-index: 10000 !important;
+  border-radius: 2rem !important;
+  border: 1px solid rgba(226, 232, 240, 0.8) !important;
+  margin-top: 12px !important;
+  box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.3) !important;
+  font-family: 'Inter', sans-serif !important;
+  padding: 10px !important;
+  background-color: white !important;
+}
+
+.pac-item {
+  padding: 18px 25px !important;
+  border-top: 1px solid #f8fafc !important;
+  cursor: pointer !important;
+  font-size: 15px !important;
+  font-weight: 500 !important;
+  color: #64748b !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 2px !important;
+}
+
+.pac-item:first-of-type {
+  border-top: none !important;
+}
+
+.pac-item:hover {
+  background-color: #f1f5f9 !important;
+  border-radius: 1.25rem !important;
+}
+
+.pac-item-query {
+  font-size: 16px !important;
+  font-weight: 800 !important;
+  color: #0f172a !important;
+  padding-right: 0 !important;
+}
+
+.pac-matched {
+  color: #22c55e !important;
+  font-weight: 900 !important;
+}
+
+.pac-secondary-query {
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  color: #a0aec0 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.025em !important;
+}
+
+.pac-icon {
+  display: none !important;
+}
+
+/* Custom Scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
