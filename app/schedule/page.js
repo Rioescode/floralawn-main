@@ -67,6 +67,13 @@ export default function SchedulePage() {
   const [editingNotes, setEditingNotes] = useState({});
   const [editingAddress, setEditingAddress] = useState({}); // { [customerId]: currentAddressString }
   const addressInputRefs = useRef({});
+  const [showAddCustomerModal, setShowAddCustomerModal] = useState(false);
+  const [newCustomerForm, setNewCustomerForm] = useState({
+    name: '', email: '', phone: '', address: '', price: '', frequency: 'weekly',
+    service_type: 'lawn_mowing', status: 'active', notes: '', scheduled_day: ''
+  });
+  const [addingCustomer, setAddingCustomer] = useState(false);
+  const newCustomerAddressRef = useRef(null);
   const [homeBase, setHomeBase] = useState(''); // Home base address
   const [proximityData, setProximityData] = useState({}); // Store proximity calculations
   const [loadingProximity, setLoadingProximity] = useState(false);
@@ -1300,6 +1307,66 @@ export default function SchedulePage() {
     }
   };
 
+  // ---------- Add New Customer ----------
+  const openAddCustomerModal = () => {
+    setNewCustomerForm({ name: '', email: '', phone: '', address: '', price: '', frequency: 'weekly', service_type: 'lawn_mowing', status: 'active', notes: '', scheduled_day: '' });
+    setShowAddCustomerModal(true);
+    // Init Google Places after modal renders
+    setTimeout(() => {
+      const el = newCustomerAddressRef.current;
+      if (!el || !window.google?.maps) return;
+      try {
+        const ac = new window.google.maps.places.Autocomplete(el, {
+          componentRestrictions: { country: 'us' },
+          fields: ['formatted_address'],
+          types: ['address']
+        });
+        ac.addListener('place_changed', () => {
+          const place = ac.getPlace();
+          if (place.formatted_address) {
+            setNewCustomerForm(prev => ({ ...prev, address: place.formatted_address }));
+            el.value = place.formatted_address;
+          }
+        });
+      } catch (e) { console.error('Autocomplete init error', e); }
+    }, 200);
+  };
+
+  const addNewCustomer = async () => {
+    if (!newCustomerForm.name.trim()) { alert('Name is required'); return; }
+    if (!newCustomerForm.phone.trim()) { alert('Phone is required'); return; }
+    if (!newCustomerForm.price) { alert('Price is required'); return; }
+    setAddingCustomer(true);
+    try {
+      const addressVal = newCustomerAddressRef.current?.value || newCustomerForm.address;
+      const { data, error } = await supabase
+        .from('customers')
+        .insert([{
+          name: newCustomerForm.name.trim(),
+          email: newCustomerForm.email.trim() || null,
+          phone: newCustomerForm.phone.trim(),
+          address: addressVal.trim() || null,
+          price: parseFloat(newCustomerForm.price),
+          frequency: newCustomerForm.frequency,
+          service_type: newCustomerForm.service_type,
+          status: newCustomerForm.status,
+          notes: newCustomerForm.notes.trim() || null,
+          scheduled_day: newCustomerForm.scheduled_day || null,
+        }])
+        .select()
+        .single();
+      if (error) throw error;
+      setCustomers(prev => [...prev, data]);
+      setShowAddCustomerModal(false);
+      alert(`✅ ${data.name} added successfully!`);
+    } catch (err) {
+      console.error('Error adding customer:', err);
+      alert('Failed to add customer: ' + err.message);
+    } finally {
+      setAddingCustomer(false);
+    }
+  };
+
   // Load home base address from Supabase
   const loadHomeBaseAddress = async () => {
     try {
@@ -2160,6 +2227,16 @@ export default function SchedulePage() {
               Map
             </button>
           </div>
+
+          {/* Add Customer Button */}
+          <button
+            onClick={openAddCustomerModal}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-bold bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-lg shadow-green-500/25 hover:shadow-green-500/40 hover:scale-105 transition-all duration-200 active:scale-95"
+          >
+            <PlusIcon className="h-4 w-4" />
+            <span className="hidden sm:inline">Add Customer</span>
+            <span className="sm:hidden">+ Add</span>
+          </button>
         </div>
 
         {/* === COMMAND CENTER === */}
@@ -2778,6 +2855,168 @@ export default function SchedulePage() {
                 <button
                   onClick={() => { setShowMarkDoneModal(false); setSelectedCustomerForDone(null); setCompletionMessage(''); }}
                   className="px-4 py-2.5 bg-white/5 text-gray-400 rounded-xl hover:bg-white/10 text-sm transition-all"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* === ADD NEW CUSTOMER MODAL === */}
+        {showAddCustomerModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" onClick={() => setShowAddCustomerModal(false)}>
+            <div className="bg-[#0f1117] border border-white/10 rounded-3xl w-full max-w-md shadow-2xl overflow-y-auto max-h-[90vh]" onClick={e => e.stopPropagation()}>
+              {/* Header */}
+              <div className="flex items-center justify-between p-5 border-b border-white/10">
+                <div>
+                  <h2 className="text-lg font-black text-white">Add New Customer</h2>
+                  <p className="text-xs text-gray-500 mt-0.5">Customer will appear on the schedule immediately</p>
+                </div>
+                <button onClick={() => setShowAddCustomerModal(false)} className="p-2 hover:bg-white/10 rounded-xl transition-colors">
+                  <XMarkIcon className="h-5 w-5 text-gray-400" />
+                </button>
+              </div>
+
+              {/* Form */}
+              <div className="p-5 space-y-4">
+                {/* Name */}
+                <div>
+                  <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Name <span className="text-red-400">*</span></label>
+                  <input
+                    type="text"
+                    value={newCustomerForm.name}
+                    onChange={e => setNewCustomerForm(prev => ({ ...prev, name: e.target.value }))}
+                    placeholder="Full name"
+                    className="w-full p-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white outline-none focus:border-green-500/50 placeholder-gray-600"
+                  />
+                </div>
+
+                {/* Phone + Email */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Phone <span className="text-red-400">*</span></label>
+                    <input
+                      type="tel"
+                      value={newCustomerForm.phone}
+                      onChange={e => setNewCustomerForm(prev => ({ ...prev, phone: e.target.value }))}
+                      placeholder="(401) 000-0000"
+                      className="w-full p-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white outline-none focus:border-green-500/50 placeholder-gray-600"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Email</label>
+                    <input
+                      type="email"
+                      value={newCustomerForm.email}
+                      onChange={e => setNewCustomerForm(prev => ({ ...prev, email: e.target.value }))}
+                      placeholder="email@example.com"
+                      className="w-full p-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white outline-none focus:border-green-500/50 placeholder-gray-600"
+                    />
+                  </div>
+                </div>
+
+                {/* Address with Google Places */}
+                <div>
+                  <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
+                    <MapPinIcon className="inline h-3 w-3 mr-1" />Address (Google Autocomplete)
+                  </label>
+                  <input
+                    ref={newCustomerAddressRef}
+                    type="text"
+                    defaultValue={newCustomerForm.address}
+                    onChange={e => setNewCustomerForm(prev => ({ ...prev, address: e.target.value }))}
+                    placeholder="Start typing address..."
+                    className="w-full p-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white outline-none focus:border-blue-500/50 placeholder-gray-600"
+                  />
+                </div>
+
+                {/* Price + Frequency */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Price <span className="text-red-400">*</span></label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">$</span>
+                      <input
+                        type="number"
+                        value={newCustomerForm.price}
+                        onChange={e => setNewCustomerForm(prev => ({ ...prev, price: e.target.value }))}
+                        placeholder="0.00"
+                        className="w-full pl-6 pr-3 p-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white outline-none focus:border-green-500/50 placeholder-gray-600"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Frequency</label>
+                    <select
+                      value={newCustomerForm.frequency}
+                      onChange={e => setNewCustomerForm(prev => ({ ...prev, frequency: e.target.value }))}
+                      className="w-full p-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white outline-none focus:border-green-500/50"
+                    >
+                      <option value="weekly">Weekly</option>
+                      <option value="bi_weekly">Bi-Weekly</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Service Type + Scheduled Day */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Service Type</label>
+                    <select
+                      value={newCustomerForm.service_type}
+                      onChange={e => setNewCustomerForm(prev => ({ ...prev, service_type: e.target.value }))}
+                      className="w-full p-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white outline-none focus:border-green-500/50"
+                    >
+                      <option value="lawn_mowing">Lawn Mowing</option>
+                      <option value="spring_cleanup">Spring Cleanup</option>
+                      <option value="fall_cleanup">Fall Cleanup</option>
+                      <option value="mulching">Mulching</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Assign to Day</label>
+                    <select
+                      value={newCustomerForm.scheduled_day}
+                      onChange={e => setNewCustomerForm(prev => ({ ...prev, scheduled_day: e.target.value }))}
+                      className="w-full p-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white outline-none focus:border-green-500/50"
+                    >
+                      <option value="">— Unassigned —</option>
+                      {DAYS_OF_WEEK.map(d => <option key={d} value={d}>{d}</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Notes */}
+                <div>
+                  <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Notes</label>
+                  <textarea
+                    value={newCustomerForm.notes}
+                    onChange={e => setNewCustomerForm(prev => ({ ...prev, notes: e.target.value }))}
+                    placeholder="Any special instructions..."
+                    rows={2}
+                    className="w-full p-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white outline-none focus:border-green-500/50 placeholder-gray-600 resize-none"
+                  />
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="flex gap-3 p-5 border-t border-white/10">
+                <button
+                  onClick={addNewCustomer}
+                  disabled={addingCustomer}
+                  className="flex-1 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-2xl font-bold text-sm hover:shadow-lg hover:shadow-green-500/25 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
+                >
+                  {addingCustomer ? (
+                    <><span className="animate-spin rounded-full h-4 w-4 border-2 border-white/30 border-t-white"></span> Adding...</>
+                  ) : (
+                    <><PlusIcon className="h-4 w-4" /> Add Customer</>
+                  )}
+                </button>
+                <button
+                  onClick={() => setShowAddCustomerModal(false)}
+                  className="px-5 py-3 bg-white/5 text-gray-400 rounded-2xl hover:bg-white/10 text-sm font-medium transition-all"
                 >
                   Cancel
                 </button>
