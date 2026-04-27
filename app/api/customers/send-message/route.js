@@ -52,7 +52,6 @@ export async function POST(request) {
               <div style="background-color: #f0f9ff; padding: 15px; border-radius: 8px; margin: 20px 0;">
                 <p><strong>Service:</strong> ${appointment.service_type}</p>
                 <p><strong>Date:</strong> ${new Date(appointment.date).toLocaleDateString()}</p>
-                <p><strong>Location:</strong> ${appointment.city}${appointment.street_address ? `, ${appointment.street_address}` : ''}</p>
               </div>
               <p>Thank you for choosing Flora Lawn and Landscaping!</p>
               <p>If you have any questions, please don't hesitate to contact us.</p>
