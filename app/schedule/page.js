@@ -2632,6 +2632,7 @@ export default function SchedulePage() {
               )}
             </div>
           </div>
+        )}
 
         {/* === UNASSIGNED CUSTOMERS === */}
         {unassignedCustomers.length > 0 && viewMode === 'schedule' && (
