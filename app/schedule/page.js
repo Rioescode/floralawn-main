@@ -108,6 +108,7 @@ export default function SchedulePage() {
   const [showOptimizationModal, setShowOptimizationModal] = useState(false);
   const [optimizationData, setOptimizationData] = useState(null);
   const [isEditingHomeBase, setIsEditingHomeBase] = useState(false);
+  const [activeJobTimers, setActiveJobTimers] = useState({});
   const homeBaseAddressRef = useRef(null);
   const router = useRouter();
 
@@ -182,6 +183,31 @@ export default function SchedulePage() {
       });
     }
   }, [isEditingHomeBase]);
+
+  // Live timer update effect
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const now = new Date();
+      const updatedTimers = {};
+      
+      customers.forEach(customer => {
+        if (customer.job_started_at) {
+          const start = new Date(customer.job_started_at);
+          const diffInSeconds = Math.floor((now - start) / 1000);
+          if (diffInSeconds >= 0) {
+            const h = Math.floor(diffInSeconds / 3600);
+            const m = Math.floor((diffInSeconds % 3600) / 60);
+            const s = diffInSeconds % 60;
+            updatedTimers[customer.id] = `${h > 0 ? h + ':' : ''}${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+          }
+        }
+      });
+      
+      setActiveJobTimers(updatedTimers);
+    }, 1000);
+    
+    return () => clearInterval(timer);
+  }, [customers]);
 
   // Function to get current week based on date
   const getCurrentWeek = () => {
@@ -869,6 +895,43 @@ export default function SchedulePage() {
     }));
   };
 
+  const startJob = async (customerId) => {
+    try {
+      const now = new Date().toISOString();
+      const { error } = await supabase
+        .from('customers')
+        .update({ job_started_at: now })
+        .eq('id', customerId);
+
+      if (error) throw error;
+
+      setCustomers(prev => prev.map(c => 
+        c.id === customerId ? { ...c, job_started_at: now } : c
+      ));
+    } catch (error) {
+      console.error('Error starting job:', error);
+      alert('Failed to start job timer');
+    }
+  };
+
+  const cancelJobTimer = async (customerId) => {
+    if (!confirm('Are you sure you want to cancel this timer? The record will be lost.')) return;
+    try {
+      const { error } = await supabase
+        .from('customers')
+        .update({ job_started_at: null })
+        .eq('id', customerId);
+
+      if (error) throw error;
+
+      setCustomers(prev => prev.map(c => 
+        c.id === customerId ? { ...c, job_started_at: null } : c
+      ));
+    } catch (error) {
+      console.error('Error cancelling job:', error);
+    }
+  };
+
   // Mark customer as done and send message
   const handleMarkCustomerAsDone = async () => {
     if (!selectedCustomerForDone) return;
@@ -876,16 +939,31 @@ export default function SchedulePage() {
     try {
       setMarkingDone(true);
       const customer = selectedCustomerForDone;
+      
+      // Calculate duration if timer was active
+      let durationMinutes = null;
+      if (customer.job_started_at) {
+        const start = new Date(customer.job_started_at);
+        const end = new Date();
+        durationMinutes = Math.round((end - start) / (1000 * 60));
+      }
 
-      // Update customer's last_service date
+      // Update customer's last_service date and reset timer
       const { error: updateError } = await supabase
         .from('customers')
         .update({ 
-          last_service: new Date().toISOString().split('T')[0]
+          last_service: new Date().toISOString().split('T')[0],
+          job_started_at: null,
+          last_job_duration_minutes: durationMinutes
         })
         .eq('id', customer.id);
 
       if (updateError) throw updateError;
+
+      // Update local state to reflect the database changes
+      setCustomers(prev => prev.map(c => 
+        c.id === customer.id ? { ...c, job_started_at: null, last_job_duration_minutes: durationMinutes, last_service: new Date().toISOString().split('T')[0] } : c
+      ));
 
       // Create or update appointment record with completed status
       const today = new Date().toISOString().split('T')[0];
@@ -905,7 +983,8 @@ export default function SchedulePage() {
           .from('appointments')
           .update({ 
             status: 'completed',
-            updated_at: new Date().toISOString()
+            updated_at: new Date().toISOString(),
+            duration_minutes: durationMinutes
           })
           .eq('id', existingAppointment.id);
         
@@ -926,7 +1005,8 @@ export default function SchedulePage() {
             status: 'completed',
             city: customer.address?.split(',')[1]?.trim() || '',
             street_address: customer.address?.split(',')[0] || '',
-            notes: `Completed on ${customer.day || 'schedule'}`
+            notes: `Completed on ${customer.day || 'schedule'}. Duration: ${durationMinutes || 'N/A'} mins`,
+            duration_minutes: durationMinutes
           });
         
         if (appointmentError) {
@@ -964,7 +1044,8 @@ export default function SchedulePage() {
                 completed_date: new Date().toISOString(),
                 amount_due: amountDue,
                 amount_paid: 0,
-                payment_status: 'unpaid'
+                payment_status: 'unpaid',
+                duration_minutes: durationMinutes
               });
             
             if (jobError) {
@@ -988,7 +1069,8 @@ export default function SchedulePage() {
               completed_date: new Date().toISOString(),
               amount_due: amountDue,
               amount_paid: 0,
-              payment_status: 'unpaid'
+              payment_status: 'unpaid',
+              duration_minutes: durationMinutes
             });
           
           if (jobError) {
@@ -2099,6 +2181,12 @@ export default function SchedulePage() {
               {customer.route_order}
             </span>
           )}
+          {customer.job_started_at && activeJobTimers[customer.id] && (
+            <span className="px-2 py-0.5 bg-gradient-to-r from-purple-500 to-indigo-600 text-white text-[10px] font-black rounded-full shadow-lg shadow-purple-500/30 flex items-center gap-1 animate-pulse">
+              <ClockIcon className="h-2.5 w-2.5" />
+              {activeJobTimers[customer.id]}
+            </span>
+          )}
         </div>
         
         {/* Main clickable row */}
@@ -2288,7 +2376,24 @@ export default function SchedulePage() {
                   }}
                   className="px-3 py-1.5 text-[11px] font-medium text-blue-400 bg-blue-500/10 rounded-lg border border-blue-500/20 hover:bg-blue-500/20 transition-all flex items-center gap-1"
                 >
-                  <CheckCircleIcon className="h-3.5 w-3.5" />Mark Done & Send
+                  <CheckCircleIcon className="h-3.5 w-3.5" />
+                  Mark Done {activeJobTimers[customer.id] ? `(${activeJobTimers[customer.id]})` : ''}
+                </button>
+              )}
+              {day && !isCompleted && !customer.job_started_at && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); startJob(customer.id); }}
+                  className="px-3 py-1.5 text-[11px] font-medium text-purple-400 bg-purple-500/10 rounded-lg border border-purple-500/20 hover:bg-purple-500/20 transition-all flex items-center gap-1"
+                >
+                  <PlayIcon className="h-3.5 w-3.5" />Start Job
+                </button>
+              )}
+              {customer.job_started_at && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); cancelJobTimer(customer.id); }}
+                  className="px-3 py-1.5 text-[11px] font-medium text-red-400 bg-red-500/10 rounded-lg border border-red-500/20 hover:bg-red-500/20 transition-all flex items-center gap-1"
+                >
+                  <XMarkIcon className="h-3.5 w-3.5" />Cancel Timer
                 </button>
               )}
               {showAssignButton && (
