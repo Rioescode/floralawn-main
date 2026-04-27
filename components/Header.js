@@ -9,16 +9,20 @@ import config from "@/config";
 
 const links = [
   {
-    href: "/services",
-    label: "Services",
+    href: "/",
+    label: "Home",
   },
   {
-    href: "/pricing",
-    label: "Pricing",
+    href: "/gallery",
+    label: "Gallery",
   },
   {
-    href: "/about",
-    label: "About",
+    href: "/offers",
+    label: "Offers",
+  },
+  {
+    href: "/reviews",
+    label: "Reviews",
   },
   {
     href: "/density-check",
@@ -27,6 +31,14 @@ const links = [
   {
     href: "/contact",
     label: "Contact",
+  },
+  {
+    href: "/services",
+    label: "Services",
+  },
+  {
+    href: "/about",
+    label: "About Us",
   }
 ];
 
