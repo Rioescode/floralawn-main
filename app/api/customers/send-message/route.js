@@ -58,7 +58,7 @@ export async function POST(request) {
                 <div style="padding: 40px 32px;">
                   <p style="font-size: 18px; line-height: 1.6; color: #1e293b; margin-top: 0;">Hi ${appointment.customer_name || 'there'},</p>
                   <p style="font-size: 16px; line-height: 1.6; color: #475569;">Thank you for choosing <strong>Flora Lawn & Landscaping Inc</strong>. We hope you're loving the way your property looks!</p>
-                  <p style="font-size: 16px; line-height: 1.6; color: #475569;">Would you mind taking 30 seconds to share your experience with us? Your feedback helps us grow and continue providing elite service to our community.</p>
+                  <p style="font-size: 16px; line-height: 1.6; color: #475569;">Would you mind taking 30 seconds to share your experience with us? Your feedback helps us grow and continue providing great service to our community.</p>
                   
                   <div style="text-align: center; margin: 40px 0;">
                     <a href="https://g.page/r/CQjJ-AbEL4N2EBE/review" style="background-color: #22c55e; color: #ffffff; padding: 18px 36px; border-radius: 12px; text-decoration: none; font-weight: 800; font-size: 16px; display: inline-block; box-shadow: 0 10px 15px -3px rgba(34, 197, 94, 0.3);">
@@ -70,7 +70,7 @@ export async function POST(request) {
                 </div>
                 <div style="background-color: #f8fafc; padding: 32px; text-align: center; border-top: 1px solid #e5e7eb;">
                   <p style="margin: 0; font-size: 14px; font-weight: 700; color: #1e293b;">Flora Lawn & Landscaping Inc</p>
-                  <p style="margin: 4px 0 0; font-size: 12px; color: #64748b;">Elite Lawn Care & Landscaping Services</p>
+                  <p style="margin: 4px 0 0; font-size: 12px; color: #64748b;">Professional Lawn Care & Landscaping Services</p>
                   <p style="margin: 16px 0 0; font-size: 12px; color: #94a3b8;">(401) 389-0913 • floralawncareri@gmail.com</p>
                 </div>
               </div>
