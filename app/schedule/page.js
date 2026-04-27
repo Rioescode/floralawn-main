@@ -1289,7 +1289,8 @@ export default function SchedulePage() {
     rain: (name) => `Hi ${name}, due to the heavy rain today, we unfortunately have to reschedule your service. We will aim to be there as soon as the weather clears. Thank you for your patience!`,
     truck: (name) => `Hi ${name}, we're having some unexpected truck trouble this morning. We're working on getting it fixed and will update you on your service time as soon as possible. Sorry for the inconvenience!`,
     equipment: (name) => `Hi ${name}, we've encountered some equipment issues that are delaying our route today. We'll be in touch shortly with an updated arrival time. Thank you for understanding!`,
-    late: (name) => `Hi ${name}, we're running a bit behind schedule today due to some complex jobs earlier on the route. We should be arriving at your property shortly. See you soon!`
+    late: (name) => `Hi ${name}, we're running a bit behind schedule today due to some complex jobs earlier on the route. We should be arriving at your property shortly. See you soon!`,
+    nextDay: (name) => `Hi ${name}, we're running quite behind today and won't be able to make it to your property. We've moved your service to first thing tomorrow morning. Sorry for the delay and thank you for your patience!`
   };
 
   const handleSendDelayNotification = async () => {
@@ -3569,9 +3570,15 @@ export default function SchedulePage() {
                   </button>
                   <button 
                     onClick={() => setDelayMessage(DELAY_TEMPLATES.late(selectedCustomerForDelay?.name))}
-                    className={`px-4 py-2 rounded-xl text-[11px] font-bold transition-all ${delayMessage.includes('behind') ? 'bg-green-500 text-white' : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}
+                    className={`px-4 py-2 rounded-xl text-[11px] font-bold transition-all ${delayMessage.includes('behind') && !delayMessage.includes('tomorrow') ? 'bg-green-500 text-white' : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}
                   >
                     ⏱️ LATE
+                  </button>
+                  <button 
+                    onClick={() => setDelayMessage(DELAY_TEMPLATES.nextDay(selectedCustomerForDelay?.name))}
+                    className={`px-4 py-2 rounded-xl text-[11px] font-bold transition-all ${delayMessage.includes('tomorrow') ? 'bg-orange-600 text-white shadow-lg shadow-orange-600/20' : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}
+                  >
+                    📅 TOMORROW
                   </button>
                 </div>
 
