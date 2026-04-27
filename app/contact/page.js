@@ -282,23 +282,7 @@ function ContactForm() {
         }
       }
 
-      // Always save every lead to email_subscribers
-      try {
-        const { error: subError } = await supabaseAdmin.from('email_subscribers').upsert({
-          name: formData.name,
-          email: formData.email,
-          phone: formData.phone,
-          city: formData.city,
-          source: 'contact_form',
-          preferences: { email: emailPreferences, sms: smsPreferences },
-          subscribed_at: new Date().toISOString()
-        }, { onConflict: 'email' });
-        if (subError) console.warn('⚠️ email_subscribers upsert:', subError.message);
-      } catch (subErr) {
-        console.warn('⚠️ email_subscribers save failed (non-blocking):', subErr);
-      }
-
-      // Note: Lead saving moved to server-side API route for security and reliability
+      // DB saving moved to server-side API route for security and reliability
       
       await sendNotification(`📬 New Elite Quote Inquiry from ${formData.name} in ${formData.city}!`);
       
@@ -330,7 +314,10 @@ function ContactForm() {
               conditionLabel: currentCondition.label,
               conditionDesc: currentCondition.desc
             } : null,
-            promoCode: formData.promoCode || null
+            promoCode: formData.promoCode || null,
+            estimatePreference: estimatePreference,
+            emailPreferences,
+            smsPreferences
           }),
         });
       } catch (confError) {

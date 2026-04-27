@@ -227,7 +227,29 @@ export async function POST(request) {
         console.log('✅ Lead saved to database successfully');
       }
     } catch (dbErr) {
-      console.error('❌ Database save exception:', dbErr);
+      console.error('❌ Database save exception (appointments):', dbErr);
+    }
+
+    // --- SAVE TO EMAIL SUBSCRIBERS ---
+    try {
+      console.log('📝 Upserting email subscriber...');
+      const { error: subError } = await supabaseAdmin.from('email_subscribers').upsert({
+        name: sanitizedName,
+        email: sanitizedEmail,
+        phone: phone,
+        city: sanitizedCity,
+        source: 'contact_form',
+        preferences: { 
+          email: body.emailPreferences || true, 
+          sms: body.smsPreferences || { subscribe: true, notifications: true } 
+        },
+        subscribed_at: new Date().toISOString()
+      }, { onConflict: 'email' });
+      
+      if (subError) console.warn('⚠️ email_subscribers upsert failed:', subError.message);
+      else console.log('✅ Subscriber updated successfully');
+    } catch (subErr) {
+      console.warn('⚠️ email_subscribers save exception:', subErr);
     }
 
     console.log('📧 Sending confirmation email via Resend to:', sanitizedEmail);
