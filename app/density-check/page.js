@@ -24,21 +24,31 @@ export default function DensityCheckPage() {
 
   const fetchActiveCities = async () => {
     try {
-      const { data, error } = await supabase.from('customers').select('city, zipcode');
+      const { data, error } = await supabase.from('customers').select('address');
       if (error) throw error;
       
-      // Get unique city+zip pairs for privacy-safe neighborhood matching
       const uniquePairs = [];
       const seen = new Set();
       
       data.forEach(c => {
-        const key = `${c.city?.trim().toLowerCase()}-${c.zipcode?.trim()}`;
-        if (c.city && c.zipcode && !seen.has(key)) {
-          seen.add(key);
-          uniquePairs.push({ 
-            city: c.city.trim().toLowerCase(), 
-            zip: c.zipcode.trim() 
-          });
+        if (!c.address) return;
+        
+        // Typical format: "Street, City, ST Zip" or "Street, City, ST"
+        const parts = c.address.split(',').map(p => p.trim());
+        if (parts.length >= 2) {
+          const cityPart = parts[1].toLowerCase();
+          let zipPart = '';
+          
+          // Try to get zip from the last part (ST Zip)
+          const lastPart = parts[parts.length - 1];
+          const zipMatch = lastPart.match(/\d{5}/);
+          if (zipMatch) zipPart = zipMatch[0];
+
+          const key = `${cityPart}-${zipPart}`;
+          if (!seen.has(key)) {
+            seen.add(key);
+            uniquePairs.push({ city: cityPart, zip: zipPart });
+          }
         }
       });
       
