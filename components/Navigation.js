@@ -71,10 +71,10 @@ export default function Navigation() {
 
   const navigation = [
     { name: 'Home', href: '/', icon: HomeIcon },
-    // { name: 'Auto-Lawn AI', href: '/auto-lawn', icon: SparklesIcon },
     { name: 'Gallery', href: '/gallery', icon: PhotoIcon },
     { name: 'Offers', href: '/offers', icon: StarIconSolid },
     { name: 'Reviews', href: '/reviews', icon: StarIconSolid },
+    { name: 'Neighborhood Check', href: '/density-check', icon: MapPinIcon },
     { name: 'Contact', href: '/contact', icon: PhoneIcon },
   ];
 
