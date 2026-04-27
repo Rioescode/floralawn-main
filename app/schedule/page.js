@@ -108,7 +108,6 @@ export default function SchedulePage() {
     week1: 0,
     week2: 0
   });
-  const [dailyGoal, setDailyGoal] = useState(1000); // Default daily goal $1000
   const [appointments, setAppointments] = useState([]);
   const [loadingAppointments, setLoadingAppointments] = useState(false);
   const [showVisitModal, setShowVisitModal] = useState(false);
