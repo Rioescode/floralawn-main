@@ -102,6 +102,10 @@ export default function SchedulePage() {
   });
   const [appointments, setAppointments] = useState([]);
   const [loadingAppointments, setLoadingAppointments] = useState(false);
+  const [showVisitModal, setShowVisitModal] = useState(false);
+  const [selectedVisitApt, setSelectedVisitApt] = useState(null);
+  const [visitForm, setVisitForm] = useState({ date: '', time: '10:00 AM' });
+  const [schedulingVisit, setSchedulingVisit] = useState(false);
   const router = useRouter();
 
   // Helper functions for localStorage persistence
@@ -1439,22 +1443,37 @@ export default function SchedulePage() {
     }, 200);
   };
 
-  const scheduleVisit = async (id) => {
-    const date = prompt('Enter visit date (YYYY-MM-DD):', new Date().toISOString().split('T')[0]);
-    if (!date) return;
-    const time = prompt('Enter visit time (e.g. 10:00 AM):', '10:00 AM');
+  const scheduleVisit = (apt) => {
+    setSelectedVisitApt(apt);
+    setVisitForm({
+      date: new Date().toISOString().split('T')[0],
+      time: '10:00 AM'
+    });
+    setShowVisitModal(true);
+  };
+
+  const handleConfirmVisit = async () => {
+    if (!selectedVisitApt || !visitForm.date) return;
     
     try {
+      setSchedulingVisit(true);
       const { error } = await supabase
         .from('contact_leads')
-        .update({ visit_date: date, visit_time: time })
-        .eq('id', id);
+        .update({ 
+          visit_date: visitForm.date, 
+          visit_time: visitForm.time 
+        })
+        .eq('id', selectedVisitApt.id);
+      
       if (error) throw error;
-      fetchAppointments();
-      alert('Visit scheduled successfully!');
+      
+      await fetchAppointments();
+      setShowVisitModal(false);
     } catch (error) {
       console.error('Error scheduling visit:', error);
       alert('Failed to schedule visit');
+    } finally {
+      setSchedulingVisit(false);
     }
   };
 
@@ -2615,7 +2634,7 @@ export default function SchedulePage() {
                         </div>
                         <div className="flex gap-2">
                           <button 
-                            onClick={() => scheduleVisit(apt.id)}
+                            onClick={() => scheduleVisit(apt)}
                             className="p-2 bg-orange-500/10 text-orange-400 rounded-xl hover:bg-orange-500/20 transition-all border border-orange-500/20"
                             title="Schedule Visit"
                           >
@@ -2655,7 +2674,7 @@ export default function SchedulePage() {
 
                       <div className="grid grid-cols-2 gap-2 mt-5">
                         <button 
-                          onClick={() => scheduleVisit(apt.id)}
+                          onClick={() => scheduleVisit(apt)}
                           className="py-3 bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border border-orange-500/20 flex items-center justify-center gap-2"
                         >
                           <ClockIcon className="h-3.5 w-3.5" />
@@ -3382,6 +3401,67 @@ export default function SchedulePage() {
                 >
                   Cancel
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+        {/* === VISIT SCHEDULING MODAL === */}
+        {showVisitModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+            <div className="bg-[#1e293b] w-full max-w-md rounded-[2.5rem] border border-white/10 shadow-2xl shadow-orange-500/10 overflow-hidden transform transition-all">
+              <div className="p-8">
+                <div className="flex items-center justify-between mb-8">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 bg-orange-500/20 rounded-2xl">
+                      <ClockIcon className="h-6 w-6 text-orange-500" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-black text-white">Schedule Visit</h3>
+                      <p className="text-xs text-gray-500 font-bold uppercase tracking-wider mt-0.5">{selectedVisitApt?.customer_name}</p>
+                    </div>
+                  </div>
+                  <button onClick={() => setShowVisitModal(false)} className="p-2 hover:bg-white/5 rounded-xl transition-colors">
+                    <XMarkIcon className="h-6 w-6 text-gray-500" />
+                  </button>
+                </div>
+
+                <div className="space-y-6">
+                  <div>
+                    <label className="block text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] mb-3 ml-1">Visit Date</label>
+                    <input 
+                      type="date" 
+                      value={visitForm.date}
+                      onChange={(e) => setVisitForm(prev => ({ ...prev, date: e.target.value }))}
+                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white focus:outline-none focus:border-orange-500/50 transition-all font-bold"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] mb-3 ml-1">Visit Time</label>
+                    <input 
+                      type="text" 
+                      placeholder="e.g. 10:00 AM"
+                      value={visitForm.time}
+                      onChange={(e) => setVisitForm(prev => ({ ...prev, time: e.target.value }))}
+                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white focus:outline-none focus:border-orange-500/50 transition-all font-bold placeholder:text-gray-700"
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-10 flex flex-col gap-3">
+                  <button
+                    onClick={handleConfirmVisit}
+                    disabled={schedulingVisit || !visitForm.date}
+                    className="w-full py-4 bg-gradient-to-r from-orange-500 to-red-600 text-white rounded-2xl text-xs font-black uppercase tracking-[0.2em] shadow-xl shadow-orange-500/20 hover:shadow-orange-500/40 active:scale-95 transition-all disabled:opacity-50"
+                  >
+                    {schedulingVisit ? 'Processing...' : 'Confirm Schedule'}
+                  </button>
+                  <button
+                    onClick={() => setShowVisitModal(false)}
+                    className="w-full py-4 bg-white/5 text-gray-400 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-white/10 transition-all"
+                  >
+                    Cancel
+                  </button>
+                </div>
               </div>
             </div>
           </div>
