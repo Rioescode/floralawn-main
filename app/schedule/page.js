@@ -21,7 +21,12 @@ import {
   MagnifyingGlassIcon,
   MapIcon,
   CheckCircleIcon,
-  XCircleIcon
+  XCircleIcon,
+  EnvelopeIcon,
+  EnvelopeOpenIcon,
+  ArrowPathIcon,
+  UserPlusIcon,
+  TrashIcon
 } from '@heroicons/react/24/outline';
 
 const DAYS_OF_WEEK = [
@@ -95,6 +100,8 @@ export default function SchedulePage() {
     week1: 0,
     week2: 0
   });
+  const [appointments, setAppointments] = useState([]);
+  const [loadingAppointments, setLoadingAppointments] = useState(false);
   const router = useRouter();
 
   // Helper functions for localStorage persistence
@@ -297,6 +304,7 @@ export default function SchedulePage() {
   useEffect(() => {
     if (user) {
       fetchCustomers();
+      fetchAppointments();
       loadHomeBaseAddress();
     }
   }, [user]);
@@ -1343,14 +1351,14 @@ export default function SchedulePage() {
         .from('customers')
         .insert([{
           name: newCustomerForm.name.trim(),
-          email: newCustomerForm.email.trim() || null,
-          phone: newCustomerForm.phone.trim(),
-          address: addressVal.trim() || null,
+          email: newCustomerForm.email?.trim() || null,
+          phone: newCustomerForm.phone?.trim(),
+          address: addressVal?.trim() || null,
           price: parseFloat(newCustomerForm.price),
           frequency: newCustomerForm.frequency,
           service_type: newCustomerForm.service_type,
           status: newCustomerForm.status,
-          notes: newCustomerForm.notes.trim() || null,
+          notes: newCustomerForm.notes?.trim() || null,
           scheduled_day: newCustomerForm.scheduled_day || null,
         }])
         .select()
@@ -1359,6 +1367,10 @@ export default function SchedulePage() {
       setCustomers(prev => [...prev, data]);
       setNewlyAddedIds(prev => new Set([...prev, data.id]));
       setShowAddCustomerModal(false);
+      
+      // If this came from an appointment, we might want to mark it as finalized
+      // But for now, just adding the customer is enough
+      
       alert(`✅ ${data.name} added successfully!`);
     } catch (err) {
       console.error('Error adding customer:', err);
@@ -1366,6 +1378,65 @@ export default function SchedulePage() {
     } finally {
       setAddingCustomer(false);
     }
+  };
+
+  const fetchAppointments = async () => {
+    try {
+      setLoadingAppointments(true);
+      const { data, error } = await supabase
+        .from('appointments')
+        .select('*')
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      setAppointments(data || []);
+    } catch (error) {
+      console.error('Error fetching appointments:', error);
+    } finally {
+      setLoadingAppointments(false);
+    }
+  };
+
+  const deleteAppointment = async (id) => {
+    if (!confirm('Are you sure you want to remove this appointment?')) return;
+    try {
+      const { error } = await supabase.from('appointments').delete().eq('id', id);
+      if (error) throw error;
+      setAppointments(prev => prev.filter(a => a.id !== id));
+    } catch (error) {
+      console.error('Error deleting appointment:', error);
+      alert('Failed to delete appointment');
+    }
+  };
+
+  const handleConvertToCustomer = (apt) => {
+    const serviceMap = {
+      'Lawn Mowing': 'lawn_mowing',
+      'Spring Cleanup': 'spring_cleanup',
+      'Fall Cleanup': 'fall_cleanup',
+      'Mulching': 'mulching'
+    };
+    
+    setNewCustomerForm({
+      name: apt.customer_name || '',
+      email: apt.customer_email || '',
+      phone: apt.customer_phone || '',
+      address: apt.address || '',
+      price: '', // Still need to set a price
+      frequency: 'weekly',
+      service_type: serviceMap[apt.service_type] || 'lawn_mowing',
+      status: 'active',
+      notes: apt.notes || '',
+      scheduled_day: ''
+    });
+    setShowAddCustomerModal(true);
+    
+    // Set ref value for autocomplete if needed
+    setTimeout(() => {
+      if (newCustomerAddressRef.current) {
+        newCustomerAddressRef.current.value = apt.address || '';
+      }
+    }, 200);
   };
 
   // Load home base address from Supabase
@@ -2230,6 +2301,22 @@ export default function SchedulePage() {
               <MapIcon className="h-4 w-4" />
               Map
             </button>
+            <button
+              onClick={() => setViewMode('appointments')}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 ${
+                viewMode === 'appointments'
+                  ? 'bg-gradient-to-r from-purple-500 to-indigo-600 text-white shadow-lg shadow-purple-500/25'
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              <EnvelopeIcon className="h-4 w-4" />
+              Inquiries
+              {appointments.length > 0 && (
+                <span className="flex h-4 w-4 items-center justify-center rounded-full bg-white text-[10px] font-black text-purple-600">
+                  {appointments.length}
+                </span>
+              )}
+            </button>
           </div>
 
           {/* Add Customer Button */}
@@ -2432,6 +2519,119 @@ export default function SchedulePage() {
             </div>
           </div>
         )}
+
+        {/* === APPOINTMENTS / INQUIRIES VIEW === */}
+        {viewMode === 'appointments' && (
+          <div className="mb-6 space-y-6">
+            <div className="bg-white/5 backdrop-blur-xl rounded-3xl border border-white/10 p-6 sm:p-8">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-2xl shadow-xl shadow-purple-500/20">
+                    <EnvelopeIcon className="h-6 w-6 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-black text-white">Pending Inquiries</h2>
+                    <p className="text-sm text-gray-500">{appointments.length} leads waiting for response</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={fetchAppointments}
+                  className="px-4 py-2 bg-white/5 hover:bg-white/10 rounded-xl text-xs font-bold transition-all flex items-center gap-2 border border-white/5"
+                >
+                  <ArrowPathIcon className={`h-3.5 w-3.5 ${loadingAppointments ? 'animate-spin' : ''}`} />
+                  Refresh
+                </button>
+              </div>
+
+              {loadingAppointments && appointments.length === 0 ? (
+                <div className="py-20 text-center">
+                  <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500 mx-auto mb-4"></div>
+                  <p className="text-gray-500 font-medium">Scanning for new leads...</p>
+                </div>
+              ) : appointments.length === 0 ? (
+                <div className="py-20 text-center bg-white/[0.02] rounded-3xl border border-dashed border-white/10">
+                  <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <EnvelopeOpenIcon className="h-8 w-8 text-gray-700" />
+                  </div>
+                  <h3 className="text-white font-bold mb-1 text-lg">Inbox is Empty</h3>
+                  <p className="text-gray-500 text-sm max-w-xs mx-auto">New leads from your contact form will appear here automatically.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-4">
+                  {appointments.map(apt => (
+                    <div 
+                      key={apt.id} 
+                      className="bg-white/[0.03] border border-white/10 rounded-3xl p-5 hover:bg-white/[0.06] transition-all group relative overflow-hidden"
+                    >
+                      {/* Accent glow */}
+                      <div className="absolute -top-10 -right-10 w-24 h-24 bg-purple-500/5 blur-2xl rounded-full"></div>
+                      
+                      <div className="flex items-start justify-between gap-4 mb-4">
+                        <div className="min-w-0">
+                          <h3 className="text-base font-black text-white truncate">{apt.customer_name}</h3>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="px-2 py-0.5 bg-purple-500/10 text-purple-400 text-[10px] font-black rounded-full uppercase tracking-widest border border-purple-500/20">
+                              {apt.service_type || 'Inquiry'}
+                            </span>
+                            <span className="text-[10px] text-gray-500 font-bold">
+                              {new Date(apt.created_at).toLocaleDateString()}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <button 
+                            onClick={() => handleConvertToCustomer(apt)}
+                            className="p-2 bg-green-500/10 text-green-400 rounded-xl hover:bg-green-500/20 transition-all border border-green-500/20"
+                            title="Convert to Customer"
+                          >
+                            <UserPlusIcon className="h-4 w-4" />
+                          </button>
+                          <button 
+                            onClick={() => deleteAppointment(apt.id)}
+                            className="p-2 bg-red-500/10 text-red-400 rounded-xl hover:bg-red-500/20 transition-all border border-red-500/20"
+                            title="Delete Inquiry"
+                          >
+                            <TrashIcon className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="space-y-3 mb-5">
+                        <div className="flex items-center gap-3 text-xs text-gray-400">
+                          <PhoneIcon className="h-3.5 w-3.5 text-gray-600" />
+                          <a href={`tel:${apt.customer_phone}`} className="hover:text-white transition-colors">{apt.customer_phone || 'No phone'}</a>
+                        </div>
+                        <div className="flex items-center gap-3 text-xs text-gray-400">
+                          <EnvelopeIcon className="h-3.5 w-3.5 text-gray-600" />
+                          <a href={`mailto:${apt.customer_email}`} className="hover:text-white transition-colors truncate">{apt.customer_email || 'No email'}</a>
+                        </div>
+                        <div className="flex items-start gap-3 text-xs text-gray-400">
+                          <MapPinIcon className="h-3.5 w-3.5 text-gray-600 mt-0.5" />
+                          <span className="line-clamp-1">{apt.address || apt.city || 'No address provided'}</span>
+                        </div>
+                      </div>
+
+                      {apt.notes && (
+                        <div className="p-4 bg-black/20 rounded-2xl border border-white/5">
+                          <p className="text-[11px] text-gray-500 leading-relaxed italic line-clamp-3">
+                            "{apt.notes}"
+                          </p>
+                        </div>
+                      )}
+
+                      <button 
+                        onClick={() => handleConvertToCustomer(apt)}
+                        className="w-full mt-5 py-3 bg-white/5 hover:bg-white/10 text-white rounded-2xl text-xs font-black uppercase tracking-widest transition-all border border-white/10 hover:border-white/20 flex items-center justify-center gap-2"
+                      >
+                        <UserPlusIcon className="h-4 w-4 text-purple-400" />
+                        Finalize as Customer
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
 
         {/* === UNASSIGNED CUSTOMERS === */}
         {unassignedCustomers.length > 0 && viewMode === 'schedule' && (
