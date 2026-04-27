@@ -104,11 +104,11 @@ export default function SchedulePage() {
   const [loadingAppointments, setLoadingAppointments] = useState(false);
   const [showVisitModal, setShowVisitModal] = useState(false);
   const [selectedVisitApt, setSelectedVisitApt] = useState(null);
-  const [visitForm, setVisitForm] = useState({ date: '', time: '10:00 AM' });
-  const [schedulingVisit, setSchedulingVisit] = useState(false);
   const [optimizingDays, setOptimizingDays] = useState(new Set());
   const [showOptimizationModal, setShowOptimizationModal] = useState(false);
   const [optimizationData, setOptimizationData] = useState(null);
+  const [isEditingHomeBase, setIsEditingHomeBase] = useState(false);
+  const homeBaseAddressRef = useRef(null);
   const router = useRouter();
 
   // Helper functions for localStorage persistence
@@ -164,6 +164,24 @@ export default function SchedulePage() {
     }
     return null;
   };
+
+  // Initialize Home Base Autocomplete
+  useEffect(() => {
+    if (isEditingHomeBase && homeBaseAddressRef.current && typeof google !== 'undefined') {
+      const autocomplete = new google.maps.places.Autocomplete(homeBaseAddressRef.current, {
+        types: ['address'],
+        componentRestrictions: { country: 'us' }
+      });
+
+      autocomplete.addListener('place_changed', () => {
+        const place = autocomplete.getPlace();
+        if (place.formatted_address) {
+          // Note: we'll handle the save in the UI button, but we can pre-set it here
+          // if we want it to be instant.
+        }
+      });
+    }
+  }, [isEditingHomeBase]);
 
   // Function to get current week based on date
   const getCurrentWeek = () => {
@@ -2544,25 +2562,52 @@ export default function SchedulePage() {
               </>
             )}
             <div className="w-px h-5 bg-white/10 shrink-0"></div>
-            <div className="flex items-center gap-2 shrink-0">
-              <MapPinIcon className="h-3.5 w-3.5 text-green-500" />
-              {homeBase ? (
-                <span className="text-[11px] text-gray-500 max-w-[120px] truncate">{homeBase}</span>
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              <MapPinIcon className="h-3.5 w-3.5 text-green-500 shrink-0" />
+              {isEditingHomeBase ? (
+                <div className="flex items-center gap-2 flex-1">
+                  <input
+                    ref={homeBaseAddressRef}
+                    type="text"
+                    defaultValue={homeBase}
+                    placeholder="Enter business address..."
+                    className="flex-1 bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-[11px] text-white focus:outline-none focus:border-green-500/50"
+                  />
+                  <button
+                    onClick={() => {
+                      const newAddr = homeBaseAddressRef.current.value;
+                      if (newAddr.trim()) {
+                        setHomeBase(newAddr);
+                        calculateProximityFromHomeBase(newAddr);
+                      }
+                      setIsEditingHomeBase(false);
+                    }}
+                    className="text-[10px] text-green-400 font-bold hover:text-green-300 shrink-0"
+                  >
+                    Save
+                  </button>
+                  <button
+                    onClick={() => setIsEditingHomeBase(false)}
+                    className="text-[10px] text-gray-500 hover:text-gray-400 shrink-0"
+                  >
+                    Cancel
+                  </button>
+                </div>
               ) : (
-                <span className="text-[11px] text-gray-700 italic">No base set</span>
+                <>
+                  {homeBase ? (
+                    <span className="text-[11px] text-gray-500 truncate flex-1">{homeBase}</span>
+                  ) : (
+                    <span className="text-[11px] text-gray-700 italic flex-1">No base set</span>
+                  )}
+                  <button
+                    onClick={() => setIsEditingHomeBase(true)}
+                    className="text-[10px] text-green-500 hover:text-green-400 font-semibold transition-colors shrink-0"
+                  >
+                    {homeBase ? 'Edit' : 'Set Base'}
+                  </button>
+                </>
               )}
-              <button
-                onClick={() => {
-                  const addr = prompt('Enter home base address:', homeBase);
-                  if (addr !== null) {
-                    setHomeBase(addr);
-                    if (addr.trim()) calculateProximityFromHomeBase(addr);
-                  }
-                }}
-                className="text-[10px] text-green-500 hover:text-green-400 font-semibold transition-colors"
-              >
-                {homeBase ? 'Edit' : 'Set'}
-              </button>
             </div>
           </div>
         </div>
