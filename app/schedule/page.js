@@ -1315,6 +1315,8 @@ export default function SchedulePage() {
           message: delayMessage,
           sendEmail: true,
           sendSMS: false, // Default to email, can be expanded
+          type: delayMessage.includes('review') ? 'review' : 'delay',
+          subject: delayMessage.includes('review') ? 'Help us grow! 🌿 - Flora Lawn & Landscaping' : null,
           customerData: {
             customer_name: customer.name,
             customer_email: customer.email,

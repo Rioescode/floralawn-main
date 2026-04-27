@@ -24,6 +24,9 @@ export default function LeadsPage() {
   const [scheduleNote, setScheduleNote] = useState('');
   const [actionLoading, setActionLoading] = useState(null);
   const [toast, setToast] = useState(null);
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [selectedLeadForReview, setSelectedLeadForReview] = useState(null);
+  const [reviewMessage, setReviewMessage] = useState('');
   const router = useRouter();
 
   useEffect(() => { checkAuth(); }, []);
@@ -134,6 +137,47 @@ export default function LeadsPage() {
     }
     setActionLoading(null);
   };
+
+  const handleSendReview = async () => {
+    if (!selectedLeadForReview) return;
+    
+    setActionLoading(selectedLeadForReview.id + '-review');
+    try {
+      const response = await fetch('/api/customers/send-message', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          appointmentId: `review-${selectedLeadForReview.id}`,
+          message: reviewMessage,
+          sendEmail: true,
+          sendSMS: false,
+          type: 'review',
+          subject: 'Help us grow! 🌿 - Flora Lawn & Landscaping',
+          customerData: {
+            customer_name: selectedLeadForReview.customer_name,
+            customer_email: selectedLeadForReview.customer_email,
+            customer_phone: selectedLeadForReview.customer_phone,
+            service_type: selectedLeadForReview.service_type || 'service'
+          }
+        })
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        showToast(`⭐ Review request sent to ${selectedLeadForReview.customer_name}!`);
+        setShowReviewModal(false);
+      } else {
+        showToast('Error sending review: ' + result.error, 'error');
+      }
+    } catch (error) {
+      console.error('Error sending review:', error);
+      showToast('Error sending review', 'error');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const REVIEW_TEMPLATE = (name) => `Hi ${name}, will you help us with a review in our google profile? Flora Lawn & Landscaping Inc would love your feedback. Post a review to our profile: https://g.page/r/CQjJ-AbEL4N2EBE/review - Thank you very much!`;
 
   const filtered = leads.filter(l =>
     !search ||
@@ -373,6 +417,16 @@ export default function LeadsPage() {
                           }}>
                             📅 Schedule
                           </button>
+                          <button onClick={() => {
+                            setSelectedLeadForReview(lead);
+                            setReviewMessage(REVIEW_TEMPLATE(lead.customer_name));
+                            setShowReviewModal(true);
+                          }} style={{
+                            padding: '10px 14px', background: '#f59e0b22', color: '#f59e0b', border: '1px solid #f59e0b44',
+                            borderRadius: 10, fontWeight: 900, fontSize: 13, cursor: 'pointer'
+                          }}>
+                            ⭐ Review
+                          </button>
                           <button onClick={() => handleScratch(lead)} disabled={actionLoading === lead.id + '-scratch'} style={{
                             padding: '10px 14px', background: '#1e293b', color: '#ef4444', border: '1px solid #ef444444',
                             borderRadius: 10, fontWeight: 900, fontSize: 13, cursor: 'pointer'
@@ -436,6 +490,45 @@ export default function LeadsPage() {
             })}
           </div>
         )}
+
+      {/* Review Request Modal */}
+      {showReviewModal && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 1000,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24
+        }}>
+          <div style={{ background: '#1e293b', borderRadius: 20, padding: 32, width: '100%', maxWidth: 480, border: '1px solid #334155' }}>
+            <h2 style={{ margin: '0 0 6px', color: '#fff', fontSize: 20, fontWeight: 900 }}>⭐ Send Review Request</h2>
+            <p style={{ margin: '0 0 24px', color: '#64748b', fontSize: 13, fontWeight: 600 }}>Sending to {selectedLeadForReview?.customer_name}</p>
+
+            <label style={{ display: 'block', color: '#94a3b8', fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 8 }}>
+              Message
+            </label>
+            <textarea
+              value={reviewMessage}
+              onChange={e => setReviewMessage(e.target.value)}
+              rows={6}
+              style={{ width: '100%', padding: '16px', background: '#0f172a', border: '1px solid #334155', borderRadius: 12, color: '#fff', fontSize: 13, resize: 'none', boxSizing: 'border-box', outline: 'none', fontFamily: 'inherit', lineHeight: 1.5 }}
+            />
+
+            <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>
+              <button
+                onClick={handleSendReview}
+                disabled={actionLoading === selectedLeadForReview?.id + '-review'}
+                style={{ flex: 1, padding: '14px', background: '#f59e0b', color: '#fff', border: 'none', borderRadius: 12, fontWeight: 900, fontSize: 14, cursor: 'pointer' }}
+              >
+                {actionLoading === selectedLeadForReview?.id + '-review' ? 'Sending…' : '⭐ Send Request'}
+              </button>
+              <button
+                onClick={() => { setShowReviewModal(false); setSelectedLeadForReview(null); }}
+                style={{ padding: '14px 20px', background: '#0f172a', color: '#94a3b8', border: '1px solid #334155', borderRadius: 12, fontWeight: 800, fontSize: 14, cursor: 'pointer' }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       </div>
 
       {/* Schedule Modal */}
