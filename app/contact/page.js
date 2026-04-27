@@ -282,16 +282,13 @@ function ContactForm() {
         }
       }
 
-      // DB saving moved to server-side API route for security and reliability
+      // Note: Lead saving and subscriber logic moved to server-side API route for reliability
       
       await sendNotification(`📬 New Elite Quote Inquiry from ${formData.name} in ${formData.city}!`);
       
-      // Update success message to be more normal
-      setStatus({ type: 'success', message: "Your inquiry has been sent! You'll receive a quote by email within 1–2 business days. If we're extra busy, it may take a little longer — but we'll get to you. Check your email for a confirmation." });
-      
-      // Send professional confirmation to customer via internal API (Uses Resend)
+      // Send professional confirmation to customer + Save to DB via internal API
       try {
-        await fetch('/api/send-contact-confirmation', {
+        const response = await fetch('/api/send-contact-confirmation', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -303,11 +300,9 @@ function ContactForm() {
             service: formData.service,
             message: formData.message,
             sendSMS: smsPreferences.subscribe,
-            // Visual Quote Confirmation
             hasMedia: mediaFiles.length > 0,
             mediaUrls: uploadedUrls,
             discountApplied: showMediaSection && mediaFiles.length > 0,
-            // Cleanup Assessment (sent as structured data, not in message)
             cleanupData: isCleanupService ? {
               lastCleaned: cleanupAssessment.lastCleaned || 'Not specified',
               conditionLevel: cleanupAssessment.conditionLevel,
@@ -320,17 +315,36 @@ function ContactForm() {
             smsPreferences
           }),
         });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+          throw new Error(result.error || 'Server processing failed');
+        }
+
+        // ONLY NOW show success message
+        setStatus({ 
+          type: 'success', 
+          message: "Your inquiry has been sent! You'll receive a quote by email within 1–2 business days. Check your email for a confirmation." 
+        });
+        
+        // Clear form
+        setFormData({ name: '', email: '', phone: '', address: '', city: '', service: '', message: '' });
+        
+        // Smooth scroll to success message
+        setTimeout(() => {
+          document.getElementById('submission-status')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 300);
+
       } catch (confError) {
-        console.warn('Silent bypass: Remote confirmation fallback active.', confError);
+        console.error('Submission processing error:', confError);
+        setStatus({ 
+          type: 'error', 
+          message: `Submission partially failed: ${confError.message}. We've received your data, but confirmation may be delayed.` 
+        });
       }
-
-      // Smooth scroll to success message
-      setTimeout(() => {
-        document.getElementById('submission-status')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }, 300);
-
-      setFormData({ name: '', email: '', phone: '', address: '', city: '', service: '', message: '' });
     } catch (err) {
+      console.error('Submission crash:', err);
       setStatus({ type: 'error', message: 'Transmission failed. Direct line: (401) 389-0913' });
     } finally {
       setIsSubmitting(false);
