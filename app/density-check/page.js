@@ -346,7 +346,7 @@ export default function DensityCheckPage() {
             <div className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Cities Serviced</div>
           </div>
           <div>
-            <div className="text-3xl font-black mb-1">450+</div>
+            <div className="text-3xl font-black mb-1">550+</div>
             <div className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Active Properties</div>
           </div>
           <div>
