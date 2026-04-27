@@ -2679,76 +2679,110 @@ export default function SchedulePage() {
 
         {/* === VISITS VIEW === */}
         {viewMode === 'visits' && (
-          <div className="mb-6 space-y-6">
-            <div className="bg-white/5 backdrop-blur-xl rounded-3xl border border-white/10 p-6 sm:p-8">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+          <div className="mb-6 space-y-8">
+            <div className="bg-white/5 backdrop-blur-xl rounded-3xl border border-white/10 p-6 sm:p-10">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-10">
                 <div className="flex items-center gap-4">
-                  <div className="p-3 bg-gradient-to-br from-orange-500 to-red-600 rounded-2xl shadow-xl shadow-orange-500/20">
+                  <div className="p-3.5 bg-gradient-to-br from-orange-500 to-red-600 rounded-2xl shadow-xl shadow-orange-500/20">
                     <ClockIcon className="h-6 w-6 text-white" />
                   </div>
                   <div>
-                    <h2 className="text-xl font-black text-white">Upcoming Visits</h2>
-                    <p className="text-sm text-gray-500">{appointments.filter(a => a.visit_date).length} walkthroughs scheduled</p>
+                    <h2 className="text-2xl font-black text-white tracking-tight">Walkthrough Schedule</h2>
+                    <p className="text-sm text-gray-500 font-medium">{appointments.filter(a => a.visit_date).length} site visits confirmed</p>
                   </div>
                 </div>
               </div>
 
               {appointments.filter(a => a.visit_date).length === 0 ? (
-                <div className="py-20 text-center bg-white/[0.02] rounded-3xl border border-dashed border-white/10">
-                  <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <CalendarDaysIcon className="h-8 w-8 text-gray-700" />
+                <div className="py-24 text-center bg-white/[0.02] rounded-[2.5rem] border border-dashed border-white/10">
+                  <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <CalendarDaysIcon className="h-10 w-10 text-gray-700" />
                   </div>
-                  <h3 className="text-white font-bold mb-1 text-lg">No Visits Scheduled</h3>
-                  <p className="text-gray-500 text-sm max-w-xs mx-auto">Schedule a walkthrough date for any inquiry to see it here.</p>
+                  <h3 className="text-white font-black mb-2 text-xl">No Visits Scheduled</h3>
+                  <p className="text-gray-500 text-sm max-w-xs mx-auto font-medium">Your upcoming estimate visits and walkthroughs will appear here in a chronological timeline.</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-4">
-                  {appointments.filter(a => a.visit_date).map(apt => (
-                    <div 
-                      key={apt.id} 
-                      className="bg-white/[0.03] border border-orange-500/20 rounded-3xl p-5 hover:bg-white/[0.06] transition-all group relative overflow-hidden"
-                    >
-                      <div className="flex items-start justify-between gap-4 mb-4">
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="px-2 py-0.5 bg-orange-500 text-white text-[10px] font-black rounded-full uppercase tracking-widest shadow-lg shadow-orange-500/20">
-                              {apt.visit_date}
-                            </span>
-                            <span className="text-[10px] text-orange-400 font-black uppercase tracking-widest">
-                              @ {apt.visit_time || 'TBD'}
-                            </span>
-                          </div>
-                          <h3 className="text-base font-black text-white truncate">{apt.customer_name}</h3>
-                        </div>
-                        <div className="flex gap-2">
-                          <button 
-                            onClick={() => handleConvertToCustomer(apt)}
-                            className="p-2 bg-green-500/10 text-green-400 rounded-xl hover:bg-green-500/20 transition-all border border-green-500/20"
-                            title="Convert to Customer"
+                <div className="space-y-12">
+                  {/* Grouping logic for the timeline */}
+                  {Object.entries(
+                    appointments
+                      .filter(a => a.visit_date)
+                      .reduce((groups, apt) => {
+                        const date = apt.visit_date;
+                        if (!groups[date]) groups[date] = [];
+                        groups[date].push(apt);
+                        return groups;
+                      }, {})
+                  )
+                  .sort(([dateA], [dateB]) => new Date(dateA) - new Date(dateB))
+                  .map(([date, dateVisits]) => (
+                    <div key={date} className="relative pl-8 sm:pl-12">
+                      {/* Vertical Timeline Line */}
+                      <div className="absolute left-0 top-2 bottom-0 w-px bg-gradient-to-b from-orange-500/50 via-orange-500/10 to-transparent"></div>
+                      
+                      {/* Date Header */}
+                      <div className="absolute left-[-5px] top-0 w-2.5 h-2.5 rounded-full bg-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.5)]"></div>
+                      <div className="mb-6">
+                        <h3 className="text-xs font-black uppercase tracking-[0.2em] text-orange-500 mb-1">
+                          {new Date(date).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+                        </h3>
+                        <div className="h-px w-24 bg-gradient-to-r from-orange-500/30 to-transparent"></div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                        {dateVisits.map(apt => (
+                          <div 
+                            key={apt.id} 
+                            className="bg-white/[0.03] backdrop-blur-sm border border-white/10 rounded-[2rem] p-6 hover:bg-white/[0.06] transition-all group relative overflow-hidden flex flex-col justify-between"
                           >
-                            <UserPlusIcon className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </div>
+                            <div>
+                              <div className="flex items-start justify-between gap-4 mb-4">
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <span className="px-3 py-1 bg-white/5 text-orange-400 text-[10px] font-black rounded-lg uppercase tracking-widest border border-white/5">
+                                      {apt.visit_time || 'TBD'}
+                                    </span>
+                                  </div>
+                                  <h4 className="text-lg font-black text-white truncate group-hover:text-orange-400 transition-colors">{apt.customer_name}</h4>
+                                </div>
+                              </div>
 
-                      <div className="space-y-3 mb-5 text-xs text-gray-400">
-                        <div className="flex items-center gap-3">
-                          <MapPinIcon className="h-3.5 w-3.5 text-gray-600" />
-                          <span className="line-clamp-1">{apt.address || apt.city}</span>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <DocumentTextIcon className="h-3.5 w-3.5 text-gray-600" />
-                          <span className="italic">Service: {apt.service_type}</span>
-                        </div>
-                      </div>
+                              <div className="space-y-3 mb-6 text-sm text-gray-400 font-medium">
+                                <div className="flex items-start gap-3">
+                                  <MapPinIcon className="h-4 w-4 text-gray-600 mt-0.5 shrink-0" />
+                                  <span className="line-clamp-2 leading-relaxed">{apt.address || apt.city}</span>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                  <DocumentTextIcon className="h-4 w-4 text-gray-600 shrink-0" />
+                                  <span className="italic truncate">Target: {apt.service_type}</span>
+                                </div>
+                                {apt.customer_phone && (
+                                  <div className="flex items-center gap-3">
+                                    <PhoneIcon className="h-4 w-4 text-gray-600 shrink-0" />
+                                    <span>{apt.customer_phone}</span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
 
-                      <button 
-                        onClick={() => handleConvertToCustomer(apt)}
-                        className="w-full py-3 bg-gradient-to-r from-orange-500 to-red-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg shadow-orange-500/20 flex items-center justify-center gap-2"
-                      >
-                        <PlusIcon className="h-3.5 w-3.5" />
-                        Finalize as Customer
-                      </button>
+                            <div className="flex gap-2 pt-4 border-t border-white/5">
+                              <button 
+                                onClick={() => handleConvertToCustomer(apt)}
+                                className="flex-1 py-3.5 bg-gradient-to-r from-orange-500 to-red-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg shadow-orange-500/20 hover:shadow-orange-500/40 active:scale-95 flex items-center justify-center gap-2"
+                              >
+                                <UserPlusIcon className="h-4 w-4" />
+                                Convert to Client
+                              </button>
+                              <button 
+                                onClick={() => deleteAppointment(apt.id)}
+                                className="p-3.5 bg-white/5 text-gray-500 rounded-2xl hover:bg-red-500/10 hover:text-red-400 transition-all border border-transparent hover:border-red-500/20"
+                              >
+                                <TrashIcon className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   ))}
                 </div>
