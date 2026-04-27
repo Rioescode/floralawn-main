@@ -298,55 +298,8 @@ function ContactForm() {
         console.warn('⚠️ email_subscribers save failed (non-blocking):', subErr);
       }
 
-      // Save full lead to appointments — try with all new columns, fall back to base if columns missing
-      try {
-        const { error: aptError } = await supabaseAdmin.from('appointments').insert([{
-          customer_name: formData.name,
-          customer_email: formData.email,
-          customer_phone: formData.phone,
-          service_type: formData.service,
-          city: formData.city,
-          address: `${formData.address}, ${formData.city}, RI`,
-          status: 'pending',
-          notes: formData.message,
-          estimate_preference: estimatePreference,
-          cleanup_last_cleaned: isCleanupService ? (cleanupAssessment.lastCleaned || null) : null,
-          cleanup_condition_level: isCleanupService ? cleanupAssessment.conditionLevel : null,
-          cleanup_condition_label: isCleanupService ? currentCondition.label : null,
-          mulch_yards_before: isMulchService ? mulchAssessment.yardsUsedBefore : null,
-          mulch_measurement: isMulchService ? mulchAssessment.currentYardMeasurement : null,
-          needs_edging: isMulchService ? (mulchAssessment.needsEdging === 'yes') : null,
-          edging_measurement: isMulchService ? mulchAssessment.edgingMeasurement : null,
-          has_media: mediaFiles.length > 0,
-          media_urls: uploadedUrls.length > 0 ? uploadedUrls : null,
-          discount_applied: (showMediaSection && (mediaFiles.length > 0 || (isMulchService && mulchAssessment.edgingMeasurement))),
-          lead_source: 'contact_form',
-          promo_code: formData.promoCode || null,
-          created_at: new Date().toISOString()
-        }]);
-
-        if (aptError) {
-          console.warn('⚠️ Full appointment insert failed, trying base columns:', aptError.message);
-          // Fallback: save with only the guaranteed base columns
-          const { error: fallbackError } = await supabaseAdmin.from('appointments').insert([{
-            customer_name: formData.name,
-            customer_email: formData.email,
-            customer_phone: formData.phone,
-            service_type: formData.service,
-            city: formData.city,
-            status: 'pending',
-            notes: `[Cleanup: ${isCleanupService ? `Last cleaned ${cleanupAssessment.lastCleaned}, Condition ${cleanupAssessment.conditionLevel}/5` : 'N/A'}] [Pref: ${estimatePreference}] [Source: contact_form]\n\n${formData.message}`,
-            booking_type: 'Ready to Hire',
-          }]);
-          if (fallbackError) console.error('❌ Fallback appointment insert also failed:', fallbackError.message);
-          else console.log('✅ Lead saved via fallback (base columns)');
-        } else {
-          console.log('✅ Lead saved to appointments with full data');
-        }
-      } catch (aptErr) {
-        console.error('❌ Appointment save exception:', aptErr);
-      }
-
+      // Note: Lead saving moved to server-side API route for security and reliability
+      
       await sendNotification(`📬 New Elite Quote Inquiry from ${formData.name} in ${formData.city}!`);
       
       // Update success message to be more normal

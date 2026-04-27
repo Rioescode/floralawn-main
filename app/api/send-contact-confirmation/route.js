@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { sendEmail } from '@/libs/resend';
 import { generalApiLimiter } from '@/lib/rate-limiter';
 import { validateEmail, validatePhone, sanitizeText } from '@/lib/validation';
+import { supabaseAdmin } from '@/lib/supabase';
 
 function getClientIP(request) {
   const forwarded = request.headers.get('x-forwarded-for');
@@ -181,9 +182,53 @@ export async function POST(request) {
             &copy; 2024 Flora Lawn &amp; Landscaping Inc &bull; Pawtucket, Rhode Island
           </p>
         </div>
-       </div>
       </div>
     `;
+    
+    // --- SAVE LEAD TO DATABASE ---
+    try {
+      console.log('📝 Saving lead to database...');
+      const { error: dbError } = await supabaseAdmin.from('appointments').insert([{
+        customer_name: sanitizedName,
+        customer_email: sanitizedEmail,
+        customer_phone: phone,
+        service_type: sanitizedService,
+        city: sanitizedCity,
+        address: address ? `${address}, ${city}, RI` : null,
+        status: 'pending',
+        notes: message,
+        estimate_preference: body.estimatePreference || 'walk_around',
+        cleanup_last_cleaned: cleanupData?.lastCleaned || null,
+        cleanup_condition_level: cleanupData?.conditionLevel || null,
+        cleanup_condition_label: cleanupData?.conditionLabel || null,
+        has_media: hasMedia,
+        media_urls: mediaUrls,
+        discount_applied: discountApplied,
+        lead_source: 'contact_form',
+        promo_code: promoCode || null,
+        created_at: new Date().toISOString()
+      }]);
+
+      if (dbError) {
+        console.warn('⚠️ Full appointment insert failed, trying base columns:', dbError.message);
+        // Fallback: save with only the guaranteed base columns
+        const { error: fallbackError } = await supabaseAdmin.from('appointments').insert([{
+          customer_name: sanitizedName,
+          customer_email: sanitizedEmail,
+          customer_phone: phone,
+          service_type: sanitizedService,
+          city: sanitizedCity,
+          status: 'pending',
+          notes: `[Pref: ${body.estimatePreference || 'walk_around'}] [Source: contact_form]\n\n${message}`,
+        }]);
+        if (fallbackError) console.error('❌ Fallback appointment insert also failed:', fallbackError.message);
+        else console.log('✅ Lead saved via fallback (base columns)');
+      } else {
+        console.log('✅ Lead saved to database successfully');
+      }
+    } catch (dbErr) {
+      console.error('❌ Database save exception:', dbErr);
+    }
 
     console.log('📧 Sending confirmation email via Resend to:', sanitizedEmail);
     console.log('📧 Resend API Key check:', {
