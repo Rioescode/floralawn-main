@@ -91,6 +91,8 @@ export default function SchedulePage() {
   const [sendEmail, setSendEmail] = useState(true);
   const [sendSMS, setSendSMS] = useState(false);
   const [markingDone, setMarkingDone] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
   const [earnings, setEarnings] = useState({
     daily: {},
     weekly: 0,
@@ -1173,7 +1175,8 @@ export default function SchedulePage() {
       setSendEmail(true);
       setSendSMS(false);
 
-      alert('Customer marked as done' + (sendEmail || sendSMS ? ' and message sent!' : '!'));
+      setSuccessMessage('Customer marked as done' + (sendEmail || sendSMS ? ' and message sent!' : '!'));
+      setShowSuccessModal(true);
     } catch (error) {
       console.error('Error marking customer as done:', error);
       alert('Failed to mark customer as done. Please try again.');
@@ -3440,6 +3443,29 @@ export default function SchedulePage() {
                   className="w-full py-4 bg-gradient-to-r from-purple-500 to-indigo-600 text-white rounded-2xl text-xs font-black uppercase tracking-[0.2em] shadow-xl shadow-purple-500/20 hover:shadow-purple-500/40 active:scale-95 transition-all"
                 >
                   Done
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* === SUCCESS MODAL === */}
+        {showSuccessModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+            <div className="bg-[#1e293b] w-full max-w-sm rounded-[3rem] border border-white/10 shadow-2xl shadow-green-500/20 overflow-hidden transform transition-all animate-in zoom-in-95 duration-300">
+              <div className="p-10 text-center">
+                <div className="w-20 h-20 bg-gradient-to-br from-green-500 to-emerald-600 rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-xl shadow-green-500/30">
+                  <CheckCircleIcon className="h-10 w-10 text-white" />
+                </div>
+                
+                <h3 className="text-2xl font-black text-white mb-2 tracking-tight">Success!</h3>
+                <p className="text-gray-400 text-sm font-medium mb-8">{successMessage}</p>
+                
+                <button
+                  onClick={() => setShowSuccessModal(false)}
+                  className="w-full py-4 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-2xl text-xs font-black uppercase tracking-[0.2em] shadow-xl shadow-green-500/20 hover:shadow-green-500/40 active:scale-95 transition-all"
+                >
+                  Great!
                 </button>
               </div>
             </div>
