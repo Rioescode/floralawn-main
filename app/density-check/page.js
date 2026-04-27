@@ -216,12 +216,12 @@ export default function DensityCheckPage() {
               </p>
               <div className="inline-block px-8 py-4 bg-white/5 border border-white/10 rounded-2xl mb-10">
                 <p className="text-[10px] font-black text-green-400 uppercase tracking-widest mb-1">Max Neighborhood Discount</p>
-                <p className="text-4xl font-black">$20 OFF <span className="text-sm font-medium text-gray-500">per visit</span></p>
+                <p className="text-4xl font-black">10% OFF <span className="text-sm font-medium text-gray-500">per visit</span></p>
               </div>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Link href={`/contact?promo=ZIP_SAVER_20&address=${encodeURIComponent(address)}`} 
+                <Link href={`/contact?promo=NEIGHBOR10&address=${encodeURIComponent(address)}`} 
                   className="px-10 py-5 bg-white text-black rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-gray-200 transition-all active:scale-95">
-                  Claim $20 Discount
+                  Claim 10% Discount
                 </Link>
                 <button onClick={() => setResult(null)} className="px-10 py-5 bg-white/5 border border-white/10 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-white/10 transition-all">
                   New Search
@@ -244,12 +244,12 @@ export default function DensityCheckPage() {
               </p>
               <div className="inline-block px-8 py-4 bg-white/5 border border-white/10 rounded-2xl mb-10">
                 <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-1">Standard City Discount</p>
-                <p className="text-4xl font-black">$10 OFF <span className="text-sm font-medium text-gray-500">per visit</span></p>
+                <p className="text-4xl font-black">5% OFF <span className="text-sm font-medium text-gray-500">per visit</span></p>
               </div>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Link href={`/contact?promo=CITY_SAVER_10&address=${encodeURIComponent(address)}`} 
+                <Link href={`/contact?promo=CITY5&address=${encodeURIComponent(address)}`} 
                   className="px-10 py-5 bg-white text-black rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-gray-200 transition-all active:scale-95">
-                  Claim $10 Discount
+                  Claim 5% Discount
                 </Link>
                 <button onClick={() => setResult(null)} className="px-10 py-5 bg-white/5 border border-white/10 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-white/10 transition-all">
                   New Search
@@ -278,7 +278,7 @@ export default function DensityCheckPage() {
               
               <div className="inline-block px-8 py-4 bg-white/5 border border-white/10 rounded-2xl mb-10">
                 <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-1">Area Pioneer Discount</p>
-                <p className="text-4xl font-black">$25 OFF <span className="text-sm font-medium text-gray-500">first 2 months</span></p>
+                <p className="text-4xl font-black">15% OFF <span className="text-sm font-medium text-gray-500">first 2 months</span></p>
               </div>
 
               <div className="bg-white/5 p-8 rounded-[2rem] border border-white/10 text-left">
@@ -331,7 +331,7 @@ export default function DensityCheckPage() {
               </div>
               <h2 className="text-4xl font-black mb-4">You're on the list!</h2>
               <p className="text-gray-400 text-lg mb-10 max-w-md mx-auto">
-                We've locked in your <strong>$25 Pioneer Discount</strong>. We'll reach out as soon as we're ready to start your area.
+                We've locked in your <strong>15% Pioneer Discount</strong>. We'll reach out as soon as we're ready to start your area.
               </p>
               <Link href="/" className="text-green-500 font-black uppercase text-xs tracking-widest hover:underline">
                 Back to Home
