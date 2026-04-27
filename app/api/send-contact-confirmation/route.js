@@ -188,7 +188,7 @@ export async function POST(request) {
     // --- SAVE LEAD TO DATABASE ---
     try {
       console.log('📝 Saving lead to database...');
-      const { error: dbError } = await supabaseAdmin.from('appointments').insert([{
+      const { error: dbError } = await supabaseAdmin.from('contact_leads').insert([{
         customer_name: sanitizedName,
         customer_email: sanitizedEmail,
         customer_phone: phone,
@@ -210,9 +210,9 @@ export async function POST(request) {
       }]);
 
       if (dbError) {
-        console.warn('⚠️ Full appointment insert failed, trying base columns:', dbError.message);
+        console.warn('⚠️ Full contact_leads insert failed, trying base columns:', dbError.message);
         // Fallback: save with only the guaranteed base columns
-        const { error: fallbackError } = await supabaseAdmin.from('appointments').insert([{
+        const { error: fallbackError } = await supabaseAdmin.from('contact_leads').insert([{
           customer_name: sanitizedName,
           customer_email: sanitizedEmail,
           customer_phone: phone,
@@ -221,13 +221,13 @@ export async function POST(request) {
           status: 'pending',
           notes: `[Pref: ${body.estimatePreference || 'walk_around'}] [Source: contact_form]\n\n${message}`,
         }]);
-        if (fallbackError) console.error('❌ Fallback appointment insert also failed:', fallbackError.message);
+        if (fallbackError) console.error('❌ Fallback lead insert also failed:', fallbackError.message);
         else console.log('✅ Lead saved via fallback (base columns)');
       } else {
-        console.log('✅ Lead saved to database successfully');
+        console.log('✅ Lead saved to contact_leads successfully');
       }
     } catch (dbErr) {
-      console.error('❌ Database save exception (appointments):', dbErr);
+      console.error('❌ Database save exception (leads):', dbErr);
     }
 
     // --- SAVE TO EMAIL SUBSCRIBERS ---

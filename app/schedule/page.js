@@ -1384,28 +1384,28 @@ export default function SchedulePage() {
     try {
       setLoadingAppointments(true);
       const { data, error } = await supabase
-        .from('appointments')
+        .from('contact_leads')
         .select('*')
         .eq('status', 'pending')
         .order('created_at', { ascending: false });
       if (error) throw error;
       setAppointments(data || []);
     } catch (error) {
-      console.error('Error fetching appointments:', error);
+      console.error('Error fetching leads:', error);
     } finally {
       setLoadingAppointments(false);
     }
   };
 
   const deleteAppointment = async (id) => {
-    if (!confirm('Are you sure you want to remove this appointment?')) return;
+    if (!confirm('Are you sure you want to remove this lead?')) return;
     try {
-      const { error } = await supabase.from('appointments').delete().eq('id', id);
+      const { error } = await supabase.from('contact_leads').delete().eq('id', id);
       if (error) throw error;
       setAppointments(prev => prev.filter(a => a.id !== id));
     } catch (error) {
-      console.error('Error deleting appointment:', error);
-      alert('Failed to delete appointment');
+      console.error('Error deleting lead:', error);
+      alert('Failed to delete lead');
     }
   };
 
