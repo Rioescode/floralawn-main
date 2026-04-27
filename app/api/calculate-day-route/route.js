@@ -45,26 +45,39 @@ export async function POST(request) {
 }
 
 async function geocodeAddress(address, apiKey) {
-  try {
-    const response = await fetch(
-      `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${apiKey}`
-    );
-    
-    const data = await response.json();
-    
-    if (data.status === 'OK' && data.results.length > 0) {
-      const location = data.results[0].geometry.location;
-      return {
-        lat: location.lat,
-        lng: location.lng,
-        formatted_address: data.results[0].formatted_address
-      };
+  const tryGeocode = async (addr) => {
+    try {
+      const response = await fetch(
+        `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(addr)}&key=${apiKey}`
+      );
+      const data = await response.json();
+      
+      if (data.status === 'OK' && data.results.length > 0) {
+        const location = data.results[0].geometry.location;
+        return {
+          lat: location.lat,
+          lng: location.lng,
+          formatted_address: data.results[0].formatted_address
+        };
+      }
+      console.log(`Geocoding status for "${addr}":`, data.status, data.error_message || '');
+      return null;
+    } catch (error) {
+      console.error('Geocoding fetch error:', error);
+      return null;
     }
-    return null;
-  } catch (error) {
-    console.error('Geocoding error:', error);
-    return null;
+  };
+
+  // First try: exact address
+  let result = await tryGeocode(address);
+  
+  // Second try: append RI if it seems to be a local address
+  if (!result && !address.toLowerCase().includes(', ri') && !address.toLowerCase().includes(' rhode island')) {
+    console.log('Retrying geocoding with RI appended...');
+    result = await tryGeocode(`${address}, RI`);
   }
+
+  return result;
 }
 
 async function calculateOptimizedRoute(homeBase, customers, apiKey) {
