@@ -21,7 +21,8 @@ import {
   SparklesIcon,
   ArrowRightIcon,
   CheckCircleIcon,
-  EnvelopeIcon
+  EnvelopeIcon,
+  UserGroupIcon
 } from "@heroicons/react/24/outline";
 import { 
   StarIcon as StarIconSolid,
@@ -259,6 +260,66 @@ export default function HomePage() {
               <div className="flex items-center gap-3"><ClockIcon className="w-5 h-5 text-green-500" /> SAME-DAY DIGITAL QUOTES</div>
               <div className="flex items-center gap-3"><SparklesIcon className="w-5 h-5 text-green-500" /> 2025 NEIGHBORHOOD FAV</div>
            </div>
+        </div>
+      </section>
+
+      {/* NEIGHBORHOOD DENSITY CTA */}
+      <section className="py-24 bg-white overflow-hidden relative">
+        <div className="max-w-7xl mx-auto px-4 relative z-10">
+          <div className="bg-slate-950 rounded-[3.5rem] p-8 md:p-16 relative overflow-hidden shadow-2xl">
+            {/* Background Decor */}
+            <div className="absolute top-0 right-0 w-1/2 h-full bg-green-500/10 blur-[120px] rounded-full pointer-events-none"></div>
+            
+            <div className="grid lg:grid-cols-2 gap-12 items-center">
+              <div className="text-center lg:text-left">
+                <div className="inline-flex items-center gap-2 px-3 py-1 bg-green-500/10 border border-green-500/20 rounded-full mb-6">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                  </span>
+                  <span className="text-[9px] font-black uppercase tracking-widest text-green-400">Neighborhood Density Program</span>
+                </div>
+                <h2 className="text-4xl md:text-6xl font-black text-white tracking-tighter mb-6 italic leading-none">
+                  Is Flora on your <span className="text-green-500">Street?</span>
+                </h2>
+                <p className="text-slate-400 text-lg mb-10 font-medium max-w-xl">
+                  We offer special <strong className="text-white">Density Discounts</strong> for neighborhoods where our trucks already operate. Join the cluster and save up to 10% per visit!
+                </p>
+                <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
+                  <Link href="/density-check" className="bg-green-600 hover:bg-green-500 text-white font-black px-10 py-5 rounded-2xl flex items-center justify-center gap-3 transition-all active:scale-95 shadow-xl uppercase text-sm tracking-widest">
+                    Check My Neighborhood <ArrowRightIcon className="w-5 h-5" />
+                  </Link>
+                  <div className="flex items-center gap-4 px-6 py-4 bg-white/5 border border-white/10 rounded-2xl">
+                    <div className="text-left">
+                      <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Pioneer Reward</p>
+                      <p className="text-xl font-black text-white leading-none">15% OFF</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="relative">
+                <div className="grid grid-cols-2 gap-4 relative z-10">
+                  <div className="bg-white/5 backdrop-blur-xl border border-white/10 p-6 rounded-[2.5rem] transform -rotate-3 hover:rotate-0 transition-transform">
+                    <div className="w-12 h-12 bg-green-500 rounded-2xl flex items-center justify-center mb-4">
+                      <UserGroupIcon className="h-6 w-6 text-black" />
+                    </div>
+                    <p className="text-xs font-black text-green-400 uppercase tracking-widest mb-1">Neighborhood Hero</p>
+                    <p className="text-xl font-black text-white">10% OFF</p>
+                    <p className="text-[10px] text-slate-500 mt-2 font-bold italic">"We're already here!"</p>
+                  </div>
+                  <div className="bg-white/5 backdrop-blur-xl border border-white/10 p-6 rounded-[2.5rem] transform rotate-6 hover:rotate-0 transition-transform mt-8">
+                    <div className="w-12 h-12 bg-blue-500 rounded-2xl flex items-center justify-center mb-4">
+                      <MapPinIcon className="h-6 w-6 text-white" />
+                    </div>
+                    <p className="text-xs font-black text-blue-400 uppercase tracking-widest mb-1">Standard City</p>
+                    <p className="text-xl font-black text-white">5% OFF</p>
+                    <p className="text-[10px] text-slate-500 mt-2 font-bold italic">"Route Optimization"</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
