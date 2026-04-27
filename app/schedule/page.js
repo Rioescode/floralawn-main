@@ -96,6 +96,8 @@ export default function SchedulePage() {
   const [showDelayModal, setShowDelayModal] = useState(false);
   const [selectedCustomerForDelay, setSelectedCustomerForDelay] = useState(null);
   const [delayMessage, setDelayMessage] = useState('');
+  const [dailyGoal, setDailyGoal] = useState(1000); 
+  const [editingSafetyNotes, setEditingSafetyNotes] = useState({});
   const [earnings, setEarnings] = useState({
     daily: {},
     weekly: 0,
@@ -106,6 +108,7 @@ export default function SchedulePage() {
     week1: 0,
     week2: 0
   });
+  const [dailyGoal, setDailyGoal] = useState(1000); // Default daily goal $1000
   const [appointments, setAppointments] = useState([]);
   const [loadingAppointments, setLoadingAppointments] = useState(false);
   const [showVisitModal, setShowVisitModal] = useState(false);
@@ -1290,7 +1293,11 @@ export default function SchedulePage() {
     truck: (name) => `Hi ${name}, we're having some unexpected truck trouble this morning. We're working on getting it fixed and will update you on your service time as soon as possible. Sorry for the inconvenience!`,
     equipment: (name) => `Hi ${name}, we've encountered some equipment issues that are delaying our route today. We'll be in touch shortly with an updated arrival time. Thank you for understanding!`,
     late: (name) => `Hi ${name}, we're running a bit behind schedule today due to some complex jobs earlier on the route. We should be arriving at your property shortly. See you soon!`,
-    nextDay: (name) => `Hi ${name}, we're running quite behind today and won't be able to make it to your property. We've moved your service to first thing tomorrow morning. Sorry for the delay and thank you for your patience!`
+    nextDay: (name) => `Hi ${name}, we're running quite behind today and won't be able to make it to your property. We've moved your service to first thing tomorrow morning. Sorry for the delay and thank you for your patience!`,
+    emergency: (name) => `Hi ${name}, due to a personal emergency, I unfortunately won't be able to make it to your property today. I will reach out as soon as possible to reschedule. Sorry for the sudden change!`,
+    skip: (name) => `Hi ${name}, your lawn is looking good and growing a bit slower this week, so we're going to skip your service to save you some money. We'll see you next week on our regular schedule!`,
+    holiday: (name) => `Hi ${name}, just a reminder that we are off today for the holiday. We will be back on our regular schedule starting tomorrow. See you then!`,
+    daylight: (name) => `Hi ${name}, we've had an unusually busy day and unfortunately won't be able to reach your property before dark. We will prioritize your service first thing tomorrow/next visit. Thanks for your understanding!`
   };
 
   const handleSendDelayNotification = async () => {
@@ -1412,6 +1419,29 @@ export default function SchedulePage() {
     } catch (error) {
       console.error('Error updating notes:', error);
       alert('Failed to update notes');
+    }
+  };
+
+  const startEditingSafetyNotes = (customer) => {
+    setEditingSafetyNotes({ [customer.id]: customer.safety_notes || '' });
+  };
+
+  const cancelEditingSafetyNotes = (customerId) => {
+    setEditingSafetyNotes(prev => {
+      const { [customerId]: _, ...rest } = prev;
+      return rest;
+    });
+  };
+
+  const updateCustomerSafetyNotes = async (customerId, safetyNotes) => {
+    try {
+      const { error } = await supabase.from('customers').update({ safety_notes: safetyNotes }).eq('id', customerId);
+      if (error) throw error;
+      setCustomers(prev => prev.map(c => c.id === customerId ? { ...c, safety_notes: safetyNotes } : c));
+      cancelEditingSafetyNotes(customerId);
+    } catch (error) {
+      console.error('Error updating safety notes:', error);
+      alert('Failed to update safety notes');
     }
   };
 
@@ -2702,6 +2732,60 @@ export default function SchedulePage() {
           </div>
         )}
 
+        {/* === DAILY EARNINGS GOAL BAR === */}
+        <div className="mb-8 p-6 bg-white/[0.03] border border-white/10 rounded-[2.5rem] backdrop-blur-sm">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-xl font-black text-white tracking-tight flex items-center gap-2">
+                Daily Progress <span className="text-gray-600 text-sm font-medium">— {selectedDay || 'Today'}</span>
+              </h2>
+              <p className="text-xs text-gray-500 mt-0.5">Keep it up! You're almost at your goal.</p>
+            </div>
+            <div className="text-right">
+              <span className="text-2xl font-black text-green-400">
+                ${earnings.daily[selectedDay] || 0}
+              </span>
+              <span className="text-gray-600 text-sm font-bold ml-1">/ ${dailyGoal}</span>
+            </div>
+          </div>
+          
+          <div className="relative h-4 bg-white/5 rounded-full overflow-hidden border border-white/5">
+            <div 
+              className="absolute inset-y-0 left-0 bg-gradient-to-r from-green-500 to-emerald-400 transition-all duration-1000 ease-out shadow-[0_0_20px_rgba(34,197,94,0.3)]"
+              style={{ width: `${Math.min(100, ((earnings.daily[selectedDay] || 0) / dailyGoal) * 100)}%` }}
+            >
+              <div className="absolute inset-0 bg-[linear-gradient(45deg,rgba(255,255,255,0.15)_25%,transparent_25%,transparent_50%,rgba(255,255,255,0.15)_50%,rgba(255,255,255,0.15)_75%,transparent_75%,transparent)] bg-[length:1rem_1rem] animate-[move-bg_1s_linear_infinite]"></div>
+            </div>
+          </div>
+          
+          <div className="flex justify-between mt-3 px-1">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1.5">
+                <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">
+                  {Math.round(((earnings.daily[selectedDay] || 0) / dailyGoal) * 100)}% Complete
+                </span>
+              </div>
+              <div className="h-3 w-[1px] bg-white/10"></div>
+              <div className="flex items-center gap-1.5">
+                <BanknotesIcon className="h-3 w-3 text-orange-400" />
+                <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">
+                  ${Math.max(0, dailyGoal - (earnings.daily[selectedDay] || 0))} Remaining
+                </span>
+              </div>
+            </div>
+            <button 
+              onClick={() => {
+                const newGoal = prompt("Set your daily earnings goal:", dailyGoal);
+                if (newGoal && !isNaN(newGoal)) setDailyGoal(Number(newGoal));
+              }}
+              className="text-[9px] font-black text-blue-400 uppercase tracking-widest hover:text-blue-300 transition-colors"
+            >
+              Set Goal
+            </button>
+          </div>
+        </div>
+
         {/* === UNASSIGNED CUSTOMERS === */}
         {unassignedCustomers.length > 0 && viewMode === 'schedule' && (
           <div className="mb-6">
@@ -2832,6 +2916,10 @@ export default function SchedulePage() {
                     cancelEditingNotes={cancelEditingNotes}
                     handleNoteTextChange={handleNoteTextChange}
                     updateCustomerNotes={updateCustomerNotes}
+                    startEditingSafetyNotes={startEditingSafetyNotes}
+                    cancelEditingSafetyNotes={cancelEditingSafetyNotes}
+                    updateCustomerSafetyNotes={updateCustomerSafetyNotes}
+                    editingSafetyNotes={editingSafetyNotes}
                     // Delay props
                     setShowDelayModal={setShowDelayModal}
                     setSelectedCustomerForDelay={setSelectedCustomerForDelay}
@@ -3051,6 +3139,10 @@ export default function SchedulePage() {
                             cancelEditingNotes={cancelEditingNotes}
                             handleNoteTextChange={handleNoteTextChange}
                             updateCustomerNotes={updateCustomerNotes}
+                            startEditingSafetyNotes={startEditingSafetyNotes}
+                            cancelEditingSafetyNotes={cancelEditingSafetyNotes}
+                            updateCustomerSafetyNotes={updateCustomerSafetyNotes}
+                            editingSafetyNotes={editingSafetyNotes}
                             // Delay props
                             setShowDelayModal={setShowDelayModal}
                             setSelectedCustomerForDelay={setSelectedCustomerForDelay}
@@ -3549,37 +3641,54 @@ export default function SchedulePage() {
                 </div>
 
                 {/* Template Chips */}
-                <div className="flex flex-wrap gap-2 mb-6">
-                  <button 
-                    onClick={() => setDelayMessage(DELAY_TEMPLATES.rain(selectedCustomerForDelay?.name))}
-                    className={`px-4 py-2 rounded-xl text-[11px] font-bold transition-all ${delayMessage.includes('rain') ? 'bg-blue-500 text-white' : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}
-                  >
-                    🌧️ RAIN
-                  </button>
-                  <button 
-                    onClick={() => setDelayMessage(DELAY_TEMPLATES.truck(selectedCustomerForDelay?.name))}
-                    className={`px-4 py-2 rounded-xl text-[11px] font-bold transition-all ${delayMessage.includes('truck') ? 'bg-orange-500 text-white' : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}
-                  >
-                    🚛 TRUCK
-                  </button>
-                  <button 
-                    onClick={() => setDelayMessage(DELAY_TEMPLATES.equipment(selectedCustomerForDelay?.name))}
-                    className={`px-4 py-2 rounded-xl text-[11px] font-bold transition-all ${delayMessage.includes('equipment') ? 'bg-purple-500 text-white' : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}
-                  >
-                    ⚙️ EQUIPMENT
-                  </button>
-                  <button 
-                    onClick={() => setDelayMessage(DELAY_TEMPLATES.late(selectedCustomerForDelay?.name))}
-                    className={`px-4 py-2 rounded-xl text-[11px] font-bold transition-all ${delayMessage.includes('behind') && !delayMessage.includes('tomorrow') ? 'bg-green-500 text-white' : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}
-                  >
-                    ⏱️ LATE
-                  </button>
-                  <button 
-                    onClick={() => setDelayMessage(DELAY_TEMPLATES.nextDay(selectedCustomerForDelay?.name))}
-                    className={`px-4 py-2 rounded-xl text-[11px] font-bold transition-all ${delayMessage.includes('tomorrow') ? 'bg-orange-600 text-white shadow-lg shadow-orange-600/20' : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}
-                  >
-                    📅 TOMORROW
-                  </button>
+                <div className="space-y-4 mb-8">
+                  <div>
+                    <label className="block text-[9px] font-black text-gray-500 uppercase tracking-widest mb-2 px-1">Delaying (Still coming)</label>
+                    <div className="flex flex-wrap gap-2">
+                      <button onClick={() => setDelayMessage(DELAY_TEMPLATES.rain(selectedCustomerForDelay?.name))}
+                        className={`px-3 py-1.5 rounded-xl text-[10px] font-bold transition-all ${delayMessage.includes('rain') ? 'bg-blue-500 text-white' : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}>
+                        🌧️ RAIN
+                      </button>
+                      <button onClick={() => setDelayMessage(DELAY_TEMPLATES.truck(selectedCustomerForDelay?.name))}
+                        className={`px-3 py-1.5 rounded-xl text-[10px] font-bold transition-all ${delayMessage.includes('truck') ? 'bg-orange-500 text-white' : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}>
+                        🚛 TRUCK
+                      </button>
+                      <button onClick={() => setDelayMessage(DELAY_TEMPLATES.equipment(selectedCustomerForDelay?.name))}
+                        className={`px-3 py-1.5 rounded-xl text-[10px] font-bold transition-all ${delayMessage.includes('equipment') ? 'bg-purple-500 text-white' : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}>
+                        ⚙️ GEAR
+                      </button>
+                      <button onClick={() => setDelayMessage(DELAY_TEMPLATES.late(selectedCustomerForDelay?.name))}
+                        className={`px-3 py-1.5 rounded-xl text-[10px] font-bold transition-all ${delayMessage.includes('behind') && !delayMessage.includes('tomorrow') && !delayMessage.includes('dark') ? 'bg-green-500 text-white' : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}>
+                        ⏱️ LATE
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[9px] font-black text-gray-500 uppercase tracking-widest mb-2 px-1">Rescheduling / Skipping</label>
+                    <div className="flex flex-wrap gap-2">
+                      <button onClick={() => setDelayMessage(DELAY_TEMPLATES.nextDay(selectedCustomerForDelay?.name))}
+                        className={`px-3 py-1.5 rounded-xl text-[10px] font-bold transition-all ${delayMessage.includes('tomorrow') ? 'bg-orange-600 text-white' : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}>
+                        📅 TOMORROW
+                      </button>
+                      <button onClick={() => setDelayMessage(DELAY_TEMPLATES.daylight(selectedCustomerForDelay?.name))}
+                        className={`px-3 py-1.5 rounded-xl text-[10px] font-bold transition-all ${delayMessage.includes('dark') ? 'bg-indigo-500 text-white' : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}>
+                        🌑 DARK
+                      </button>
+                      <button onClick={() => setDelayMessage(DELAY_TEMPLATES.skip(selectedCustomerForDelay?.name))}
+                        className={`px-3 py-1.5 rounded-xl text-[10px] font-bold transition-all ${delayMessage.includes('skip') ? 'bg-emerald-500 text-white' : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}>
+                        ⏭️ SKIP WEEK
+                      </button>
+                      <button onClick={() => setDelayMessage(DELAY_TEMPLATES.emergency(selectedCustomerForDelay?.name))}
+                        className={`px-3 py-1.5 rounded-xl text-[10px] font-bold transition-all ${delayMessage.includes('emergency') ? 'bg-red-500 text-white' : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}>
+                        🚨 URGENT
+                      </button>
+                      <button onClick={() => setDelayMessage(DELAY_TEMPLATES.holiday(selectedCustomerForDelay?.name))}
+                        className={`px-3 py-1.5 rounded-xl text-[10px] font-bold transition-all ${delayMessage.includes('holiday') ? 'bg-pink-500 text-white' : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}>
+                        🎉 HOLIDAY
+                      </button>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Message Editor */}
@@ -3641,6 +3750,7 @@ function CustomerCard({
   searchTerm,
   editingAddress,
   editingNotes,
+  editingSafetyNotes, // New
   schedule,
   // Functions from parent
   highlightSearchTerm,
@@ -3666,6 +3776,9 @@ function CustomerCard({
   cancelEditingNotes,
   handleNoteTextChange,
   updateCustomerNotes,
+  startEditingSafetyNotes, // New
+  cancelEditingSafetyNotes, // New
+  updateCustomerSafetyNotes, // New
   // Delay props
   setShowDelayModal,
   setSelectedCustomerForDelay,
@@ -3765,6 +3878,12 @@ function CustomerCard({
           <span className="px-2 py-0.5 bg-gradient-to-r from-purple-500 to-indigo-600 text-white text-[10px] font-black rounded-full shadow-lg shadow-purple-500/30 flex items-center gap-1 animate-pulse">
             <ClockIcon className="h-2.5 w-2.5" />
             {activeJobTimers[customer.id]}
+          </span>
+        )}
+        {customer.safety_notes && (
+          <span className="px-2 py-0.5 bg-red-500 text-white text-[10px] font-black rounded-full shadow-lg shadow-red-500/30 flex items-center gap-1">
+            <XCircleIcon className="h-2.5 w-2.5" />
+            Alert
           </span>
         )}
       </div>
@@ -3899,6 +4018,49 @@ function CustomerCard({
               </div>
             )}
           </div>
+
+          {/* Safety Alert Section */}
+          {editingSafetyNotes[customer.id] !== undefined ? (
+            <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-2xl space-y-2">
+              <div className="flex items-center gap-2 mb-1">
+                <XCircleIcon className="h-4 w-4 text-red-500" />
+                <span className="text-[10px] font-black text-red-500 uppercase tracking-widest">Editing Safety Alert</span>
+              </div>
+              <textarea
+                value={editingSafetyNotes[customer.id]}
+                onChange={(e) => startEditingSafetyNotes(customer.id, e.target.value)}
+                placeholder="E.g., Watch out for the dog, Gate code 1234..."
+                className="w-full p-2.5 bg-white/5 border border-red-500/30 rounded-xl text-xs text-white outline-none focus:border-red-400 placeholder-red-900/50 resize-none"
+                rows="2"
+                autoFocus
+              />
+              <div className="flex justify-end gap-2">
+                <button onClick={() => cancelEditingSafetyNotes(customer.id)} className="px-3 py-1 text-xs text-gray-500 hover:text-white transition-colors">Cancel</button>
+                <button onClick={() => updateCustomerSafetyNotes(customer.id, editingSafetyNotes[customer.id])} className="px-3 py-1 bg-red-500/20 text-red-400 rounded-lg text-xs font-medium hover:bg-red-500/30 transition-all">Save Alert</button>
+              </div>
+            </div>
+          ) : (
+            <div 
+              onClick={(e) => { e.stopPropagation(); startEditingSafetyNotes(customer); }}
+              className={`p-3 rounded-2xl border transition-all cursor-pointer ${
+                customer.safety_notes 
+                  ? 'bg-red-500/10 border-red-500/30 animate-pulse-subtle' 
+                  : 'bg-white/[0.02] border-white/5 border-dashed hover:bg-white/[0.05]'
+              }`}
+            >
+              <div className="flex items-center gap-2 mb-1">
+                <XCircleIcon className={`h-4 w-4 ${customer.safety_notes ? 'text-red-500' : 'text-gray-600'}`} />
+                <span className={`text-[10px] font-black uppercase tracking-widest ${customer.safety_notes ? 'text-red-500' : 'text-gray-600'}`}>
+                  Safety Alerts
+                </span>
+              </div>
+              {customer.safety_notes ? (
+                <p className="text-xs text-white font-bold">{customer.safety_notes}</p>
+              ) : (
+                <p className="text-[10px] text-gray-600 italic">No safety alerts. Tap to add (dogs, codes, etc)...</p>
+              )}
+            </div>
+          )}
 
           {/* Route details */}
           {customer.route_order && customer.travel_time_to_next && (
