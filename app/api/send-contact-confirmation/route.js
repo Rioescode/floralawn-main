@@ -409,7 +409,7 @@ export async function POST(request) {
         replyTo: sanitizedEmail
       });
 
-      console.log('✅ Confirmation email sent successfully via Resend:', JSON.stringify(emailResult));
+      console.log('✅ Confirmation email sent successfully via Resend:', JSON.stringify(customerEmailResult));
 
       // Send SMS if opted in and phone number provided
       let smsSent = false;
@@ -435,7 +435,7 @@ export async function POST(request) {
       return NextResponse.json({ 
         success: true, 
         message: 'Confirmation email sent',
-        emailId: emailResult?.id,
+        emailId: customerEmailResult?.id,
         smsSent: smsSent
       });
     } catch (emailError) {
