@@ -212,7 +212,7 @@ export default function DensityCheckPage() {
               </div>
               <h2 className="text-3xl font-black mb-4">We're right around the corner!</h2>
               <p className="text-gray-300 text-lg mb-8 max-w-md mx-auto">
-                Good news! We already have active properties in <strong>{zipcode}</strong>. Since our crew is on your street weekly, we can offer our maximum density discount.
+                Good news! We already have active properties in <strong>{zipcode}</strong>. Use your density discount for <strong>Cleanups, Trimming, Bed Maintenance</strong>, and more!
               </p>
               <div className="inline-block px-8 py-4 bg-white/5 border border-white/10 rounded-2xl mb-10">
                 <p className="text-[10px] font-black text-green-400 uppercase tracking-widest mb-1">Max Neighborhood Discount</p>
