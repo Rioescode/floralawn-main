@@ -21,6 +21,10 @@ const links = [
     label: "About",
   },
   {
+    href: "/density-check",
+    label: "Neighborhood Check",
+  },
+  {
     href: "/contact",
     label: "Contact",
   }
