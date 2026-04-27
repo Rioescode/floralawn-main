@@ -1296,7 +1296,8 @@ export default function SchedulePage() {
     emergency: (name) => `Hi ${name}, due to a personal emergency, I unfortunately won't be able to make it to your property today. I will reach out as soon as possible to reschedule. Sorry for the sudden change!`,
     skip: (name) => `Hi ${name}, your lawn is looking good and growing a bit slower this week, so we're going to skip your service to save you some money. We'll see you next week on our regular schedule!`,
     holiday: (name) => `Hi ${name}, just a reminder that we are off today for the holiday. We will be back on our regular schedule starting tomorrow. See you then!`,
-    daylight: (name) => `Hi ${name}, we've had an unusually busy day and unfortunately won't be able to reach your property before dark. We will prioritize your service first thing tomorrow/next visit. Thanks for your understanding!`
+    daylight: (name) => `Hi ${name}, we've had an unusually busy day and unfortunately won't be able to reach your property before dark. We will prioritize your service first thing tomorrow/next visit. Thanks for your understanding!`,
+    review: (name) => `Hi ${name}, will you help us with a review in our google profile? Flora Lawn & Landscaping Inc would love your feedback. Post a review to our profile: https://g.page/r/CQjJ-AbEL4N2EBE/review - Thank you very much!`
   };
 
   const handleSendDelayNotification = async () => {
@@ -3685,6 +3686,16 @@ export default function SchedulePage() {
                       <button onClick={() => setDelayMessage(DELAY_TEMPLATES.holiday(selectedCustomerForDelay?.name))}
                         className={`px-3 py-1.5 rounded-xl text-[10px] font-bold transition-all ${delayMessage.includes('holiday') ? 'bg-pink-500 text-white' : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}>
                         🎉 HOLIDAY
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[9px] font-black text-gray-500 uppercase tracking-widest mb-2 px-1">Follow-up / Marketing</label>
+                    <div className="flex flex-wrap gap-2">
+                      <button onClick={() => setDelayMessage(DELAY_TEMPLATES.review(selectedCustomerForDelay?.name))}
+                        className={`px-3 py-1.5 rounded-xl text-[10px] font-bold transition-all ${delayMessage.includes('review') ? 'bg-yellow-500 text-white shadow-lg shadow-yellow-500/20' : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}>
+                        ⭐ REVIEW REQUEST
                       </button>
                     </div>
                   </div>
