@@ -3437,13 +3437,20 @@ export default function SchedulePage() {
                   </div>
                   <div>
                     <label className="block text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] mb-3 ml-1">Visit Time</label>
-                    <input 
-                      type="text" 
-                      placeholder="e.g. 10:00 AM"
+                    <select 
                       value={visitForm.time}
                       onChange={(e) => setVisitForm(prev => ({ ...prev, time: e.target.value }))}
-                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white focus:outline-none focus:border-orange-500/50 transition-all font-bold placeholder:text-gray-700"
-                    />
+                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white focus:outline-none focus:border-orange-500/50 transition-all font-bold appearance-none cursor-pointer"
+                    >
+                      {[
+                        '7:00 AM', '7:30 AM', '8:00 AM', '8:30 AM', '9:00 AM', '9:30 AM', 
+                        '10:00 AM', '10:30 AM', '11:00 AM', '11:30 AM', '12:00 PM', '12:30 PM',
+                        '1:00 PM', '1:30 PM', '2:00 PM', '2:30 PM', '3:00 PM', '3:30 PM',
+                        '4:00 PM', '4:30 PM', '5:00 PM', '5:30 PM', '6:00 PM', '6:30 PM', '7:00 PM'
+                      ].map(t => (
+                        <option key={t} value={t} className="bg-[#1e293b] text-white">{t}</option>
+                      ))}
+                    </select>
                   </div>
                 </div>
 
