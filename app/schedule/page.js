@@ -1439,6 +1439,25 @@ export default function SchedulePage() {
     }, 200);
   };
 
+  const scheduleVisit = async (id) => {
+    const date = prompt('Enter visit date (YYYY-MM-DD):', new Date().toISOString().split('T')[0]);
+    if (!date) return;
+    const time = prompt('Enter visit time (e.g. 10:00 AM):', '10:00 AM');
+    
+    try {
+      const { error } = await supabase
+        .from('contact_leads')
+        .update({ visit_date: date, visit_time: time })
+        .eq('id', id);
+      if (error) throw error;
+      fetchAppointments();
+      alert('Visit scheduled successfully!');
+    } catch (error) {
+      console.error('Error scheduling visit:', error);
+      alert('Failed to schedule visit');
+    }
+  };
+
   // Load home base address from Supabase
   const loadHomeBaseAddress = async () => {
     try {
@@ -2311,9 +2330,25 @@ export default function SchedulePage() {
             >
               <EnvelopeIcon className="h-4 w-4" />
               Inquiries
-              {appointments.length > 0 && (
+              {appointments.filter(a => !a.visit_date).length > 0 && (
                 <span className="flex h-4 w-4 items-center justify-center rounded-full bg-white text-[10px] font-black text-purple-600">
-                  {appointments.length}
+                  {appointments.filter(a => !a.visit_date).length}
+                </span>
+              )}
+            </button>
+            <button
+              onClick={() => setViewMode('visits')}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 ${
+                viewMode === 'visits'
+                  ? 'bg-gradient-to-r from-orange-500 to-red-600 text-white shadow-lg shadow-orange-500/25'
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              <ClockIcon className="h-4 w-4" />
+              Visits
+              {appointments.filter(a => a.visit_date).length > 0 && (
+                <span className="flex h-4 w-4 items-center justify-center rounded-full bg-white text-[10px] font-black text-orange-600">
+                  {appointments.filter(a => a.visit_date).length}
                 </span>
               )}
             </button>
@@ -2531,7 +2566,7 @@ export default function SchedulePage() {
                   </div>
                   <div>
                     <h2 className="text-xl font-black text-white">Pending Inquiries</h2>
-                    <p className="text-sm text-gray-500">{appointments.length} leads waiting for response</p>
+                    <p className="text-sm text-gray-500">{appointments.filter(a => !a.visit_date).length} leads waiting for response</p>
                   </div>
                 </div>
                 <button 
@@ -2548,7 +2583,7 @@ export default function SchedulePage() {
                   <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500 mx-auto mb-4"></div>
                   <p className="text-gray-500 font-medium">Scanning for new leads...</p>
                 </div>
-              ) : appointments.length === 0 ? (
+              ) : appointments.filter(a => !a.visit_date).length === 0 ? (
                 <div className="py-20 text-center bg-white/[0.02] rounded-3xl border border-dashed border-white/10">
                   <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-4">
                     <EnvelopeOpenIcon className="h-8 w-8 text-gray-700" />
@@ -2558,7 +2593,7 @@ export default function SchedulePage() {
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-4">
-                  {appointments.map(apt => (
+                  {appointments.filter(a => !a.visit_date).map(apt => (
                     <div 
                       key={apt.id} 
                       className="bg-white/[0.03] border border-white/10 rounded-3xl p-5 hover:bg-white/[0.06] transition-all group relative overflow-hidden"
@@ -2580,6 +2615,13 @@ export default function SchedulePage() {
                         </div>
                         <div className="flex gap-2">
                           <button 
+                            onClick={() => scheduleVisit(apt.id)}
+                            className="p-2 bg-orange-500/10 text-orange-400 rounded-xl hover:bg-orange-500/20 transition-all border border-orange-500/20"
+                            title="Schedule Visit"
+                          >
+                            <ClockIcon className="h-4 w-4" />
+                          </button>
+                          <button 
                             onClick={() => handleConvertToCustomer(apt)}
                             className="p-2 bg-green-500/10 text-green-400 rounded-xl hover:bg-green-500/20 transition-all border border-green-500/20"
                             title="Convert to Customer"
@@ -2589,7 +2631,7 @@ export default function SchedulePage() {
                           <button 
                             onClick={() => deleteAppointment(apt.id)}
                             className="p-2 bg-red-500/10 text-red-400 rounded-xl hover:bg-red-500/20 transition-all border border-red-500/20"
-                            title="Delete Inquiry"
+                            title="Delete Lead"
                           >
                             <TrashIcon className="h-4 w-4" />
                           </button>
@@ -2611,19 +2653,100 @@ export default function SchedulePage() {
                         </div>
                       </div>
 
-                      {apt.notes && (
-                        <div className="p-4 bg-black/20 rounded-2xl border border-white/5">
-                          <p className="text-[11px] text-gray-500 leading-relaxed italic line-clamp-3">
-                            "{apt.notes}"
-                          </p>
+                      <div className="grid grid-cols-2 gap-2 mt-5">
+                        <button 
+                          onClick={() => scheduleVisit(apt.id)}
+                          className="py-3 bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border border-orange-500/20 flex items-center justify-center gap-2"
+                        >
+                          <ClockIcon className="h-3.5 w-3.5" />
+                          Visit Date
+                        </button>
+                        <button 
+                          onClick={() => handleConvertToCustomer(apt)}
+                          className="py-3 bg-white/5 hover:bg-white/10 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border border-white/10 flex items-center justify-center gap-2"
+                        >
+                          <UserPlusIcon className="h-3.5 w-3.5 text-purple-400" />
+                          Finalize
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* === VISITS VIEW === */}
+        {viewMode === 'visits' && (
+          <div className="mb-6 space-y-6">
+            <div className="bg-white/5 backdrop-blur-xl rounded-3xl border border-white/10 p-6 sm:p-8">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-gradient-to-br from-orange-500 to-red-600 rounded-2xl shadow-xl shadow-orange-500/20">
+                    <ClockIcon className="h-6 w-6 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-black text-white">Upcoming Visits</h2>
+                    <p className="text-sm text-gray-500">{appointments.filter(a => a.visit_date).length} walkthroughs scheduled</p>
+                  </div>
+                </div>
+              </div>
+
+              {appointments.filter(a => a.visit_date).length === 0 ? (
+                <div className="py-20 text-center bg-white/[0.02] rounded-3xl border border-dashed border-white/10">
+                  <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <CalendarDaysIcon className="h-8 w-8 text-gray-700" />
+                  </div>
+                  <h3 className="text-white font-bold mb-1 text-lg">No Visits Scheduled</h3>
+                  <p className="text-gray-500 text-sm max-w-xs mx-auto">Schedule a walkthrough date for any inquiry to see it here.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-4">
+                  {appointments.filter(a => a.visit_date).map(apt => (
+                    <div 
+                      key={apt.id} 
+                      className="bg-white/[0.03] border border-orange-500/20 rounded-3xl p-5 hover:bg-white/[0.06] transition-all group relative overflow-hidden"
+                    >
+                      <div className="flex items-start justify-between gap-4 mb-4">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="px-2 py-0.5 bg-orange-500 text-white text-[10px] font-black rounded-full uppercase tracking-widest shadow-lg shadow-orange-500/20">
+                              {apt.visit_date}
+                            </span>
+                            <span className="text-[10px] text-orange-400 font-black uppercase tracking-widest">
+                              @ {apt.visit_time || 'TBD'}
+                            </span>
+                          </div>
+                          <h3 className="text-base font-black text-white truncate">{apt.customer_name}</h3>
                         </div>
-                      )}
+                        <div className="flex gap-2">
+                          <button 
+                            onClick={() => handleConvertToCustomer(apt)}
+                            className="p-2 bg-green-500/10 text-green-400 rounded-xl hover:bg-green-500/20 transition-all border border-green-500/20"
+                            title="Convert to Customer"
+                          >
+                            <UserPlusIcon className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="space-y-3 mb-5 text-xs text-gray-400">
+                        <div className="flex items-center gap-3">
+                          <MapPinIcon className="h-3.5 w-3.5 text-gray-600" />
+                          <span className="line-clamp-1">{apt.address || apt.city}</span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <DocumentTextIcon className="h-3.5 w-3.5 text-gray-600" />
+                          <span className="italic">Service: {apt.service_type}</span>
+                        </div>
+                      </div>
 
                       <button 
                         onClick={() => handleConvertToCustomer(apt)}
-                        className="w-full mt-5 py-3 bg-white/5 hover:bg-white/10 text-white rounded-2xl text-xs font-black uppercase tracking-widest transition-all border border-white/10 hover:border-white/20 flex items-center justify-center gap-2"
+                        className="w-full py-3 bg-gradient-to-r from-orange-500 to-red-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg shadow-orange-500/20 flex items-center justify-center gap-2"
                       >
-                        <UserPlusIcon className="h-4 w-4 text-purple-400" />
+                        <PlusIcon className="h-3.5 w-3.5" />
                         Finalize as Customer
                       </button>
                     </div>
