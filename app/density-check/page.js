@@ -10,7 +10,8 @@ export default function DensityCheckPage() {
   const [isChecking, setIsChecking] = useState(false);
   const [result, setResult] = useState(null); // 'high' | 'low' | 'none'
   const [city, setCity] = useState('');
-  const [activeCities, setActiveCities] = useState([]);
+  const [zipcode, setZipcode] = useState('');
+  const [activeData, setActiveData] = useState([]); // Array of { city, zip }
   const [form, setForm] = useState({ name: '', email: '', phone: '' });
   const [submitted, setSubmitted] = useState(false);
   const autoCompleteRef = useRef(null);
@@ -23,12 +24,27 @@ export default function DensityCheckPage() {
 
   const fetchActiveCities = async () => {
     try {
-      const { data, error } = await supabase.from('customers').select('city');
+      const { data, error } = await supabase.from('customers').select('city, zipcode');
       if (error) throw error;
-      const cities = [...new Set(data.map(c => c.city?.trim().toLowerCase()).filter(Boolean))];
-      setActiveCities(cities);
+      
+      // Get unique city+zip pairs for privacy-safe neighborhood matching
+      const uniquePairs = [];
+      const seen = new Set();
+      
+      data.forEach(c => {
+        const key = `${c.city?.trim().toLowerCase()}-${c.zipcode?.trim()}`;
+        if (c.city && c.zipcode && !seen.has(key)) {
+          seen.add(key);
+          uniquePairs.push({ 
+            city: c.city.trim().toLowerCase(), 
+            zip: c.zipcode.trim() 
+          });
+        }
+      });
+      
+      setActiveData(uniquePairs);
     } catch (err) {
-      console.error('Error fetching cities:', err);
+      console.error('Error fetching service area data:', err);
     }
   };
 
@@ -57,9 +73,12 @@ export default function DensityCheckPage() {
       
       setAddress(place.formatted_address);
       
-      // Extract city
+      // Extract city and zip
       const cityComp = place.address_components.find(c => c.types.includes('locality'));
+      const zipComp = place.address_components.find(c => c.types.includes('postal_code'));
+      
       if (cityComp) setCity(cityComp.long_name);
+      if (zipComp) setZipcode(zipComp.long_name);
     });
   };
 
@@ -73,10 +92,14 @@ export default function DensityCheckPage() {
     // Simulate analysis
     setTimeout(() => {
       const normalizedCity = city.trim().toLowerCase();
-      const hasCity = activeCities.includes(normalizedCity);
       
-      if (hasCity) {
-        setResult('high');
+      const hasZip = activeData.some(d => d.zip === zipcode);
+      const hasCity = activeData.some(d => d.city === normalizedCity);
+      
+      if (hasZip) {
+        setResult('neighborhood'); // Right around the corner
+      } else if (hasCity) {
+        setResult('city'); // We serve the city
       } else {
         setResult('none');
       }
@@ -170,35 +193,56 @@ export default function DensityCheckPage() {
           </div>
         )}
 
-        {/* High Density Result */}
-        {result === 'high' && (
+        {/* Neighborhood Match (Zip Code) */}
+        {result === 'neighborhood' && (
           <div className="animate-in fade-in zoom-in duration-500">
             <div className="bg-gradient-to-br from-green-500/20 to-emerald-500/5 border border-green-500/30 rounded-[3rem] p-10 text-center relative overflow-hidden">
-              <div className="absolute top-0 right-0 p-8 opacity-10">
-                <UserGroupIcon className="h-40 w-40 text-green-500" />
-              </div>
-              
               <div className="w-20 h-20 bg-green-500 rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-xl shadow-green-500/40">
-                <CheckCircleIcon className="h-10 w-10 text-black" />
+                <UserGroupIcon className="h-10 w-10 text-black" />
               </div>
-              
-              <h2 className="text-3xl font-black mb-4">We're in {city}!</h2>
+              <h2 className="text-3xl font-black mb-4">We're right around the corner!</h2>
               <p className="text-gray-300 text-lg mb-8 max-w-md mx-auto">
-                Your neighborhood is a <strong>High Density Zone</strong>. Since our trucks are already nearby, we can pass the savings to you.
+                Good news! We already have active properties in <strong>{zipcode}</strong>. Since our crew is on your street weekly, we can offer our maximum density discount.
               </p>
-              
               <div className="inline-block px-8 py-4 bg-white/5 border border-white/10 rounded-2xl mb-10">
-                <p className="text-[10px] font-black text-green-400 uppercase tracking-widest mb-1">Your Neighborhood Discount</p>
-                <p className="text-4xl font-black">$15 OFF <span className="text-sm font-medium text-gray-500">per visit</span></p>
+                <p className="text-[10px] font-black text-green-400 uppercase tracking-widest mb-1">Max Neighborhood Discount</p>
+                <p className="text-4xl font-black">$20 OFF <span className="text-sm font-medium text-gray-500">per visit</span></p>
               </div>
-              
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Link href={`/contact?promo=NEIGHBORHOOD15&address=${encodeURIComponent(address)}`} 
+                <Link href={`/contact?promo=ZIP_SAVER_20&address=${encodeURIComponent(address)}`} 
                   className="px-10 py-5 bg-white text-black rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-gray-200 transition-all active:scale-95">
-                  Claim Discount Now
+                  Claim $20 Discount
                 </Link>
                 <button onClick={() => setResult(null)} className="px-10 py-5 bg-white/5 border border-white/10 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-white/10 transition-all">
-                  Check Another Address
+                  New Search
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* City Match Only */}
+        {result === 'city' && (
+          <div className="animate-in fade-in zoom-in duration-500">
+            <div className="bg-gradient-to-br from-emerald-500/20 to-green-500/5 border border-emerald-500/30 rounded-[3rem] p-10 text-center relative overflow-hidden">
+              <div className="w-20 h-20 bg-emerald-500 rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-xl shadow-emerald-500/40">
+                <MapPinIcon className="h-10 w-10 text-black" />
+              </div>
+              <h2 className="text-3xl font-black mb-4">We're in {city}!</h2>
+              <p className="text-gray-300 text-lg mb-8 max-w-md mx-auto">
+                We currently service {city}, and we're looking to add more homes in your specific neighborhood to optimize our route.
+              </p>
+              <div className="inline-block px-8 py-4 bg-white/5 border border-white/10 rounded-2xl mb-10">
+                <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-1">Standard City Discount</p>
+                <p className="text-4xl font-black">$10 OFF <span className="text-sm font-medium text-gray-500">per visit</span></p>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <Link href={`/contact?promo=CITY_SAVER_10&address=${encodeURIComponent(address)}`} 
+                  className="px-10 py-5 bg-white text-black rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-gray-200 transition-all active:scale-95">
+                  Claim $10 Discount
+                </Link>
+                <button onClick={() => setResult(null)} className="px-10 py-5 bg-white/5 border border-white/10 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-white/10 transition-all">
+                  New Search
                 </button>
               </div>
             </div>
