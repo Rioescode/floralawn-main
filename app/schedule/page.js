@@ -106,6 +106,7 @@ export default function SchedulePage() {
   const [selectedVisitApt, setSelectedVisitApt] = useState(null);
   const [visitForm, setVisitForm] = useState({ date: '', time: '10:00 AM' });
   const [schedulingVisit, setSchedulingVisit] = useState(false);
+  const [optimizingDays, setOptimizingDays] = useState(new Set());
   const router = useRouter();
 
   // Helper functions for localStorage persistence
@@ -1698,7 +1699,10 @@ export default function SchedulePage() {
 
   // Calculate route for customers on a specific day
   const calculateDayRoute = async (day) => {
+    if (optimizingDays.has(day)) return;
+    
     try {
+      setOptimizingDays(prev => new Set(prev).add(day));
       const dayCustomers = customers.filter(c => c.scheduled_day === day && c.address);
       
       if (dayCustomers.length === 0) {
@@ -1777,6 +1781,12 @@ export default function SchedulePage() {
       } else {
         alert('❌ Error optimizing route: ' + error.message + '\n\nPlease try again or contact support if the problem persists.');
       }
+    } finally {
+      setOptimizingDays(prev => {
+        const next = new Set(prev);
+        next.delete(day);
+        return next;
+      });
     }
   };
 
@@ -2968,8 +2978,23 @@ export default function SchedulePage() {
                           </button>
                         )}
                         {dayCustomers.length > 1 && homeBase.trim() && (
-                          <button onClick={() => calculateDayRoute(day)} className="text-[10px] px-2.5 py-1.5 text-purple-400 bg-purple-500/10 rounded-lg hover:bg-purple-500/20 border border-purple-500/20 transition-all font-medium">
-                            🗺️ Optimize Route
+                          <button 
+                            onClick={() => calculateDayRoute(day)} 
+                            disabled={optimizingDays.has(day)}
+                            className={`text-[10px] px-3 py-1.5 rounded-lg border transition-all font-black uppercase tracking-widest flex items-center gap-2 ${
+                              optimizingDays.has(day)
+                                ? 'bg-purple-500/10 text-purple-400 border-purple-500/20'
+                                : 'bg-gradient-to-r from-purple-500 to-indigo-600 text-white border-transparent shadow-lg shadow-purple-500/20 hover:shadow-purple-500/40 active:scale-95'
+                            }`}
+                          >
+                            {optimizingDays.has(day) ? (
+                              <>
+                                <div className="animate-spin h-3 w-3 border-2 border-purple-400 border-t-transparent rounded-full"></div>
+                                Optimizing...
+                              </>
+                            ) : (
+                              <>🎯 Optimize Order</>
+                            )}
                           </button>
                         )}
                       </div>
