@@ -463,6 +463,17 @@ export default function SchedulePage() {
       }
     });
 
+    // Sort each day by optimized route_order
+    Object.keys(scheduleByDay).forEach(day => {
+      scheduleByDay[day].sort((a, b) => {
+        const orderA = a.route_order !== null && a.route_order !== undefined ? a.route_order : 9999;
+        const orderB = b.route_order !== null && b.route_order !== undefined ? b.route_order : 9999;
+        
+        if (orderA !== orderB) return orderA - orderB;
+        return (a.name || '').localeCompare(b.name || '');
+      });
+    });
+
     setSchedule(scheduleByDay);
     setUnassignedCustomers(unassigned);
     calculateEarnings(scheduleByDay, customers);
