@@ -2092,10 +2092,6 @@ export default function SchedulePage() {
     }
   };
 
-  };
-
-  if (loading) {
-
   if (loading) {
     return (
       <div className="min-h-screen bg-[#0f1117] flex items-center justify-center">
