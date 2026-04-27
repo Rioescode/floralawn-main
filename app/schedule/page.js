@@ -93,6 +93,9 @@ export default function SchedulePage() {
   const [markingDone, setMarkingDone] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+  const [showDelayModal, setShowDelayModal] = useState(false);
+  const [selectedCustomerForDelay, setSelectedCustomerForDelay] = useState(null);
+  const [delayMessage, setDelayMessage] = useState('');
   const [earnings, setEarnings] = useState({
     daily: {},
     weekly: 0,
@@ -1280,6 +1283,53 @@ export default function SchedulePage() {
     saveScheduleToStorage(updatedSchedule);
 
     alert(`✅ ${customer.name} moved to ${nextDay} for today's session`);
+  };
+
+  const DELAY_TEMPLATES = {
+    rain: (name) => `Hi ${name}, due to the heavy rain today, we unfortunately have to reschedule your service. We will aim to be there as soon as the weather clears. Thank you for your patience!`,
+    truck: (name) => `Hi ${name}, we're having some unexpected truck trouble this morning. We're working on getting it fixed and will update you on your service time as soon as possible. Sorry for the inconvenience!`,
+    equipment: (name) => `Hi ${name}, we've encountered some equipment issues that are delaying our route today. We'll be in touch shortly with an updated arrival time. Thank you for understanding!`,
+    late: (name) => `Hi ${name}, we're running a bit behind schedule today due to some complex jobs earlier on the route. We should be arriving at your property shortly. See you soon!`
+  };
+
+  const handleSendDelayNotification = async () => {
+    if (!selectedCustomerForDelay) return;
+    
+    try {
+      setMarkingDone(true); // Re-use loading state
+      const customer = selectedCustomerForDelay;
+      
+      const response = await fetch('/api/customers/send-message', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          appointmentId: `delay-${customer.id}`,
+          message: delayMessage,
+          sendEmail: true,
+          sendSMS: false, // Default to email, can be expanded
+          customerData: {
+            customer_name: customer.name,
+            customer_email: customer.email,
+            customer_phone: customer.phone,
+            service_type: customer.service_type || 'service'
+          }
+        })
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        setShowDelayModal(false);
+        setSuccessMessage(`Delay notification sent to ${customer.name}!`);
+        setShowSuccessModal(true);
+      } else {
+        alert('Failed to send notification: ' + result.error);
+      }
+    } catch (error) {
+      console.error('Error sending delay notification:', error);
+      alert('Error sending notification');
+    } finally {
+      setMarkingDone(false);
+    }
   };
 
   const bulkRemoveFromDay = async (day, customerIds) => {
@@ -2781,6 +2831,11 @@ export default function SchedulePage() {
                     cancelEditingNotes={cancelEditingNotes}
                     handleNoteTextChange={handleNoteTextChange}
                     updateCustomerNotes={updateCustomerNotes}
+                    // Delay props
+                    setShowDelayModal={setShowDelayModal}
+                    setSelectedCustomerForDelay={setSelectedCustomerForDelay}
+                    setDelayMessage={setDelayMessage}
+                    DELAY_TEMPLATES={DELAY_TEMPLATES}
                   />
                 ))}
               </div>
@@ -2995,6 +3050,11 @@ export default function SchedulePage() {
                             cancelEditingNotes={cancelEditingNotes}
                             handleNoteTextChange={handleNoteTextChange}
                             updateCustomerNotes={updateCustomerNotes}
+                            // Delay props
+                            setShowDelayModal={setShowDelayModal}
+                            setSelectedCustomerForDelay={setSelectedCustomerForDelay}
+                            setDelayMessage={setDelayMessage}
+                            DELAY_TEMPLATES={DELAY_TEMPLATES}
                           />
                         ))}
                       </div>
@@ -3470,6 +3530,80 @@ export default function SchedulePage() {
               </div>
             </div>
           </div>
+          </div>
+        )}
+
+        {/* === DELAY NOTIFICATION MODAL === */}
+        {showDelayModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+            <div className="bg-[#1e293b] w-full max-w-lg rounded-[2.5rem] border border-white/10 shadow-2xl overflow-hidden transform transition-all">
+              <div className="p-8">
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <h3 className="text-xl font-black text-white tracking-tight">Notify Delay</h3>
+                    <p className="text-xs text-gray-500 mt-1">Select a reason to update {selectedCustomerForDelay?.name}</p>
+                  </div>
+                  <button onClick={() => setShowDelayModal(false)} className="p-2 hover:bg-white/5 rounded-full text-gray-500 transition-colors">
+                    <XMarkIcon className="h-6 w-6" />
+                  </button>
+                </div>
+
+                {/* Template Chips */}
+                <div className="flex flex-wrap gap-2 mb-6">
+                  <button 
+                    onClick={() => setDelayMessage(DELAY_TEMPLATES.rain(selectedCustomerForDelay?.name))}
+                    className={`px-4 py-2 rounded-xl text-[11px] font-bold transition-all ${delayMessage.includes('rain') ? 'bg-blue-500 text-white' : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}
+                  >
+                    🌧️ RAIN
+                  </button>
+                  <button 
+                    onClick={() => setDelayMessage(DELAY_TEMPLATES.truck(selectedCustomerForDelay?.name))}
+                    className={`px-4 py-2 rounded-xl text-[11px] font-bold transition-all ${delayMessage.includes('truck') ? 'bg-orange-500 text-white' : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}
+                  >
+                    🚛 TRUCK
+                  </button>
+                  <button 
+                    onClick={() => setDelayMessage(DELAY_TEMPLATES.equipment(selectedCustomerForDelay?.name))}
+                    className={`px-4 py-2 rounded-xl text-[11px] font-bold transition-all ${delayMessage.includes('equipment') ? 'bg-purple-500 text-white' : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}
+                  >
+                    ⚙️ EQUIPMENT
+                  </button>
+                  <button 
+                    onClick={() => setDelayMessage(DELAY_TEMPLATES.late(selectedCustomerForDelay?.name))}
+                    className={`px-4 py-2 rounded-xl text-[11px] font-bold transition-all ${delayMessage.includes('behind') ? 'bg-green-500 text-white' : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}
+                  >
+                    ⏱️ LATE
+                  </button>
+                </div>
+
+                {/* Message Editor */}
+                <div className="mb-8">
+                  <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 px-1">Message Preview</label>
+                  <textarea
+                    value={delayMessage}
+                    onChange={(e) => setDelayMessage(e.target.value)}
+                    className="w-full p-5 bg-white/[0.03] border border-white/10 rounded-2xl text-sm text-gray-300 outline-none focus:border-orange-500/40 min-h-[150px] resize-none leading-relaxed"
+                  />
+                </div>
+
+                <div className="flex gap-3">
+                  <button 
+                    onClick={() => setShowDelayModal(false)}
+                    className="flex-1 py-4 bg-white/5 text-gray-400 rounded-2xl text-xs font-black uppercase tracking-[0.2em] hover:bg-white/10 transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    onClick={handleSendDelayNotification}
+                    disabled={markingDone}
+                    className="flex-1 py-4 bg-gradient-to-r from-orange-500 to-red-600 text-white rounded-2xl text-xs font-black uppercase tracking-[0.2em] shadow-xl shadow-orange-500/20 hover:shadow-orange-500/40 active:scale-95 transition-all disabled:opacity-50"
+                  >
+                    {markingDone ? 'Sending...' : 'Send Update'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </div>
@@ -3525,7 +3659,12 @@ function CustomerCard({
   startEditingNotes,
   cancelEditingNotes,
   handleNoteTextChange,
-  updateCustomerNotes
+  updateCustomerNotes,
+  // Delay props
+  setShowDelayModal,
+  setSelectedCustomerForDelay,
+  setDelayMessage,
+  DELAY_TEMPLATES
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -3858,6 +3997,15 @@ function CustomerCard({
                 <button onClick={(e) => { e.stopPropagation(); removeCustomer(customer.id, customer.name); }}
                   className="px-3 py-1.5 text-[11px] font-medium text-red-400 bg-red-500/10 rounded-lg border border-red-500/20 hover:bg-red-500/20 transition-all flex items-center gap-1">
                   🗑 Delete
+                </button>
+                <button onClick={(e) => { 
+                  e.stopPropagation(); 
+                  setSelectedCustomerForDelay(customer);
+                  setDelayMessage(DELAY_TEMPLATES.rain(customer.name));
+                  setShowDelayModal(true);
+                }}
+                  className="px-3 py-1.5 text-[11px] font-medium text-orange-400 bg-orange-500/10 rounded-lg border border-orange-500/20 hover:bg-orange-500/20 transition-all flex items-center gap-1">
+                  ⚠️ Notify Delay
                 </button>
               </>
             )}
