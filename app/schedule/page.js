@@ -2092,347 +2092,9 @@ export default function SchedulePage() {
     }
   };
 
-  const CustomerCard = ({ customer, showAssignButton = false, showUnassignButton = false, showCheckbox = false, onDragStart, onDragOver, onDragLeave, onDrop, onDragEnd, reorderCustomersInDay, index, day, daySelectionHandler }) => {
-    const proximity = proximityData[customer.id];
-    const [isExpanded, setIsExpanded] = useState(false);
-    const [isDragOver, setIsDragOver] = useState(false);
-    
-    // Determine distance and travel time - prioritize database fields
-    const distanceDisplay = customer.distance_miles ? `${customer.distance_miles} mi` : proximity?.distanceText;
-    const travelTimeDisplay = customer.travel_time || proximity?.durationText;
-    const hasProximityData = distanceDisplay || travelTimeDisplay;
-
-    const handleDragOverCard = (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      setIsDragOver(true);
-      
-      // If we have a dragged customer and it's from the same day, handle reordering
-      if (draggedCustomer && draggedCustomer.scheduled_day === customer.scheduled_day && reorderCustomersInDay && index !== undefined) {
-        const draggedIndex = schedule[customer.scheduled_day]?.findIndex(c => c.id === draggedCustomer.id);
-        if (draggedIndex !== -1 && draggedIndex !== index) {
-          // Visual feedback for reordering
-          e.dataTransfer.dropEffect = 'move';
-        }
-      }
-    };
-
-    const handleDragLeaveCard = (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      setIsDragOver(false);
-    };
-
-    const handleDropOnCard = (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      setIsDragOver(false);
-      
-      // Handle reordering within the same day
-      if (draggedCustomer && draggedCustomer.scheduled_day === customer.scheduled_day && reorderCustomersInDay && index !== undefined) {
-        const draggedIndex = schedule[customer.scheduled_day]?.findIndex(c => c.id === draggedCustomer.id);
-        if (draggedIndex !== -1 && draggedIndex !== index) {
-          reorderCustomersInDay(customer.scheduled_day, draggedIndex, index);
-        }
-      }
-    };
-
-    const handleDragStartCard = (e) => {
-      if (onDragStart) onDragStart(e, customer);
-    };
-    
-    const isCompleted = day && completedCustomers[day]?.includes(customer.id);
-    const isMoved = day && movedCustomers[day]?.includes(customer.id);
-    const isSelected = day && daySelectionHandler ? selectedDayCustomers[day]?.includes(customer.id) : selectedCustomers.includes(customer.id);
-    
-    return (
-      <div 
-        className={`relative group rounded-xl overflow-hidden transition-all duration-300 ${
-          isCompleted ? 'bg-green-500/10 border border-green-500/30' 
-          : isMoved ? 'bg-orange-500/10 border border-orange-500/30'
-          : isSelected ? 'bg-green-500/10 border border-green-500/30'
-          : isDragOver ? 'bg-blue-500/15 border border-blue-500/40 scale-[1.02]'
-          : 'bg-white/[0.04] border border-white/[0.08] hover:bg-white/[0.08] hover:border-white/[0.15]'
-        } ${draggedCustomer?.id === customer.id ? 'opacity-40 scale-95' : ''}`}
-        draggable={true}
-        onDragStart={handleDragStartCard}
-        onDragOver={handleDragOverCard}
-        onDragLeave={handleDragLeaveCard}
-        onDrop={handleDropOnCard}
-        onDragEnd={onDragEnd}
-      >
-        {/* Reorder indicator */}
-        {isDragOver && draggedCustomer && draggedCustomer.scheduled_day === customer.scheduled_day && (
-          <div className="absolute -top-0.5 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-500 to-cyan-400 rounded-full"></div>
-        )}
-
-        {/* Status badges - positioned absolutely */}
-        <div className="absolute top-2.5 right-2.5 flex gap-1.5 z-10">
-          {newlyAddedIds.has(customer.id) && (
-            <span className="px-2 py-0.5 bg-gradient-to-r from-violet-500 to-purple-600 text-white text-[10px] font-black rounded-full tracking-wider uppercase animate-pulse shadow-lg shadow-purple-500/30">✦ New</span>
-          )}
-          {isCompleted && (
-            <span className="px-2 py-0.5 bg-green-500 text-white text-[10px] font-bold rounded-full tracking-wider uppercase">✓ Done</span>
-          )}
-          {isMoved && (
-            <span className="px-2 py-0.5 bg-orange-500 text-white text-[10px] font-bold rounded-full">→ Moved</span>
-          )}
-          {customer.route_order && (
-            <span className="w-5 h-5 flex items-center justify-center bg-purple-500/20 text-purple-400 text-[10px] font-bold rounded-full">
-              {customer.route_order}
-            </span>
-          )}
-          {customer.job_started_at && activeJobTimers[customer.id] && (
-            <span className="px-2 py-0.5 bg-gradient-to-r from-purple-500 to-indigo-600 text-white text-[10px] font-black rounded-full shadow-lg shadow-purple-500/30 flex items-center gap-1 animate-pulse">
-              <ClockIcon className="h-2.5 w-2.5" />
-              {activeJobTimers[customer.id]}
-            </span>
-          )}
-        </div>
-        
-        {/* Main clickable row */}
-        <div className="px-3.5 py-3 cursor-pointer" onClick={() => setIsExpanded(!isExpanded)}>
-          <div className="flex items-center gap-3">
-            {/* Checkbox */}
-            {showCheckbox && (
-              <div 
-                onClick={(e) => {
-                  e.preventDefault(); e.stopPropagation();
-                  if (day && daySelectionHandler) daySelectionHandler(day, customer.id);
-                  else toggleCustomerSelection(customer.id, e);
-                }}
-                className="shrink-0"
-              >
-                <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all cursor-pointer ${
-                  isSelected ? 'bg-green-500 border-green-500' : 'border-white/20 hover:border-white/40'
-                }`}>
-                  {isSelected && <span className="text-white text-xs">✓</span>}
-                </div>
-              </div>
-            )}
-
-            {/* Customer info */}
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between gap-2">
-                <h3 className={`text-sm font-semibold truncate ${isCompleted ? 'line-through text-gray-500' : 'text-white'}`}>
-                  {highlightSearchTerm(customer.name, searchTerm)}
-                </h3>
-                <span className="shrink-0 text-sm font-bold text-green-400">${customer.price}</span>
-              </div>
-              
-              {/* Address + metadata row */}
-              <div className="flex items-center gap-2 mt-1 flex-wrap">
-                {customer.address && (
-                  <a 
-                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(customer.address)}`}
-                    target="_blank" rel="noopener noreferrer"
-                    onClick={(e) => e.stopPropagation()}
-                    className="text-[11px] text-gray-500 hover:text-blue-400 truncate max-w-[180px] transition-colors"
-                  >
-                    📍 {customer.address.split(',')[0]}
-                  </a>
-                )}
-                <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider ${
-                  customer.frequency === 'weekly' ? 'bg-green-500/15 text-green-400' : 'bg-blue-500/15 text-blue-400'
-                }`}>
-                  {customer.frequency === 'bi_weekly' ? 'Bi-W' : 'W'}
-                </span>
-                {hasProximityData && (
-                  <span className="text-[10px] text-gray-600">{distanceDisplay}</span>
-                )}
-                {travelTimeDisplay && (
-                  <span className="text-[10px] text-gray-600">⏱ {travelTimeDisplay}</span>
-                )}
-              </div>
-            </div>
-
-            {/* Quick actions + expand */}
-            <div className="flex items-center gap-1 shrink-0">
-              {day && !isCompleted && (
-                <button
-                  onClick={(e) => { e.stopPropagation(); toggleCustomerCompletion(day, customer.id); }}
-                  className="p-1.5 rounded-lg bg-green-500/10 text-green-400 hover:bg-green-500/20 transition-all"
-                  title="Mark complete"
-                >
-                  <CheckCircleIcon className="h-4 w-4" />
-                </button>
-              )}
-              {day && (
-                <button
-                  onClick={(e) => { e.stopPropagation(); moveSingleCustomerToNextDay(day, customer.id); }}
-                  className="p-1.5 rounded-lg bg-orange-500/10 text-orange-400 hover:bg-orange-500/20 transition-all"
-                  title="Move to next day"
-                >
-                  <span className="text-xs">→</span>
-                </button>
-              )}
-              <div className={`ml-1 text-gray-600 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}>
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Expanded details */}
-        {isExpanded && (
-          <div className="border-t border-white/5 px-3.5 py-3 space-y-3">
-            {/* Contact row */}
-            <div className="flex items-center gap-4 text-xs">
-              <a href={`tel:${customer.phone}`} className="flex items-center gap-1.5 text-gray-400 hover:text-green-400 transition-colors" onClick={(e) => e.stopPropagation()}>
-                <PhoneIcon className="h-3.5 w-3.5" />{customer.phone}
-              </a>
-              {customer.email && (
-                <span className="text-gray-600 truncate">{customer.email}</span>
-              )}
-            </div>
-
-            {/* Full address — click to edit with Google Places */}
-            <div className="pt-0.5" onClick={(e) => e.stopPropagation()}>
-              {editingAddress[customer.id] !== undefined ? (
-                <div className="space-y-2">
-                  <input
-                    ref={el => addressInputRefs.current[customer.id] = el}
-                    type="text"
-                    defaultValue={editingAddress[customer.id]}
-                    onChange={(e) => setEditingAddress(prev => ({ ...prev, [customer.id]: e.target.value }))}
-                    placeholder="Start typing address..."
-                    className="w-full p-2 bg-white/5 border border-blue-500/30 rounded-xl text-xs text-gray-300 outline-none focus:border-blue-400/60 placeholder-gray-600"
-                    autoFocus
-                  />
-                  <div className="flex justify-end gap-2">
-                    <button onClick={() => cancelEditingAddress(customer.id)} className="px-3 py-1 text-xs text-gray-500 hover:text-white transition-colors">Cancel</button>
-                    <button
-                      onClick={() => updateCustomerAddress(customer.id, addressInputRefs.current[customer.id]?.value || editingAddress[customer.id])}
-                      className="px-3 py-1 bg-blue-500/20 text-blue-400 rounded-lg text-xs font-medium hover:bg-blue-500/30 transition-all"
-                    >Save</button>
-                  </div>
-                </div>
-              ) : (
-                <div
-                  onClick={() => startEditingAddress(customer)}
-                  className="flex items-center gap-1.5 cursor-pointer group/addr"
-                >
-                  <MapPinIcon className="h-3.5 w-3.5 shrink-0 text-gray-600 group-hover/addr:text-blue-400 transition-colors" />
-                  <span className="text-xs text-gray-500 group-hover/addr:text-blue-400 transition-colors">
-                    {customer.address || <span className="italic text-gray-700">Click to add address...</span>}
-                  </span>
-                  <PencilIcon className="h-3 w-3 text-gray-700 opacity-0 group-hover/addr:opacity-100 transition-opacity shrink-0" />
-                </div>
-              )}
-            </div>
-
-            {/* Route details */}
-            {customer.route_order && customer.travel_time_to_next && (
-              <div className="text-xs text-purple-400 flex items-center gap-2">
-                <span>→ {customer.travel_time_to_next} to next</span>
-                {customer.distance_to_next && <span className="text-gray-600">({customer.distance_to_next})</span>}
-              </div>
-            )}
-
-            {/* Notes */}
-            <div className="pt-1">
-              {editingNotes[customer.id] !== undefined ? (
-                <div className="space-y-2">
-                  <textarea
-                    value={editingNotes[customer.id]}
-                    onChange={(e) => handleNoteTextChange(customer.id, e.target.value)}
-                    placeholder="Add notes..."
-                    className="w-full p-2.5 bg-white/5 border border-white/10 rounded-xl text-xs text-gray-300 outline-none focus:border-green-500/40 placeholder-gray-600 resize-none"
-                    rows="2"
-                    autoFocus
-                  />
-                  <div className="flex justify-end gap-2">
-                    <button onClick={() => cancelEditingNotes(customer.id)} className="px-3 py-1 text-xs text-gray-500 hover:text-white transition-colors">Cancel</button>
-                    <button onClick={() => updateCustomerNotes(customer.id, editingNotes[customer.id])} className="px-3 py-1 bg-green-500/20 text-green-400 rounded-lg text-xs font-medium hover:bg-green-500/30 transition-all">Save</button>
-                  </div>
-                </div>
-              ) : (
-                <div 
-                  onClick={(e) => { e.stopPropagation(); startEditingNotes(customer); }}
-                  className="cursor-pointer p-2 rounded-lg bg-white/[0.03] hover:bg-white/[0.06] transition-all"
-                >
-                  {customer.notes ? (
-                    <p className="text-xs text-gray-400">{highlightSearchTerm(customer.notes, searchTerm)}</p>
-                  ) : (
-                    <p className="text-xs text-gray-600 italic">Tap to add notes...</p>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* Action buttons */}
-            <div className="flex flex-wrap gap-2 pt-1">
-              {day && isCompleted && (
-                <button onClick={(e) => { e.stopPropagation(); toggleCustomerCompletion(day, customer.id); }} className="px-3 py-1.5 text-[11px] font-medium text-green-400 bg-green-500/10 rounded-lg border border-green-500/20 hover:bg-green-500/20 transition-all">
-                  ↩ Undo Complete
-                </button>
-              )}
-              {day && !isCompleted && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setSelectedCustomerForDone({ ...customer, day });
-                    setCompletionMessage(`Your ${customer.service_type?.replace('_', ' ') || 'service'} has been completed successfully! Thank you for choosing Flora Lawn and Landscaping.`);
-                    setShowMarkDoneModal(true);
-                  }}
-                  className="px-3 py-1.5 text-[11px] font-medium text-blue-400 bg-blue-500/10 rounded-lg border border-blue-500/20 hover:bg-blue-500/20 transition-all flex items-center gap-1"
-                >
-                  <CheckCircleIcon className="h-3.5 w-3.5" />
-                  Mark Done {activeJobTimers[customer.id] ? `(${activeJobTimers[customer.id]})` : ''}
-                </button>
-              )}
-              {day && !isCompleted && !customer.job_started_at && (
-                <button
-                  onClick={(e) => { e.stopPropagation(); startJob(customer.id); }}
-                  className="px-3 py-1.5 text-[11px] font-medium text-purple-400 bg-purple-500/10 rounded-lg border border-purple-500/20 hover:bg-purple-500/20 transition-all flex items-center gap-1"
-                >
-                  <PlayIcon className="h-3.5 w-3.5" />Start Job
-                </button>
-              )}
-              {customer.job_started_at && (
-                <button
-                  onClick={(e) => { e.stopPropagation(); cancelJobTimer(customer.id); }}
-                  className="px-3 py-1.5 text-[11px] font-medium text-red-400 bg-red-500/10 rounded-lg border border-red-500/20 hover:bg-red-500/20 transition-all flex items-center gap-1"
-                >
-                  <XMarkIcon className="h-3.5 w-3.5" />Cancel Timer
-                </button>
-              )}
-              {showAssignButton && (
-                <button onClick={(e) => { e.stopPropagation(); setSelectedCustomer(customer); setShowAssignModal(true); }}
-                  className="px-3 py-1.5 text-[11px] font-medium text-green-400 bg-green-500/10 rounded-lg border border-green-500/20 hover:bg-green-500/20 transition-all flex items-center gap-1">
-                  <PlusIcon className="h-3.5 w-3.5" />Assign
-                </button>
-              )}
-              {showUnassignButton && (
-                <>
-                  <button onClick={(e) => { e.stopPropagation(); setSelectedCustomer(customer); setShowAssignModal(true); }}
-                    className="px-3 py-1.5 text-[11px] font-medium text-blue-400 bg-blue-500/10 rounded-lg border border-blue-500/20 hover:bg-blue-500/20 transition-all flex items-center gap-1">
-                    <PencilIcon className="h-3.5 w-3.5" />Reassign
-                  </button>
-                  <button onClick={(e) => { e.stopPropagation(); unassignCustomer(customer.id); }}
-                    className="px-3 py-1.5 text-[11px] font-medium text-orange-400 bg-orange-500/10 rounded-lg border border-orange-500/20 hover:bg-orange-500/20 transition-all">
-                    Remove
-                  </button>
-                </>
-              )}
-              {(showAssignButton || showUnassignButton) && (
-                <>
-                  <button onClick={(e) => { e.stopPropagation(); scratchCustomer(customer.id, customer.name); }}
-                    className="px-3 py-1.5 text-[11px] font-medium text-amber-400 bg-amber-500/10 rounded-lg border border-amber-500/20 hover:bg-amber-500/20 transition-all flex items-center gap-1">
-                    ✕ Scratch
-                  </button>
-                  <button onClick={(e) => { e.stopPropagation(); removeCustomer(customer.id, customer.name); }}
-                    className="px-3 py-1.5 text-[11px] font-medium text-red-400 bg-red-500/10 rounded-lg border border-red-500/20 hover:bg-red-500/20 transition-all flex items-center gap-1">
-                    🗑 Delete
-                  </button>
-                </>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
-    );
   };
+
+  if (loading) {
 
   if (loading) {
     return (
@@ -3076,7 +2738,51 @@ export default function SchedulePage() {
               
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
                 {unassignedCustomers.map(customer => (
-                  <CustomerCard key={customer.id} customer={customer} showAssignButton={true} showCheckbox={true} day={selectedDay} daySelectionHandler={toggleDayCustomerSelection} />
+                  <CustomerCard
+                    key={customer.id}
+                    customer={customer}
+                    showAssignButton={true}
+                    showCheckbox={true}
+                    day={selectedDay}
+                    daySelectionHandler={toggleDayCustomerSelection}
+                    // Props from parent state
+                    proximityData={proximityData}
+                    activeJobTimers={activeJobTimers}
+                    completedCustomers={completedCustomers}
+                    movedCustomers={movedCustomers}
+                    selectedDayCustomers={selectedDayCustomers}
+                    selectedCustomers={selectedCustomers}
+                    draggedCustomer={draggedCustomer}
+                    newlyAddedIds={newlyAddedIds}
+                    searchTerm={searchTerm}
+                    editingAddress={editingAddress}
+                    editingNotes={editingNotes}
+                    schedule={schedule}
+                    // Functions from parent
+                    highlightSearchTerm={highlightSearchTerm}
+                    toggleCustomerSelection={toggleCustomerSelection}
+                    toggleCustomerCompletion={toggleCustomerCompletion}
+                    moveSingleCustomerToNextDay={moveSingleCustomerToNextDay}
+                    startJob={startJob}
+                    cancelJobTimer={cancelJobTimer}
+                    setSelectedCustomerForDone={setSelectedCustomerForDone}
+                    setShowMarkDoneModal={setShowMarkDoneModal}
+                    setCompletionMessage={setCompletionMessage}
+                    setSelectedCustomer={setSelectedCustomer}
+                    setShowAssignModal={setShowAssignModal}
+                    unassignCustomer={unassignCustomer}
+                    scratchCustomer={scratchCustomer}
+                    removeCustomer={removeCustomer}
+                    startEditingAddress={startEditingAddress}
+                    cancelEditingAddress={cancelEditingAddress}
+                    updateCustomerAddress={updateCustomerAddress}
+                    addressInputRefs={addressInputRefs}
+                    setEditingAddress={setEditingAddress}
+                    startEditingNotes={startEditingNotes}
+                    cancelEditingNotes={cancelEditingNotes}
+                    handleNoteTextChange={handleNoteTextChange}
+                    updateCustomerNotes={updateCustomerNotes}
+                  />
                 ))}
               </div>
             </div>
@@ -3253,6 +2959,43 @@ export default function SchedulePage() {
                             index={index}
                             day={day}
                             daySelectionHandler={toggleDayCustomerSelection}
+                            // Props from parent state
+                            proximityData={proximityData}
+                            activeJobTimers={activeJobTimers}
+                            completedCustomers={completedCustomers}
+                            movedCustomers={movedCustomers}
+                            selectedDayCustomers={selectedDayCustomers}
+                            selectedCustomers={selectedCustomers}
+                            draggedCustomer={draggedCustomer}
+                            newlyAddedIds={newlyAddedIds}
+                            searchTerm={searchTerm}
+                            editingAddress={editingAddress}
+                            editingNotes={editingNotes}
+                            schedule={schedule}
+                            // Functions from parent
+                            highlightSearchTerm={highlightSearchTerm}
+                            toggleCustomerSelection={toggleCustomerSelection}
+                            toggleCustomerCompletion={toggleCustomerCompletion}
+                            moveSingleCustomerToNextDay={moveSingleCustomerToNextDay}
+                            startJob={startJob}
+                            cancelJobTimer={cancelJobTimer}
+                            setSelectedCustomerForDone={setSelectedCustomerForDone}
+                            setShowMarkDoneModal={setShowMarkDoneModal}
+                            setCompletionMessage={setCompletionMessage}
+                            setSelectedCustomer={setSelectedCustomer}
+                            setShowAssignModal={setShowAssignModal}
+                            unassignCustomer={unassignCustomer}
+                            scratchCustomer={scratchCustomer}
+                            removeCustomer={removeCustomer}
+                            startEditingAddress={startEditingAddress}
+                            cancelEditingAddress={cancelEditingAddress}
+                            updateCustomerAddress={updateCustomerAddress}
+                            addressInputRefs={addressInputRefs}
+                            setEditingAddress={setEditingAddress}
+                            startEditingNotes={startEditingNotes}
+                            cancelEditingNotes={cancelEditingNotes}
+                            handleNoteTextChange={handleNoteTextChange}
+                            updateCustomerNotes={updateCustomerNotes}
                           />
                         ))}
                       </div>
@@ -3707,6 +3450,398 @@ export default function SchedulePage() {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+// --- SUB-COMPONENTS ---
+
+function CustomerCard({ 
+  customer, 
+  showAssignButton, 
+  showUnassignButton, 
+  showCheckbox, 
+  onDragStart, 
+  onDragEnd, 
+  reorderCustomersInDay, 
+  index, 
+  day, 
+  daySelectionHandler,
+  // Props from parent state
+  proximityData,
+  activeJobTimers,
+  completedCustomers,
+  movedCustomers,
+  selectedDayCustomers,
+  selectedCustomers,
+  draggedCustomer,
+  newlyAddedIds,
+  searchTerm,
+  editingAddress,
+  editingNotes,
+  schedule,
+  // Functions from parent
+  highlightSearchTerm,
+  toggleCustomerSelection,
+  toggleCustomerCompletion,
+  moveSingleCustomerToNextDay,
+  startJob,
+  cancelJobTimer,
+  setSelectedCustomerForDone,
+  setShowMarkDoneModal,
+  setCompletionMessage,
+  setSelectedCustomer,
+  setShowAssignModal,
+  unassignCustomer,
+  scratchCustomer,
+  removeCustomer,
+  startEditingAddress,
+  cancelEditingAddress,
+  updateCustomerAddress,
+  addressInputRefs,
+  setEditingAddress,
+  startEditingNotes,
+  cancelEditingNotes,
+  handleNoteTextChange,
+  updateCustomerNotes
+}) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
+  
+  const proximity = proximityData[customer.id];
+  // Determine distance and travel time - prioritize database fields
+  const distanceDisplay = customer.distance_miles ? `${customer.distance_miles} mi` : proximity?.distanceText;
+  const travelTimeDisplay = customer.travel_time || proximity?.durationText;
+  const hasProximityData = distanceDisplay || travelTimeDisplay;
+
+  const handleDragOverCard = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(true);
+    
+    // If we have a dragged customer and it's from the same day, handle reordering
+    if (draggedCustomer && draggedCustomer.scheduled_day === customer.scheduled_day && reorderCustomersInDay && index !== undefined) {
+      const draggedIndex = schedule[customer.scheduled_day]?.findIndex(c => c.id === draggedCustomer.id);
+      if (draggedIndex !== -1 && draggedIndex !== index) {
+        // Visual feedback for reordering
+        e.dataTransfer.dropEffect = 'move';
+      }
+    }
+  };
+
+  const handleDragLeaveCard = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+  };
+
+  const handleDropOnCard = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+    
+    // Handle reordering within the same day
+    if (draggedCustomer && draggedCustomer.scheduled_day === customer.scheduled_day && reorderCustomersInDay && index !== undefined) {
+      const draggedIndex = schedule[customer.scheduled_day]?.findIndex(c => c.id === draggedCustomer.id);
+      if (draggedIndex !== -1 && draggedIndex !== index) {
+        reorderCustomersInDay(customer.scheduled_day, draggedIndex, index);
+      }
+    }
+  };
+
+  const handleDragStartCard = (e) => {
+    if (onDragStart) onDragStart(e, customer);
+  };
+  
+  const isCompleted = day && completedCustomers[day]?.includes(customer.id);
+  const isMoved = day && movedCustomers[day]?.includes(customer.id);
+  const isSelected = day && daySelectionHandler ? selectedDayCustomers[day]?.includes(customer.id) : selectedCustomers.includes(customer.id);
+  
+  return (
+    <div 
+      className={`relative group rounded-xl overflow-hidden transition-all duration-300 ${
+        isCompleted ? 'bg-green-500/10 border border-green-500/30' 
+        : isMoved ? 'bg-orange-500/10 border border-orange-500/30'
+        : isSelected ? 'bg-green-500/10 border border-green-500/30'
+        : isDragOver ? 'bg-blue-500/15 border border-blue-500/40 scale-[1.02]'
+        : 'bg-white/[0.04] border border-white/[0.08] hover:bg-white/[0.08] hover:border-white/[0.15]'
+      } ${draggedCustomer?.id === customer.id ? 'opacity-40 scale-95' : ''}`}
+      draggable={true}
+      onDragStart={handleDragStartCard}
+      onDragOver={handleDragOverCard}
+      onDragLeave={handleDragLeaveCard}
+      onDrop={handleDropOnCard}
+      onDragEnd={onDragEnd}
+    >
+      {/* Reorder indicator */}
+      {isDragOver && draggedCustomer && draggedCustomer.scheduled_day === customer.scheduled_day && (
+        <div className="absolute -top-0.5 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-500 to-cyan-400 rounded-full"></div>
+      )}
+
+      {/* Status badges - positioned absolutely */}
+      <div className="absolute top-2.5 right-2.5 flex gap-1.5 z-10">
+        {newlyAddedIds.has(customer.id) && (
+          <span className="px-2 py-0.5 bg-gradient-to-r from-violet-500 to-purple-600 text-white text-[10px] font-black rounded-full tracking-wider uppercase animate-pulse shadow-lg shadow-purple-500/30">✦ New</span>
+        )}
+        {isCompleted && (
+          <span className="px-2 py-0.5 bg-green-500 text-white text-[10px] font-bold rounded-full tracking-wider uppercase">✓ Done</span>
+        )}
+        {isMoved && (
+          <span className="px-2 py-0.5 bg-orange-500 text-white text-[10px] font-bold rounded-full">→ Moved</span>
+        )}
+        {customer.route_order && (
+          <span className="w-5 h-5 flex items-center justify-center bg-purple-500/20 text-purple-400 text-[10px] font-bold rounded-full">
+            {customer.route_order}
+          </span>
+        )}
+        {customer.job_started_at && activeJobTimers[customer.id] && (
+          <span className="px-2 py-0.5 bg-gradient-to-r from-purple-500 to-indigo-600 text-white text-[10px] font-black rounded-full shadow-lg shadow-purple-500/30 flex items-center gap-1 animate-pulse">
+            <ClockIcon className="h-2.5 w-2.5" />
+            {activeJobTimers[customer.id]}
+          </span>
+        )}
+      </div>
+      
+      {/* Main clickable row */}
+      <div className="px-3.5 py-3 cursor-pointer" onClick={() => setIsExpanded(!isExpanded)}>
+        <div className="flex items-center gap-3">
+          {/* Checkbox */}
+          {showCheckbox && (
+            <div 
+              onClick={(e) => {
+                e.preventDefault(); e.stopPropagation();
+                if (day && daySelectionHandler) daySelectionHandler(day, customer.id);
+                else toggleCustomerSelection(customer.id, e);
+              }}
+              className="shrink-0"
+            >
+              <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all cursor-pointer ${
+                isSelected ? 'bg-green-500 border-green-500' : 'border-white/20 hover:border-white/40'
+              }`}>
+                {isSelected && <span className="text-white text-xs">✓</span>}
+              </div>
+            </div>
+          )}
+
+          {/* Customer info */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between gap-2">
+              <h3 className={`text-sm font-semibold truncate ${isCompleted ? 'line-through text-gray-500' : 'text-white'}`}>
+                {highlightSearchTerm(customer.name, searchTerm)}
+              </h3>
+              <span className="shrink-0 text-sm font-bold text-green-400">${customer.price}</span>
+            </div>
+            
+            {/* Address + metadata row */}
+            <div className="flex items-center gap-2 mt-1 flex-wrap">
+              {customer.address && (
+                <a 
+                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(customer.address)}`}
+                  target="_blank" rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  className="text-[11px] text-gray-500 hover:text-blue-400 truncate max-w-[180px] transition-colors"
+                >
+                  📍 {customer.address.split(',')[0]}
+                </a>
+              )}
+              <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider ${
+                customer.frequency === 'weekly' ? 'bg-green-500/15 text-green-400' : 'bg-blue-500/15 text-blue-400'
+              }`}>
+                {customer.frequency === 'bi_weekly' ? 'Bi-W' : 'W'}
+              </span>
+              {hasProximityData && (
+                <span className="text-[10px] text-gray-600">{distanceDisplay}</span>
+              )}
+              {travelTimeDisplay && (
+                <span className="text-[10px] text-gray-600">⏱ {travelTimeDisplay}</span>
+              )}
+            </div>
+          </div>
+
+          {/* Quick actions + expand */}
+          <div className="flex items-center gap-1 shrink-0">
+            {day && !isCompleted && (
+              <button
+                onClick={(e) => { e.stopPropagation(); toggleCustomerCompletion(day, customer.id); }}
+                className="p-1.5 rounded-lg bg-green-500/10 text-green-400 hover:bg-green-500/20 transition-all"
+                title="Mark complete"
+              >
+                <CheckCircleIcon className="h-4 w-4" />
+              </button>
+            )}
+            {day && (
+              <button
+                onClick={(e) => { e.stopPropagation(); moveSingleCustomerToNextDay(day, customer.id); }}
+                className="p-1.5 rounded-lg bg-orange-500/10 text-orange-400 hover:bg-orange-500/20 transition-all"
+                title="Move to next day"
+              >
+                <span className="text-xs">→</span>
+              </button>
+            )}
+            <div className={`ml-1 text-gray-600 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}>
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Expanded details */}
+      {isExpanded && (
+        <div className="border-t border-white/5 px-3.5 py-3 space-y-3">
+          {/* Contact row */}
+          <div className="flex items-center gap-4 text-xs">
+            <a href={`tel:${customer.phone}`} className="flex items-center gap-1.5 text-gray-400 hover:text-green-400 transition-colors" onClick={(e) => e.stopPropagation()}>
+              <PhoneIcon className="h-3.5 w-3.5" />{customer.phone}
+            </a>
+            {customer.email && (
+              <span className="text-gray-600 truncate">{customer.email}</span>
+            )}
+          </div>
+
+          {/* Full address — click to edit with Google Places */}
+          <div className="pt-0.5" onClick={(e) => e.stopPropagation()}>
+            {editingAddress[customer.id] !== undefined ? (
+              <div className="space-y-2">
+                <input
+                  ref={el => addressInputRefs.current[customer.id] = el}
+                  type="text"
+                  defaultValue={editingAddress[customer.id]}
+                  onChange={(e) => setEditingAddress(prev => ({ ...prev, [customer.id]: e.target.value }))}
+                  placeholder="Start typing address..."
+                  className="w-full p-2 bg-white/5 border border-blue-500/30 rounded-xl text-xs text-gray-300 outline-none focus:border-blue-400/60 placeholder-gray-600"
+                  autoFocus
+                />
+                <div className="flex justify-end gap-2">
+                  <button onClick={() => cancelEditingAddress(customer.id)} className="px-3 py-1 text-xs text-gray-500 hover:text-white transition-colors">Cancel</button>
+                  <button
+                    onClick={() => updateCustomerAddress(customer.id, addressInputRefs.current[customer.id]?.value || editingAddress[customer.id])}
+                    className="px-3 py-1 bg-blue-500/20 text-blue-400 rounded-lg text-xs font-medium hover:bg-blue-500/30 transition-all"
+                  >Save</button>
+                </div>
+              </div>
+            ) : (
+              <div
+                onClick={() => startEditingAddress(customer)}
+                className="flex items-center gap-1.5 cursor-pointer group/addr"
+              >
+                <MapPinIcon className="h-3.5 w-3.5 shrink-0 text-gray-600 group-hover/addr:text-blue-400 transition-colors" />
+                <span className="text-xs text-gray-500 group-hover/addr:text-blue-400 transition-colors">
+                  {customer.address || <span className="italic text-gray-700">Click to add address...</span>}
+                </span>
+                <PencilIcon className="h-3 w-3 text-gray-700 opacity-0 group-hover/addr:opacity-100 transition-opacity shrink-0" />
+              </div>
+            )}
+          </div>
+
+          {/* Route details */}
+          {customer.route_order && customer.travel_time_to_next && (
+            <div className="text-xs text-purple-400 flex items-center gap-2">
+              <span>→ {customer.travel_time_to_next} to next</span>
+              {customer.distance_to_next && <span className="text-gray-600">({customer.distance_to_next})</span>}
+            </div>
+          )}
+
+          {/* Notes */}
+          <div className="pt-1">
+            {editingNotes[customer.id] !== undefined ? (
+              <div className="space-y-2">
+                <textarea
+                  value={editingNotes[customer.id]}
+                  onChange={(e) => handleNoteTextChange(customer.id, e.target.value)}
+                  placeholder="Add notes..."
+                  className="w-full p-2.5 bg-white/5 border border-white/10 rounded-xl text-xs text-gray-300 outline-none focus:border-green-500/40 placeholder-gray-600 resize-none"
+                  rows="2"
+                  autoFocus
+                />
+                <div className="flex justify-end gap-2">
+                  <button onClick={() => cancelEditingNotes(customer.id)} className="px-3 py-1 text-xs text-gray-500 hover:text-white transition-colors">Cancel</button>
+                  <button onClick={() => updateCustomerNotes(customer.id, editingNotes[customer.id])} className="px-3 py-1 bg-green-500/20 text-green-400 rounded-lg text-xs font-medium hover:bg-green-500/30 transition-all">Save</button>
+                </div>
+              </div>
+            ) : (
+              <div 
+                onClick={(e) => { e.stopPropagation(); startEditingNotes(customer); }}
+                className="cursor-pointer p-2 rounded-lg bg-white/[0.03] hover:bg-white/[0.06] transition-all"
+              >
+                {customer.notes ? (
+                  <p className="text-xs text-gray-400">{highlightSearchTerm(customer.notes, searchTerm)}</p>
+                ) : (
+                  <p className="text-xs text-gray-600 italic">Tap to add notes...</p>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Action buttons */}
+          <div className="flex flex-wrap gap-2 pt-1">
+            {day && isCompleted && (
+              <button onClick={(e) => { e.stopPropagation(); toggleCustomerCompletion(day, customer.id); }} className="px-3 py-1.5 text-[11px] font-medium text-green-400 bg-green-500/10 rounded-lg border border-green-500/20 hover:bg-green-500/20 transition-all">
+                ↩ Undo Complete
+              </button>
+            )}
+            {day && !isCompleted && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedCustomerForDone({ ...customer, day });
+                  setCompletionMessage(`Your ${customer.service_type?.replace('_', ' ') || 'service'} has been completed successfully! Thank you for choosing Flora Lawn and Landscaping.`);
+                  setShowMarkDoneModal(true);
+                }}
+                className="px-3 py-1.5 text-[11px] font-medium text-blue-400 bg-blue-500/10 rounded-lg border border-blue-500/20 hover:bg-blue-500/20 transition-all flex items-center gap-1"
+              >
+                <CheckCircleIcon className="h-3.5 w-3.5" />
+                Mark Done {activeJobTimers[customer.id] ? `(${activeJobTimers[customer.id]})` : ''}
+              </button>
+            )}
+            {day && !isCompleted && !customer.job_started_at && (
+              <button
+                onClick={(e) => { e.stopPropagation(); startJob(customer.id); }}
+                className="px-3 py-1.5 text-[11px] font-medium text-purple-400 bg-purple-500/10 rounded-lg border border-purple-500/20 hover:bg-purple-500/20 transition-all flex items-center gap-1"
+              >
+                <PlayIcon className="h-3.5 w-3.5" />Start Job
+              </button>
+            )}
+            {customer.job_started_at && (
+              <button
+                onClick={(e) => { e.stopPropagation(); cancelJobTimer(customer.id); }}
+                className="px-3 py-1.5 text-[11px] font-medium text-red-400 bg-red-500/10 rounded-lg border border-red-500/20 hover:bg-red-500/20 transition-all flex items-center gap-1"
+              >
+                <XMarkIcon className="h-3.5 w-3.5" />Cancel Timer
+              </button>
+            )}
+            {showAssignButton && (
+              <button onClick={(e) => { e.stopPropagation(); setSelectedCustomer(customer); setShowAssignModal(true); }}
+                className="px-3 py-1.5 text-[11px] font-medium text-green-400 bg-green-500/10 rounded-lg border border-green-500/20 hover:bg-green-500/20 transition-all flex items-center gap-1">
+                <PlusIcon className="h-3.5 w-3.5" />Assign
+              </button>
+            )}
+            {showUnassignButton && (
+              <>
+                <button onClick={(e) => { e.stopPropagation(); setSelectedCustomer(customer); setShowAssignModal(true); }}
+                  className="px-3 py-1.5 text-[11px] font-medium text-blue-400 bg-blue-500/10 rounded-lg border border-blue-500/20 hover:bg-blue-500/20 transition-all flex items-center gap-1">
+                  <PencilIcon className="h-3.5 w-3.5" />Reassign
+                </button>
+                <button onClick={(e) => { e.stopPropagation(); unassignCustomer(customer.id); }}
+                  className="px-3 py-1.5 text-[11px] font-medium text-orange-400 bg-orange-500/10 rounded-lg border border-orange-500/20 hover:bg-orange-500/20 transition-all">
+                  Remove
+                </button>
+              </>
+            )}
+            {(showAssignButton || showUnassignButton) && (
+              <>
+                <button onClick={(e) => { e.stopPropagation(); scratchCustomer(customer.id, customer.name); }}
+                  className="px-3 py-1.5 text-[11px] font-medium text-amber-400 bg-amber-500/10 rounded-lg border border-amber-500/20 hover:bg-amber-500/20 transition-all flex items-center gap-1">
+                  ✕ Scratch
+                </button>
+                <button onClick={(e) => { e.stopPropagation(); removeCustomer(customer.id, customer.name); }}
+                  className="px-3 py-1.5 text-[11px] font-medium text-red-400 bg-red-500/10 rounded-lg border border-red-500/20 hover:bg-red-500/20 transition-all flex items-center gap-1">
+                  🗑 Delete
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
