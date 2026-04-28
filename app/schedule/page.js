@@ -27,7 +27,8 @@ import {
   ArrowPathIcon,
   UserPlusIcon,
   TrashIcon,
-  PlayIcon
+  PlayIcon,
+  ArrowRightIcon
 } from '@heroicons/react/24/outline';
 
 const DAYS_OF_WEEK = [
