@@ -120,6 +120,7 @@ export default function SchedulePage() {
   const [activeJobTimers, setActiveJobTimers] = useState({});
   const [showNavigationModal, setShowNavigationModal] = useState(false);
   const [selectedCustomerForNavigation, setSelectedCustomerForNavigation] = useState(null);
+  const [manualTravelMins, setManualTravelMins] = useState(15);
   const homeBaseAddressRef = useRef(null);
   const router = useRouter();
 
@@ -928,14 +929,7 @@ export default function SchedulePage() {
   const startNavigationAndTracking = async (customer) => {
     if (!customer) return;
     
-    // Auto-save driving time and start job tracking after driving time
-    let travelMins = 0;
-    const timeText = customer.travel_time || proximityData[customer.id]?.durationText || "";
-    const match = timeText.match(/(\d+)\s*min/);
-    if (match) {
-      travelMins = parseInt(match[1], 10);
-    }
-    
+    const travelMins = manualTravelMins;
     const jobStartTime = new Date();
     jobStartTime.setMinutes(jobStartTime.getMinutes() + travelMins);
     const nowISO = jobStartTime.toISOString();
@@ -965,6 +959,15 @@ export default function SchedulePage() {
 
   const handleAddressClick = (customer) => {
     setSelectedCustomerForNavigation(customer);
+    
+    let travelMins = 15; // Default if unknown
+    const timeText = customer.travel_time || proximityData[customer.id]?.durationText || "";
+    const match = timeText.match(/(\d+)\s*min/);
+    if (match) {
+      travelMins = parseInt(match[1], 10);
+    }
+    setManualTravelMins(travelMins);
+    
     setShowNavigationModal(true);
   };
 
@@ -3801,11 +3804,18 @@ export default function SchedulePage() {
 
               <div className="p-6">
                 <div className="bg-white/5 border border-white/10 rounded-2xl p-5 mb-6 text-center">
-                  <p className="text-sm text-gray-400 mb-2">Estimated Driving Time</p>
-                  <p className="text-3xl font-black text-white mb-1">
-                    {selectedCustomerForNavigation.travel_time || proximityData[selectedCustomerForNavigation.id]?.durationText || "Unknown"}
-                  </p>
-                  <p className="text-xs text-gray-500 italic">Job timer will start automatically after arrival.</p>
+                  <p className="text-sm text-gray-400 mb-3">Estimated Driving Time</p>
+                  <div className="flex items-center justify-center gap-2 mb-1">
+                    <input 
+                      type="number" 
+                      value={manualTravelMins} 
+                      onChange={(e) => setManualTravelMins(parseInt(e.target.value) || 0)}
+                      className="w-24 bg-black/40 border border-blue-500/50 rounded-xl text-4xl font-black text-white text-center py-2 outline-none focus:border-blue-400 transition-colors"
+                      min="0"
+                    />
+                    <span className="text-xl text-gray-400 font-bold">mins</span>
+                  </div>
+                  <p className="text-xs text-gray-500 italic mt-4">Job timer will start automatically after arrival.</p>
                 </div>
 
                 <div className="flex gap-3">
