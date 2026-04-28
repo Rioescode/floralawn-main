@@ -121,6 +121,7 @@ export default function SchedulePage() {
   const [showNavigationModal, setShowNavigationModal] = useState(false);
   const [selectedCustomerForNavigation, setSelectedCustomerForNavigation] = useState(null);
   const [manualTravelMins, setManualTravelMins] = useState(15);
+  const [isFetchingLocation, setIsFetchingLocation] = useState(false);
   const homeBaseAddressRef = useRef(null);
   const router = useRouter();
 
@@ -967,8 +968,39 @@ export default function SchedulePage() {
       travelMins = parseInt(match[1], 10);
     }
     setManualTravelMins(travelMins);
-    
     setShowNavigationModal(true);
+    
+    // Fetch live driving time from current location
+    if (navigator.geolocation) {
+      setIsFetchingLocation(true);
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          try {
+            const res = await fetch('/api/get-driving-time', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                origin: { lat: position.coords.latitude, lng: position.coords.longitude },
+                destination: customer.address
+              })
+            });
+            const data = await res.json();
+            if (data.success && data.minutes) {
+              setManualTravelMins(data.minutes);
+            }
+          } catch (e) {
+            console.error("Error fetching live driving time", e);
+          } finally {
+            setIsFetchingLocation(false);
+          }
+        },
+        (err) => {
+          console.warn("Geolocation denied or failed", err);
+          setIsFetchingLocation(false);
+        },
+        { timeout: 10000, enableHighAccuracy: false }
+      );
+    }
   };
 
   const cancelJobTimer = async (customerId) => {
@@ -3803,7 +3835,13 @@ export default function SchedulePage() {
               </div>
 
               <div className="p-6">
-                <div className="bg-white/5 border border-white/10 rounded-2xl p-5 mb-6 text-center">
+                <div className="bg-white/5 border border-white/10 rounded-2xl p-5 mb-6 text-center relative overflow-hidden">
+                  {isFetchingLocation && (
+                    <div className="absolute inset-0 bg-[#111]/80 backdrop-blur-sm z-10 flex flex-col items-center justify-center">
+                      <div className="w-8 h-8 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin mb-2"></div>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-blue-400">Locating You...</p>
+                    </div>
+                  )}
                   <p className="text-sm text-gray-400 mb-3">Estimated Driving Time</p>
                   <div className="flex items-center justify-center gap-2 mb-1">
                     <input 
