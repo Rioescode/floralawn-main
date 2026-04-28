@@ -117,6 +117,8 @@ export default function SchedulePage() {
   const [optimizationData, setOptimizationData] = useState(null);
   const [isEditingHomeBase, setIsEditingHomeBase] = useState(false);
   const [activeJobTimers, setActiveJobTimers] = useState({});
+  const [showNavigationModal, setShowNavigationModal] = useState(false);
+  const [selectedCustomerForNavigation, setSelectedCustomerForNavigation] = useState(null);
   const homeBaseAddressRef = useRef(null);
   const router = useRouter();
 
@@ -922,6 +924,49 @@ export default function SchedulePage() {
     }
   };
 
+  const startNavigationAndTracking = async (customer) => {
+    if (!customer) return;
+    
+    // Auto-save driving time and start job tracking after driving time
+    let travelMins = 0;
+    const timeText = customer.travel_time || proximityData[customer.id]?.durationText || "";
+    const match = timeText.match(/(\d+)\s*min/);
+    if (match) {
+      travelMins = parseInt(match[1], 10);
+    }
+    
+    const jobStartTime = new Date();
+    jobStartTime.setMinutes(jobStartTime.getMinutes() + travelMins);
+    const nowISO = jobStartTime.toISOString();
+    
+    try {
+      const { error } = await supabase
+        .from('customers')
+        .update({ job_started_at: nowISO })
+        .eq('id', customer.id);
+
+      if (error) throw error;
+
+      setCustomers(prev => prev.map(c => 
+        c.id === customer.id ? { ...c, job_started_at: nowISO } : c
+      ));
+      
+      // Open maps
+      window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(customer.address)}`, '_blank');
+      
+      setShowNavigationModal(false);
+      setSelectedCustomerForNavigation(null);
+    } catch (err) {
+      console.error("Error saving tracking info:", err);
+      alert('Failed to start tracking');
+    }
+  };
+
+  const handleAddressClick = (customer) => {
+    setSelectedCustomerForNavigation(customer);
+    setShowNavigationModal(true);
+  };
+
   const cancelJobTimer = async (customerId) => {
     if (!confirm('Are you sure you want to cancel this timer? The record will be lost.')) return;
     try {
@@ -953,7 +998,7 @@ export default function SchedulePage() {
       if (customer.job_started_at) {
         const start = new Date(customer.job_started_at);
         const end = new Date();
-        durationMinutes = Math.round((end - start) / (1000 * 60));
+        durationMinutes = Math.max(0, Math.round((end - start) / (1000 * 60)));
       }
 
       // Update customer's last_service date and reset timer
@@ -2890,6 +2935,7 @@ export default function SchedulePage() {
                     selectedCustomers={selectedCustomers}
                     draggedCustomer={draggedCustomer}
                     newlyAddedIds={newlyAddedIds}
+                    handleAddressClick={handleAddressClick}
                     searchTerm={searchTerm}
                     editingAddress={editingAddress}
                     editingNotes={editingNotes}
@@ -3113,6 +3159,7 @@ export default function SchedulePage() {
                             selectedCustomers={selectedCustomers}
                             draggedCustomer={draggedCustomer}
                             newlyAddedIds={newlyAddedIds}
+                            handleAddressClick={handleAddressClick}
                             searchTerm={searchTerm}
                             editingAddress={editingAddress}
                             editingNotes={editingNotes}
@@ -3732,6 +3779,52 @@ export default function SchedulePage() {
             </div>
           </div>
         )}
+
+        {/* Navigation & Tracking Modal */}
+        {showNavigationModal && selectedCustomerForNavigation && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowNavigationModal(false)}></div>
+            <div className="bg-[#111] border border-white/10 rounded-3xl w-full max-w-md relative z-10 overflow-hidden shadow-2xl">
+              {/* Header */}
+              <div className="bg-gradient-to-r from-blue-600/20 to-blue-900/20 p-6 border-b border-white/5">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-10 h-10 bg-blue-500 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20">
+                    <MapPinIcon className="h-5 w-5 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-black text-white">Start Route</h3>
+                    <p className="text-xs text-blue-400 font-bold uppercase tracking-widest">Navigation & Tracking</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-6">
+                <div className="bg-white/5 border border-white/10 rounded-2xl p-5 mb-6 text-center">
+                  <p className="text-sm text-gray-400 mb-2">Estimated Driving Time</p>
+                  <p className="text-3xl font-black text-white mb-1">
+                    {selectedCustomerForNavigation.travel_time || proximityData[selectedCustomerForNavigation.id]?.durationText || "Unknown"}
+                  </p>
+                  <p className="text-xs text-gray-500 italic">Job timer will start automatically after arrival.</p>
+                </div>
+
+                <div className="flex gap-3">
+                  <button 
+                    onClick={() => setShowNavigationModal(false)}
+                    className="flex-1 py-4 bg-white/5 text-gray-400 rounded-2xl text-xs font-black uppercase tracking-[0.2em] hover:bg-white/10 transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    onClick={() => startNavigationAndTracking(selectedCustomerForNavigation)}
+                    className="flex-[2] py-4 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-2xl text-xs font-black uppercase tracking-[0.2em] shadow-xl shadow-blue-500/20 hover:shadow-blue-500/40 active:scale-95 transition-all flex items-center justify-center gap-2"
+                  >
+                    Start Driving <ArrowRightIcon className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -3759,6 +3852,7 @@ function CustomerCard({
   selectedCustomers,
   draggedCustomer,
   newlyAddedIds,
+  handleAddressClick,
   searchTerm,
   editingAddress,
   editingNotes,
@@ -3933,14 +4027,15 @@ function CustomerCard({
             {/* Address + metadata row */}
             <div className="flex items-center gap-2 mt-1 flex-wrap">
               {customer.address && (
-                <a 
-                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(customer.address)}`}
-                  target="_blank" rel="noopener noreferrer"
-                  onClick={(e) => e.stopPropagation()}
-                  className="text-[11px] text-gray-500 hover:text-blue-400 truncate max-w-[180px] transition-colors"
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleAddressClick(customer);
+                  }}
+                  className="text-[11px] text-left text-gray-500 hover:text-blue-400 truncate max-w-[180px] transition-colors"
                 >
                   📍 {customer.address.split(',')[0]}
-                </a>
+                </button>
               )}
               <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider ${
                 customer.frequency === 'weekly' ? 'bg-green-500/15 text-green-400' : 'bg-blue-500/15 text-blue-400'
