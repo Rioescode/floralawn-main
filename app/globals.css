@@ -2,12 +2,22 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ══════════════════════════════════════
+   FONTS
+══════════════════════════════════════ */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
 html,
 body {
   scroll-behavior: smooth !important;
+  font-family: 'Inter', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* It makes the HTML progress bar filling smooth when value change. */
+/* ══════════════════════════════════════
+   PROGRESS BAR SMOOTH FILL
+══════════════════════════════════════ */
 progress::-webkit-progress-value {
   transition: 0.6s width ease-out;
 }
@@ -21,28 +31,77 @@ progress::-webkit-progress-value {
   }
 }
 
-/* Elite Google Maps Autocomplete Styling */
+/* ══════════════════════════════════════
+   CUSTOM ANIMATIONS
+══════════════════════════════════════ */
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes slideInLeft {
+  from { opacity: 0; transform: translateX(-24px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes shimmer {
+  0%   { background-position: 200% center; }
+  100% { background-position: -200% center; }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+  50%       { box-shadow: 0 0 30px 8px rgba(16, 185, 129, 0.15); }
+}
+
+.animate-fade-in-up  { animation: fadeInUp 0.7s ease-out both; }
+.animate-fade-in     { animation: fadeIn 0.7s ease-out both; }
+.animate-slide-left  { animation: slideInLeft 0.7s ease-out both; }
+.animate-scale-in    { animation: scaleIn 0.5s ease-out both; }
+.animate-pulse-glow  { animation: pulse-glow 3s ease-in-out infinite; }
+
+.delay-100 { animation-delay: 0.1s; }
+.delay-200 { animation-delay: 0.2s; }
+.delay-300 { animation-delay: 0.3s; }
+.delay-400 { animation-delay: 0.4s; }
+.delay-500 { animation-delay: 0.5s; }
+.delay-700 { animation-delay: 0.7s; }
+
+/* ══════════════════════════════════════
+   GOOGLE MAPS AUTOCOMPLETE
+══════════════════════════════════════ */
 .pac-container {
   z-index: 10000 !important;
-  border-radius: 2rem !important;
+  border-radius: 1.5rem !important;
   border: 1px solid rgba(226, 232, 240, 0.8) !important;
-  margin-top: 12px !important;
-  box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.3) !important;
+  margin-top: 10px !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
   font-family: 'Inter', sans-serif !important;
-  padding: 10px !important;
+  padding: 8px !important;
   background-color: white !important;
+  overflow: hidden;
 }
 
 .pac-item {
-  padding: 18px 25px !important;
+  padding: 14px 20px !important;
   border-top: 1px solid #f8fafc !important;
   cursor: pointer !important;
-  font-size: 15px !important;
+  font-size: 14px !important;
   font-weight: 500 !important;
   color: #64748b !important;
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 2px !important;
+  border-radius: 0.75rem !important;
+  transition: all 0.15s !important;
 }
 
 .pac-item:first-of-type {
@@ -50,49 +109,51 @@ progress::-webkit-progress-value {
 }
 
 .pac-item:hover {
-  background-color: #f1f5f9 !important;
-  border-radius: 1.25rem !important;
+  background-color: #f0fdf4 !important;
+  color: #166534 !important;
 }
 
 .pac-item-query {
-  font-size: 16px !important;
+  font-size: 15px !important;
   font-weight: 800 !important;
   color: #0f172a !important;
   padding-right: 0 !important;
 }
 
 .pac-matched {
-  color: #22c55e !important;
+  color: #16a34a !important;
   font-weight: 900 !important;
 }
 
 .pac-secondary-query {
-  font-size: 12px !important;
+  font-size: 11px !important;
   font-weight: 600 !important;
-  color: #a0aec0 !important;
+  color: #94a3b8 !important;
   text-transform: uppercase !important;
-  letter-spacing: 0.025em !important;
+  letter-spacing: 0.04em !important;
 }
 
 .pac-icon {
   display: none !important;
 }
 
-/* Custom Scrollbar */
-.custom-scrollbar::-webkit-scrollbar {
-  width: 6px;
-}
+/* ══════════════════════════════════════
+   CUSTOM SCROLLBAR
+══════════════════════════════════════ */
+.custom-scrollbar::-webkit-scrollbar { width: 5px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 10px; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.22); }
 
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: transparent;
-}
+/* ══════════════════════════════════════
+   HERO BACKGROUND TRANSITION
+══════════════════════════════════════ */
+.duration-1500 { transition-duration: 1500ms !important; }
 
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 10px;
+/* ══════════════════════════════════════
+   SELECTION COLOR
+══════════════════════════════════════ */
+::selection {
+  background-color: rgba(16, 185, 129, 0.2);
+  color: #064e3b;
 }
-
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.2);
-}
-

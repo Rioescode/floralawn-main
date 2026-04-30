@@ -404,8 +404,8 @@ export async function POST(request) {
       await sendEmail({
         to: 'floralawncareri@gmail.com',
         subject: `🔥 NEW LEAD: ${sanitizedName} (${sanitizedCity})`,
-        text: `New Elite Lead from ${sanitizedName} for ${sanitizedService}. Address: ${sanitizedAddress}.`,
-        html: adminHtml,
+        text: `[FLORA_LEAD_v2] New Elite Lead from ${sanitizedName} for ${sanitizedService}. Address: ${sanitizedAddress}.`,
+        html: `<!-- [FLORA_LEAD_v2] -->` + adminHtml,
         replyTo: sanitizedEmail
       });
 
