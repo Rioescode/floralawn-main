@@ -147,18 +147,26 @@ export async function DELETE(request) {
       )
     }
 
-    // Soft delete - mark as unsubscribed
-    const { data, error } = await supabase
+    // Soft delete - mark as unsubscribed in legacy table
+    const { error: legacyError } = await supabase
       .from('email_subscribers')
       .update({
         is_active: false,
         unsubscribed_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       })
-      .eq('email', email)
-      .select()
+      .eq('email', email);
 
-    if (error) {
+    // Hard opt-out in the new compliance table
+    const { error: complianceError } = await supabase
+      .from('communication_preferences')
+      .update({
+        email_consent: false,
+        updated_at: new Date().toISOString()
+      })
+      .eq('email', email);
+
+    if (legacyError && complianceError) {
       return Response.json(
         { error: 'Failed to unsubscribe' },
         { status: 500 }

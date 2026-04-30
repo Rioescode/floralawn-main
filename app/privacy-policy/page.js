@@ -62,7 +62,7 @@ export default function PrivacyPolicyPage() {
               <strong>Opting Out:</strong> You can opt out at any time by replying "STOP" or "UNSUBSCRIBE" to any message, or by contacting us directly. Message and data rates may apply.
             </p>
             <p className="text-gray-600 mb-4">
-              <strong>Data Sharing:</strong> We use Twilio, a third-party SMS service provider, to send text messages. Twilio processes your phone number in accordance with their privacy policy. We do not sell your phone number to third parties for marketing purposes.
+              <strong>Data Sharing:</strong> We do not sell your phone number to third parties. <strong>No mobile information will be shared with third parties/affiliates for marketing/promotional purposes. All other categories exclude text messaging originator opt-in data and consent; this information will not be shared with any third parties.</strong>
             </p>
           </section>
 
@@ -70,11 +70,12 @@ export default function PrivacyPolicyPage() {
             <h2 className="text-2xl font-semibold text-[#6B7280] mb-4">3. Information Sharing</h2>
             <p className="text-gray-600 mb-4">We may share your information with:</p>
             <ul className="list-disc pl-6 text-gray-600 mb-4">
-              <li>Service providers completing your requests</li>
-              <li>Payment processors for transactions</li>
-              <li>Analytics and security services</li>
+              <li>Service providers completing your requests (e.g., payment processors, software infrastructure)</li>
               <li>Legal authorities when required by law</li>
             </ul>
+            <p className="text-gray-600 font-bold mt-4">
+              *Excluding SMS Opt-in Data: As stated in section 2.5, SMS consent and phone numbers collected for SMS messaging will NEVER be shared with third parties or affiliates for marketing purposes.
+            </p>
           </section>
 
           <section className="mb-12">

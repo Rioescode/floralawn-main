@@ -30,7 +30,7 @@ export default function LeadsPage() {
   const router = useRouter();
 
   useEffect(() => { checkAuth(); }, []);
-  useEffect(() => { fetchLeads(); }, [filter]);
+  useEffect(() => { fetchLeads(); }, []);
 
   const handleBulkDelete = async () => {
     if (!selectedIds.length) return;
@@ -75,15 +75,12 @@ export default function LeadsPage() {
 
   const fetchLeads = async () => {
     setLoading(true);
-    let query = supabase
+    const { data, error } = await supabase
       .from('appointments')
       .select('*')
       .eq('lead_source', 'contact_form')
       .order('created_at', { ascending: false });
 
-    if (filter !== 'all') query = query.eq('status', filter);
-
-    const { data, error } = await query;
     if (!error) setLeads(data || []);
     setLoading(false);
   };
@@ -138,6 +135,18 @@ export default function LeadsPage() {
     setActionLoading(null);
   };
 
+  const handleConfirm = async (lead) => {
+    setActionLoading(lead.id + '-confirm');
+    const { error } = await supabase.from('appointments').update({ status: 'confirmed' }).eq('id', lead.id);
+    if (!error) {
+      showToast(`✨ ${lead.customer_name} confirmed!`, 'success');
+      fetchLeads();
+    } else {
+      showToast('❌ Error confirming lead', 'error');
+    }
+    setActionLoading(null);
+  };
+
   const handleSendReview = async () => {
     if (!selectedLeadForReview) return;
     
@@ -179,17 +188,46 @@ export default function LeadsPage() {
 
   const REVIEW_TEMPLATE = (name) => `Hi ${name}, will you help us with a review in our google profile? Flora Lawn & Landscaping Inc would love your feedback. Post a review to our profile: https://g.page/r/CQjJ-AbEL4N2EBE/review - Thank you very much!`;
 
-  const filtered = leads.filter(l =>
-    !search ||
-    l.customer_name?.toLowerCase().includes(search.toLowerCase()) ||
-    l.customer_email?.toLowerCase().includes(search.toLowerCase()) ||
-    l.city?.toLowerCase().includes(search.toLowerCase()) ||
-    l.service_type?.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = leads.filter(l => {
+    // Status Filter
+    if (filter === 'upcoming') {
+      if (l.status !== 'confirmed' || !l.scheduled_date) return false;
+      const d = new Date(l.scheduled_date);
+      const now = new Date();
+      now.setHours(0,0,0,0);
+      const weekLater = new Date();
+      weekLater.setDate(now.getDate() + 7);
+      weekLater.setHours(23,59,59,999);
+      if (!(d >= now && d <= weekLater)) return false;
+    } else if (filter !== 'all' && l.status !== filter) {
+      return false;
+    }
+
+    // Search Filter
+    if (!search) return true;
+    const s = search.toLowerCase();
+    return (
+      l.customer_name?.toLowerCase().includes(s) ||
+      l.customer_email?.toLowerCase().includes(s) ||
+      l.city?.toLowerCase().includes(s) ||
+      l.service_type?.toLowerCase().includes(s)
+    );
+  });
 
   const counts = {
     pending: leads.filter(l => l.status === 'pending').length,
     scheduled: leads.filter(l => l.status === 'scheduled').length,
+    confirmed: leads.filter(l => l.status === 'confirmed').length,
+    upcoming: leads.filter(l => {
+      if (l.status !== 'confirmed' || !l.scheduled_date) return false;
+      const d = new Date(l.scheduled_date);
+      const now = new Date();
+      now.setHours(0,0,0,0);
+      const weekLater = new Date();
+      weekLater.setDate(now.getDate() + 7);
+      weekLater.setHours(23,59,59,999);
+      return d >= now && d <= weekLater;
+    }).length,
     scratched: leads.filter(l => l.status === 'scratched').length,
   };
 
@@ -246,9 +284,11 @@ export default function LeadsPage() {
         <div style={{ display: 'flex', gap: 10, marginBottom: 24, flexWrap: 'wrap', alignItems: 'center' }}>
           {[
             { key: 'pending', label: '🕐 Pending', count: counts.pending, color: '#f59e0b' },
+            { key: 'upcoming', label: '🚀 Upcoming', count: counts.upcoming, color: '#ec4899' },
+            { key: 'confirmed', label: '✅ Confirmed', count: counts.confirmed, color: '#3b82f6' },
             { key: 'scheduled', label: '📅 Scheduled', count: counts.scheduled, color: '#22c55e' },
             { key: 'scratched', label: '🗑️ Scratched', count: counts.scratched, color: '#64748b' },
-            { key: 'all', label: '📋 All', count: leads.length, color: '#3b82f6' },
+            { key: 'all', label: '📋 All', count: leads.length, color: '#94a3b8' },
           ].map(tab => (
             <button key={tab.key} onClick={() => { setFilter(tab.key); setSelectedIds([]); }} style={{
               padding: '12px 20px', borderRadius: 12, border: filter === tab.key ? `2px solid ${tab.color}` : '2px solid #334155',
@@ -355,9 +395,9 @@ export default function LeadsPage() {
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 4 }}>
                         <span style={{ fontWeight: 900, fontSize: 17, color: '#fff' }}>{lead.customer_name}</span>
                         <span style={{
-                          background: lead.status === 'pending' ? '#f59e0b22' : lead.status === 'scheduled' ? '#22c55e22' : '#33415522',
-                          color: lead.status === 'pending' ? '#f59e0b' : lead.status === 'scheduled' ? '#22c55e' : '#64748b',
-                          border: `1px solid ${lead.status === 'pending' ? '#f59e0b44' : lead.status === 'scheduled' ? '#22c55e44' : '#334155'}`,
+                          background: lead.status === 'pending' ? '#f59e0b22' : lead.status === 'scheduled' ? '#22c55e22' : lead.status === 'confirmed' ? '#3b82f622' : '#33415522',
+                          color: lead.status === 'pending' ? '#f59e0b' : lead.status === 'scheduled' ? '#22c55e' : lead.status === 'confirmed' ? '#3b82f6' : '#64748b',
+                          border: `1px solid ${lead.status === 'pending' ? '#f59e0b44' : lead.status === 'scheduled' ? '#22c55e44' : lead.status === 'confirmed' ? '#3b82f644' : '#334155'}`,
                           borderRadius: 99, padding: '2px 10px', fontSize: 10, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em'
                         }}>
                           {lead.status}
@@ -392,6 +432,11 @@ export default function LeadsPage() {
                         {lead.estimate_preference && (
                           <span style={{ background: '#0f172a', border: '1px solid #334155', color: '#94a3b8', borderRadius: 8, padding: '4px 12px', fontSize: 11, fontWeight: 700 }}>
                             {lead.estimate_preference === 'meet_person' ? '🤝 Wants In-Person' : '📧 Email Pricing OK'}
+                          </span>
+                        )}
+                        {lead.scheduled_date && (
+                          <span style={{ background: '#3b82f622', border: '1px solid #3b82f644', color: '#3b82f6', borderRadius: 8, padding: '4px 12px', fontSize: 11, fontWeight: 800 }}>
+                            📅 {new Date(lead.scheduled_date).toLocaleDateString()}
                           </span>
                         )}
                         {lead.discount_applied && (
@@ -436,7 +481,21 @@ export default function LeadsPage() {
                         </>
                       )}
                       {lead.status === 'scheduled' && (
-                        <span style={{ color: '#22c55e', fontWeight: 800, fontSize: 13 }}>✅ Scheduled</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <span style={{ color: '#22c55e', fontWeight: 800, fontSize: 13 }}>📅 Scheduled</span>
+                          <button onClick={() => handleConfirm(lead)} disabled={actionLoading === lead.id + '-confirm'} style={{
+                            padding: '8px 14px', background: '#3b82f6', color: '#fff', border: 'none',
+                            borderRadius: 10, fontWeight: 900, fontSize: 12, cursor: 'pointer',
+                            display: 'flex', alignItems: 'center', gap: 4
+                          }}>
+                            ✅ Confirm Job
+                          </button>
+                        </div>
+                      )}
+                      {lead.status === 'confirmed' && (
+                        <span style={{ color: '#3b82f6', fontWeight: 800, fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
+                          ✨ Confirmed Job
+                        </span>
                       )}
                       {lead.status === 'scratched' && (
                         <button onClick={() => handleRestore(lead)} disabled={actionLoading === lead.id + '-restore'} style={{

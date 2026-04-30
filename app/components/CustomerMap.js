@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, memo } from 'react';
 import { Loader } from '@googlemaps/js-api-loader';
+import { MapPinIcon, HomeIcon, CheckCircleIcon, ArrowRightCircleIcon } from '@heroicons/react/24/solid';
 
 const CustomerMap = ({ 
   customers, 
   homeBase, 
+  homeBaseCoords,
   selectedWeek, 
   completedCustomers, 
   movedCustomers,
@@ -13,297 +15,274 @@ const CustomerMap = ({
 }) => {
   const mapRef = useRef(null);
   const [map, setMap] = useState(null);
-  const [markers, setMarkers] = useState([]);
+  const [google, setGoogle] = useState(null);
+  const markersRef = useRef({}); // { customerId: Marker }
+  const hqMarkerRef = useRef(null);
+  const coordsCacheRef = useRef({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const hasFittedBounds = useRef(false);
 
-  // Day colors for different pins
   const dayColors = {
-    'Monday': '#FF6B6B',    // Red
-    'Tuesday': '#4ECDC4',   // Teal
-    'Wednesday': '#45B7D1', // Blue
-    'Thursday': '#96CEB4',  // Green
-    'Friday': '#FFEAA7',    // Yellow
-    'Saturday': '#DDA0DD',  // Plum
-    'Sunday': '#FFB347',    // Orange
-    'Unassigned': '#95A5A6' // Gray
+    'Monday Week 1': '#3B82F6',
+    'Monday Week 2': '#60A5FA',
+    'Tuesday Week 1': '#8B5CF6',
+    'Tuesday Week 2': '#A78BFA',
+    'Wednesday Week 1': '#EC4899',
+    'Wednesday Week 2': '#F472B6',
+    'Thursday Week 1': '#10B981',
+    'Thursday Week 2': '#34D399',
+    'Friday Week 1': '#F59E0B',
+    'Friday Week 2': '#FBBF24',
+    'Saturday Week 1': '#6366F1',
+    'Saturday Week 2': '#818CF8',
+    'Sunday Week 1': '#EF4444',
+    'Sunday Week 2': '#F87171',
+    'Unassigned': '#64748B'
   };
 
-  // Initialize Google Maps
+  const darkStyle = [
+    { elementType: "geometry", stylers: [{ color: "#0f172a" }] },
+    { elementType: "labels.text.stroke", stylers: [{ color: "#0f172a" }] },
+    { elementType: "labels.text.fill", stylers: [{ color: "#64748b" }] },
+    { featureType: "road", elementType: "geometry", stylers: [{ color: "#1e293b" }] },
+    { featureType: "water", elementType: "geometry", stylers: [{ color: "#020617" }] }
+  ];
+
   useEffect(() => {
     const initMap = async () => {
       try {
-        console.log('Initializing Google Maps...');
-        console.log('API Key present:', !!process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY);
-        console.log('Current domain:', window.location.hostname);
-        
         const loader = new Loader({
           apiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY,
           version: 'weekly',
           libraries: ['places']
         });
-
-        const google = await loader.load();
-        console.log('Google Maps loaded successfully');
-        
-        // Default center (Rhode Island area)
-        const defaultCenter = { lat: 41.5801, lng: -71.4774 }; // Rhode Island
-        
-        const mapInstance = new google.maps.Map(mapRef.current, {
-          center: defaultCenter,
-          zoom: 10,
-          styles: [
-            {
-              featureType: 'poi',
-              elementType: 'labels',
-              stylers: [{ visibility: 'off' }]
-            }
-          ]
+        const googleInstance = await loader.load();
+        const mapInstance = new googleInstance.maps.Map(mapRef.current, {
+          center: { lat: 41.8240, lng: -71.4128 },
+          zoom: 11,
+          styles: darkStyle,
+          disableDefaultUI: false,
+          zoomControl: true,
+          mapTypeControl: false,
+          streetViewControl: false,
+          fullscreenControl: true,
         });
-
-        console.log('Map instance created');
+        setGoogle(googleInstance);
         setMap(mapInstance);
         setIsLoading(false);
       } catch (err) {
-        console.error('Error loading Google Maps:', err);
-        
-        // Provide specific error messages based on common issues
-        let errorMessage = 'Failed to load Google Maps. ';
-        
-        if (err.message.includes('RefererNotAllowedMapError')) {
-          errorMessage += 'The current domain is not authorized to use this API key. Please check your API key restrictions in Google Cloud Console.';
-        } else if (err.message.includes('InvalidKeyMapError')) {
-          errorMessage += 'The API key is invalid. Please check your API key in the environment variables.';
-        } else if (err.message.includes('MissingKeyMapError')) {
-          errorMessage += 'No API key provided. Please check your NEXT_PUBLIC_GOOGLE_MAPS_API_KEY environment variable.';
-        } else if (err.message.includes('ApiNotActivatedMapError')) {
-          errorMessage += 'The Maps JavaScript API is not enabled. Please enable it in Google Cloud Console.';
-        } else if (err.message.includes('QuotaExceededError')) {
-          errorMessage += 'API quota exceeded. Please check your billing account and quotas.';
-        } else {
-          errorMessage += `Error: ${err.message}`;
-        }
-        
-        setError(errorMessage);
+        setError(err.message);
         setIsLoading(false);
       }
     };
-
-    // Only initialize if API key is present
-    if (process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY) {
-      initMap();
-    } else {
-      setError('Google Maps API key is missing. Please check your environment variables.');
-      setIsLoading(false);
-    }
+    if (process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY) initMap();
   }, []);
 
-  // Update markers when customers or other props change
   useEffect(() => {
-    if (!map || !customers.length) return;
+    if (!map || !google) return;
 
-    // Clear existing markers
-    markers.forEach(marker => marker.setMap(null));
-    setMarkers([]);
-
-    const newMarkers = [];
-    const bounds = new google.maps.LatLngBounds();
     const geocoder = new google.maps.Geocoder();
+    const bounds = new google.maps.LatLngBounds();
+    const today = new Date();
+    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const todayName = dayNames[today.getDay()];
 
-    // Add home base marker if provided
-    if (homeBase) {
-      geocoder.geocode({ address: homeBase }, (results, status) => {
-        if (status === 'OK' && results[0]) {
-          const homeMarker = new google.maps.Marker({
-            position: results[0].geometry.location,
-            map: map,
-            title: 'Home Base',
-            icon: {
-              url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
-                <svg width="40" height="40" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
-                  <circle cx="20" cy="20" r="18" fill="#2ECC71" stroke="#27AE60" stroke-width="2"/>
-                  <text x="20" y="26" text-anchor="middle" fill="white" font-family="Arial" font-size="16" font-weight="bold">🏠</text>
-                </svg>
-              `),
-              scaledSize: new google.maps.Size(40, 40),
-              anchor: new google.maps.Point(20, 20)
-            }
-          });
-          bounds.extend(results[0].geometry.location);
-          newMarkers.push(homeMarker);
+    // 1. Manage HQ Marker
+    if (homeBase || homeBaseCoords) {
+      const updateHQ = async () => {
+        let position = homeBaseCoords;
+
+        if (!position && homeBase) {
+          /* DISABLED FOR VERIFICATION
+          if (!coordsCacheRef.current[homeBase]) {
+            const results = await new Promise(resolve => geocoder.geocode({ address: homeBase }, resolve));
+            if (results && results[0]) coordsCacheRef.current[homeBase] = results[0].geometry.location;
+          }
+          position = coordsCacheRef.current[homeBase];
+          */
+          console.log("TEST: HQ Geocoding is DISABLED. If HQ is missing, it needs to be saved in Settings.");
         }
-      });
+
+        if (position) {
+          if (!hqMarkerRef.current) {
+            hqMarkerRef.current = new google.maps.Marker({ map });
+          }
+          hqMarkerRef.current.setPosition(position);
+          hqMarkerRef.current.setIcon({
+            url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`<svg width="40" height="40" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg"><circle cx="20" cy="20" r="18" fill="#1e293b" stroke="#3b82f6" stroke-width="2"/><path d="M20 12L12 20H15V28H25V20H28L20 12Z" fill="#3b82f6"/></svg>`),
+            scaledSize: new google.maps.Size(40, 40),
+            anchor: new google.maps.Point(20, 20)
+          });
+          bounds.extend(position);
+        }
+      };
+      updateHQ();
     }
 
-    // Add customer markers - only for customers with addresses
-    const customersWithAddresses = customers.filter(customer => customer.address);
-    
-    customersWithAddresses.forEach(customer => {
-      geocoder.geocode({ address: customer.address }, (results, status) => {
-        if (status === 'OK' && results[0]) {
-          const position = results[0].geometry.location;
-          
-          // Determine day and color
-          const scheduledDay = customer.scheduled_day || 'Unassigned';
-          const baseDay = scheduledDay.replace(' Week 1', '').replace(' Week 2', '');
-          const dayColor = dayColors[baseDay] || dayColors['Unassigned'];
-          
-          // Check if customer is completed or moved
-          const isCompleted = completedCustomers[scheduledDay]?.includes(customer.id);
-          const isMoved = movedCustomers[scheduledDay]?.includes(customer.id);
-          
-          // Create custom marker icon
-          const markerIcon = {
-            url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
-              <svg width="30" height="40" viewBox="0 0 30 40" xmlns="http://www.w3.org/2000/svg">
-                <path d="M15 0C6.7 0 0 6.7 0 15c0 8.3 15 25 15 25s15-16.7 15-25C30 6.7 23.3 0 15 0z" 
-                      fill="${dayColor}" 
-                      stroke="${isCompleted ? '#27AE60' : isMoved ? '#E67E22' : '#2C3E50'}" 
-                      stroke-width="${isCompleted || isMoved ? '3' : '2'}"/>
-                <circle cx="15" cy="15" r="8" fill="white"/>
-                <text x="15" y="20" text-anchor="middle" fill="${dayColor}" font-family="Arial" font-size="12" font-weight="bold">
-                  ${customer.frequency === 'weekly' ? 'W' : 'B'}
-                </text>
-                ${isCompleted ? '<circle cx="22" cy="8" r="4" fill="#27AE60"/><text x="22" y="11" text-anchor="middle" fill="white" font-size="8">✓</text>' : ''}
-                ${isMoved ? '<circle cx="22" cy="8" r="4" fill="#E67E22"/><text x="22" y="11" text-anchor="middle" fill="white" font-size="8">→</text>' : ''}
-              </svg>
-            `),
-            scaledSize: new google.maps.Size(30, 40),
-            anchor: new google.maps.Point(15, 40)
-          };
+    const currentCustomerIds = new Set(customers.map(c => c.id));
+    Object.keys(markersRef.current).forEach(id => {
+      if (!currentCustomerIds.has(id)) {
+        markersRef.current[id].setMap(null);
+        delete markersRef.current[id];
+      }
+    });
 
-          const marker = new google.maps.Marker({
-            position: position,
-            map: map,
-            title: customer.name,
-            icon: markerIcon
-          });
+    customers.filter(c => c.address).forEach(async (customer) => {
+      let position = null;
 
-          // Create info window
+      // FIRST: Check if we already have coordinates in the database (Zero-Cost Path)
+      if (customer.latitude && customer.longitude) {
+        position = { lat: parseFloat(customer.latitude), lng: parseFloat(customer.longitude) };
+      } 
+      // SECOND: Check memory cache
+      else if (coordsCacheRef.current[customer.address]) {
+        position = coordsCacheRef.current[customer.address];
+      } 
+      // THIRD: Call API (Expensive Path - DISABLED FOR VERIFICATION)
+      /* 
+      else {
+        console.log("TEST: Geocoding is DISABLED. If you see this, this customer is missing DB coordinates:", customer.name);
+        const results = await new Promise(resolve => geocoder.geocode({ address: customer.address }, resolve));
+        if (results && results[0]) {
+          position = results[0].geometry.location;
+          coordsCacheRef.current[customer.address] = position;
+        }
+      }
+      */
+
+      if (!position) return;
+
+      const scheduledDay = customer.scheduled_day || 'Unassigned';
+      const dayColor = dayColors[scheduledDay] || dayColors['Unassigned'];
+      const dayParts = scheduledDay.split(' ');
+      const isToday = dayParts[0] === todayName;
+
+      let marker = markersRef.current[customer.id];
+      const markerIcon = {
+        url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
+          <svg width="34" height="44" viewBox="0 0 34 44" xmlns="http://www.w3.org/2000/svg">
+            <path d="M17 0C7.6 0 0 7.6 0 17C0 27.5 17 44 17 44S34 27.5 34 17C34 7.6 26.4 0 17 0Z" fill="${dayColor}"/>
+            <circle cx="17" cy="17" r="14" fill="#0f172a" stroke="${isToday ? 'white' : 'transparent'}" stroke-width="2"/>
+            <text x="17" y="22" text-anchor="middle" fill="white" font-family="Inter, sans-serif" font-size="12" font-weight="900">${customer.name.charAt(0).toUpperCase()}</text>
+          </svg>
+        `),
+        scaledSize: new google.maps.Size(34, 44),
+        anchor: new google.maps.Point(17, 44),
+        labelOrigin: new google.maps.Point(17, 54)
+      };
+
+      if (!marker) {
+        marker = new google.maps.Marker({
+          map,
+          title: customer.name,
+          label: { text: customer.name, color: 'white', fontSize: '10px', fontWeight: '900' }
+        });
+        
+        marker.addListener('click', () => {
           const infoWindow = new google.maps.InfoWindow({
             content: `
-              <div style="padding: 10px; min-width: 200px;">
-                <h3 style="margin: 0 0 8px 0; color: #2C3E50;">${customer.name}</h3>
-                <p style="margin: 4px 0; color: #7F8C8D;"><strong>Day:</strong> ${scheduledDay}</p>
-                <p style="margin: 4px 0; color: #7F8C8D;"><strong>Frequency:</strong> ${customer.frequency.replace('_', '-')}</p>
-                <p style="margin: 4px 0; color: #7F8C8D;"><strong>Price:</strong> $${customer.price}</p>
-                <p style="margin: 4px 0; color: #7F8C8D;"><strong>Phone:</strong> ${customer.phone}</p>
-                <p style="margin: 4px 0; color: #7F8C8D;"><strong>Address:</strong> ${customer.address}</p>
-                ${customer.distance_miles ? `<p style="margin: 4px 0; color: #7F8C8D;"><strong>Distance:</strong> ${customer.distance_miles} mi</p>` : ''}
-                ${customer.travel_time ? `<p style="margin: 4px 0; color: #7F8C8D;"><strong>Travel Time:</strong> ${customer.travel_time}</p>` : ''}
-                ${customer.notes ? `<p style="margin: 4px 0; color: #7F8C8D;"><strong>Notes:</strong> ${customer.notes}</p>` : ''}
-                ${isCompleted ? '<p style="margin: 8px 0 4px 0; color: #27AE60; font-weight: bold;">✅ Completed</p>' : ''}
-                ${isMoved ? '<p style="margin: 8px 0 4px 0; color: #E67E22; font-weight: bold;">→ Moved to Next Day</p>' : ''}
+              <div style="padding: 16px; min-width: 240px; background: #0f172a; color: white; border-radius: 16px; font-family: Inter, sans-serif;">
+                <h3 style="margin: 0 0 4px 0; font-size: 16px; font-weight: 900; color: #3b82f6;">${customer.name}</h3>
+                <p style="margin: 0 0 12px 0; font-size: 11px; color: #64748b;">${customer.address}</p>
+                <div style="margin-top: 12px; border-top: 1px solid #1e293b; padding-top: 12px;">
+                  <p style="font-size: 10px; font-weight: 900; color: #3b82f6; text-transform: uppercase;">Quick Reassign Day</p>
+                  <select id="day-reassign-${customer.id}" style="width: 100%; background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 8px; color: white; font-size: 11px; margin-top: 4px;">
+                    ${Object.keys(dayColors).filter(d => d !== 'Unassigned').map(day => `
+                      <option value="${day}" ${customer.scheduled_day === day ? 'selected' : ''}>${day}</option>
+                    `).join('')}
+                  </select>
+                  <button id="btn-reassign-${customer.id}" style="width: 100%; margin-top: 8px; background: #3b82f6; color: white; border: none; border-radius: 8px; padding: 8px; font-size: 10px; font-weight: 900; cursor: pointer;">UPDATE DAY</button>
+                </div>
               </div>
             `
           });
-
-          marker.addListener('click', () => {
-            infoWindow.open(map, marker);
-            if (onCustomerClick) {
-              onCustomerClick(customer);
+          infoWindow.open(map, marker);
+          google.maps.event.addListenerOnce(infoWindow, 'domready', () => {
+            const btn = document.getElementById(`btn-reassign-${customer.id}`);
+            const select = document.getElementById(`day-reassign-${customer.id}`);
+            if (btn && select && window.handleMapReassign) {
+              btn.onclick = () => { window.handleMapReassign(customer.id, select.value); infoWindow.close(); };
             }
           });
+          onCustomerClick?.(customer);
+        });
+        markersRef.current[customer.id] = marker;
+      }
 
-          bounds.extend(position);
-          newMarkers.push(marker);
-        }
-      });
+      marker.setPosition(position);
+      marker.setIcon(markerIcon);
+      bounds.extend(position);
     });
 
-    setMarkers(newMarkers);
-
-    // Fit map to show all markers after a delay to let geocoding complete
-    setTimeout(() => {
-      if (bounds.isEmpty() === false) {
+    if (!hasFittedBounds.current && !bounds.isEmpty()) {
+      setTimeout(() => {
         map.fitBounds(bounds);
-        // Don't zoom in too much for single markers
-        const listener = google.maps.event.addListener(map, 'idle', () => {
-          if (map.getZoom() > 15) map.setZoom(15);
-          google.maps.event.removeListener(listener);
-        });
-      }
-    }, 2000);
-
-  }, [map, customers, homeBase, selectedWeek, completedCustomers, movedCustomers]);
-
-  if (error) {
-    return (
-      <div className="flex items-center justify-center h-96 bg-red-50 border border-red-200 rounded-lg">
-        <div className="text-center max-w-md">
-          <div className="text-red-600 text-lg font-semibold mb-4">Google Maps Error</div>
-          <div className="text-red-700 text-sm mb-4">{error}</div>
-          <div className="text-xs text-gray-600 space-y-2">
-            <p><strong>Common fixes:</strong></p>
-            <ul className="text-left space-y-1">
-              <li>• Check API key restrictions in Google Cloud Console</li>
-              <li>• Ensure billing account is set up (even for free usage)</li>
-              <li>• Verify Maps JavaScript API is enabled</li>
-              <li>• Add your domain to API key restrictions</li>
-            </ul>
-            <p className="mt-3">
-              <strong>Current domain:</strong> {typeof window !== 'undefined' ? window.location.hostname : 'localhost'}
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
+        if (map.getZoom() > 14) map.setZoom(14);
+        hasFittedBounds.current = true;
+      }, 2000);
+    }
+  }, [map, google, customers, homeBase]);
 
   return (
-    <div className="relative">
+    <div className="relative group">
       {isLoading && (
-        <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center z-10 rounded-lg">
+        <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center z-[20] rounded-[2.5rem]">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
-            <div className="text-gray-600">Loading Google Maps...</div>
+            <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <div className="text-white font-black text-xs uppercase tracking-widest">Elite Map Sync...</div>
           </div>
         </div>
       )}
+      <div ref={mapRef} className="w-full h-[600px] rounded-[2.5rem] border border-white/10 shadow-2xl overflow-hidden" />
       
-      <div ref={mapRef} className="w-full h-96 rounded-lg border border-gray-200" />
-      
-      {/* Legend */}
-      <div className="mt-4 p-4 bg-white border border-gray-200 rounded-lg">
-        <h4 className="font-semibold text-gray-900 mb-3">Map Legend</h4>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-          {Object.entries(dayColors).map(([day, color]) => (
-            <div key={day} className="flex items-center">
-              <div 
-                className="w-4 h-4 rounded-full mr-2 border border-gray-300"
-                style={{ backgroundColor: color }}
-              ></div>
-              <span className="text-gray-700">{day}</span>
-            </div>
-          ))}
+      <div className="absolute bottom-6 left-6 lg:right-auto lg:w-[450px] bg-slate-900/90 backdrop-blur-xl p-6 rounded-3xl border border-white/10 shadow-2xl z-[10]">
+        <div className="flex items-center gap-3 mb-4">
+          <MapPinIcon className="h-4 w-4 text-blue-500" />
+          <h4 className="text-xs font-black text-white uppercase tracking-widest text-left">Week-by-Week Route Intelligence</h4>
         </div>
-        <div className="mt-3 pt-3 border-t border-gray-200">
-          <div className="flex flex-wrap gap-4 text-xs text-gray-600">
-            <div className="flex items-center">
-              <div className="w-6 h-6 bg-green-500 rounded-full mr-2 flex items-center justify-center text-white text-xs">🏠</div>
-              <span>Home Base</span>
-            </div>
-            <div className="flex items-center">
-              <div className="w-4 h-4 bg-white border-2 border-green-500 rounded-full mr-2 flex items-center justify-center text-xs">✓</div>
-              <span>Completed</span>
-            </div>
-            <div className="flex items-center">
-              <div className="w-4 h-4 bg-white border-2 border-orange-500 rounded-full mr-2 flex items-center justify-center text-xs">→</div>
-              <span>Moved</span>
-            </div>
-            <div className="flex items-center">
-              <div className="w-4 h-4 bg-white border border-gray-400 rounded-full mr-2 flex items-center justify-center text-xs font-bold">W</div>
-              <span>Weekly</span>
-            </div>
-            <div className="flex items-center">
-              <div className="w-4 h-4 bg-white border border-gray-400 rounded-full mr-2 flex items-center justify-center text-xs font-bold">B</div>
-              <span>Bi-weekly</span>
-            </div>
+        
+        <div className="grid grid-cols-2 gap-x-8 gap-y-3 mb-4">
+          <div className="space-y-2">
+            <p className="text-[9px] font-black text-blue-500/50 uppercase tracking-widest mb-1">Week 1</p>
+            {Object.entries(dayColors).filter(([day]) => day.includes('Week 1')).map(([day, color]) => {
+              const count = customers.filter(c => c.scheduled_day === day).length;
+              return (
+                <div key={day} className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: color, boxShadow: `0 0 10px ${color}40` }} />
+                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-tighter">{day.replace(' Week 1', '')}</span>
+                  </div>
+                  <span className="text-[10px] font-black text-white/60">{count}</span>
+                </div>
+              );
+            })}
           </div>
+          <div className="space-y-2">
+            <p className="text-[9px] font-black text-blue-500/50 uppercase tracking-widest mb-1">Week 2</p>
+            {Object.entries(dayColors).filter(([day]) => day.includes('Week 2')).map(([day, color]) => {
+              const count = customers.filter(c => c.scheduled_day === day).length;
+              return (
+                <div key={day} className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: color, boxShadow: `0 0 10px ${color}40` }} />
+                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-tighter">{day.replace(' Week 2', '')}</span>
+                  </div>
+                  <span className="text-[10px] font-black text-white/60">{count}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        
+        <div className="flex justify-between text-[10px] font-black uppercase tracking-widest border-t border-white/5 pt-4">
+          <div className="flex items-center gap-2 text-blue-400"><HomeIcon className="h-3.5 w-3.5" /><span>HQ</span></div>
+          <div className="flex items-center gap-2 text-emerald-400"><CheckCircleIcon className="h-3.5 w-3.5" /><span>Done</span></div>
+          <div className="flex items-center gap-2 text-amber-400"><ArrowRightCircleIcon className="h-3.5 w-3.5" /><span>Moved</span></div>
         </div>
       </div>
     </div>
   );
 };
 
-export default CustomerMap; 
+export default memo(CustomerMap);

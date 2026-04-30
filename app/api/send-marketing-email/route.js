@@ -11,88 +11,82 @@ const createEmailTemplate = (name, unsubscribeUrl, accountUrl, content) => `
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Flora Lawn & Landscaping</title>
 </head>
-<body style="margin: 0; padding: 0; background-color: #f3f4f6; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
+<body style="margin: 0; padding: 0; background-color: #020617; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
   <!-- Preheader text -->
-  <div style="display: none; font-size: 1px; color: #fefefe; line-height: 1px; font-family: Arial, sans-serif; max-height: 0px; max-width: 0px; opacity: 0; overflow: hidden;">
+  <div style="display: none; font-size: 1px; color: #020617; line-height: 1px; max-height: 0px; max-width: 0px; opacity: 0; overflow: hidden;">
     ${content.preheader || 'Special offer from Flora Lawn & Landscaping'}
   </div>
   
-  <!-- Email Container -->
-  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #f3f4f6; padding: 20px 0;">
+  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #020617; padding: 40px 0;">
     <tr>
       <td align="center" style="padding: 20px 0;">
-        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="max-width: 600px; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="max-width: 600px; background-color: #0f172a; border-radius: 24px; border: 1px solid #1e293b; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);">
           
-          <!-- Header with Gradient -->
+          <!-- Header -->
           <tr>
-            <td style="background: linear-gradient(135deg, #22C55E 0%, #16A34A 100%); padding: 40px 30px; text-align: center;">
-              <h1 style="margin: 0; color: #ffffff; font-size: 32px; font-weight: 700; letter-spacing: -0.5px; text-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                ${content.headerIcon || '🌱'} ${content.headerTitle || 'Special Offer'}
+            <td style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 50px 40px; text-align: center; border-bottom: 3px solid #22c55e;">
+              <div style="background-color: #ffffff; padding: 16px 20px; border-radius: 16px; display: inline-block; margin-bottom: 24px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+                <img src="https://floralawn-and-landscaping.com/flora-logo-final.png" alt="Flora Lawn" style="width: 140px; height: auto; display: block;">
+              </div>
+              <div></div>
+              <div style="display: inline-block; background: #22c55e; color: #fff; font-size: 10px; font-weight: 900; letter-spacing: 0.25em; text-transform: uppercase; padding: 6px 16px; border-radius: 99px; margin-bottom: 15px;">${content.headerIcon || '🌱'} VIP UPDATE</div>
+              <h1 style="margin: 0; color: #ffffff; font-size: 34px; font-weight: 900; font-style: italic; letter-spacing: -0.02em; text-transform: uppercase; line-height: 1.1;">
+                ${content.headerTitle || 'Special Offer'}
               </h1>
-              ${content.headerSubtitle ? `<p style="margin: 10px 0 0 0; color: #d1fae5; font-size: 16px; font-weight: 400;">${content.headerSubtitle}</p>` : ''}
+              ${content.headerSubtitle ? `<p style="margin: 12px 0 0 0; color: #94a3b8; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em;">${content.headerSubtitle}</p>` : ''}
             </td>
           </tr>
           
           <!-- Main Content -->
           <tr>
-            <td style="padding: 40px 30px;">
-              <p style="margin: 0 0 20px 0; font-size: 18px; line-height: 1.6; color: #1f2937; font-weight: 500;">Hi ${name},</p>
-              ${content.intro ? `<p style="margin: 0 0 30px 0; font-size: 16px; line-height: 1.8; color: #4b5563;">${content.intro}</p>` : ''}
+            <td style="padding: 40px;">
+              <p style="margin: 0 0 20px 0; font-size: 18px; color: #f8fafc; font-weight: 700;">Hi ${name},</p>
+              ${content.intro ? `<p style="margin: 0 0 30px 0; font-size: 16px; line-height: 1.8; color: #94a3b8;">${content.intro}</p>` : ''}
               
               ${content.body || ''}
               
-              <!-- Account CTA Card -->
-              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin: 30px 0; background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); border-radius: 12px; border: 2px solid #22C55E; overflow: hidden;">
-                <tr>
-                  <td style="padding: 25px 30px; text-align: center;">
-                    <p style="margin: 0 0 8px 0; font-size: 18px; font-weight: 700; color: #065f46;">✨ Create Your Free Account</p>
-                    <p style="margin: 0 0 20px 0; font-size: 14px; line-height: 1.6; color: #047857;">Request jobs faster, manage your services, skip appointments, and track your service history - all in one place!</p>
-                    <a href="${accountUrl}" style="display: inline-block; background: linear-gradient(135deg, #22C55E 0%, #16A34A 100%); color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; box-shadow: 0 4px 6px rgba(34, 197, 94, 0.3); transition: all 0.3s ease;">Create Free Account →</a>
-                  </td>
-                </tr>
-              </table>
-              
               <!-- Call to Action Button -->
-              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin: 30px 0;">
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin: 40px 0;">
                 <tr>
                   <td align="center">
-                    <a href="tel:4013890913" style="display: inline-block; background: linear-gradient(135deg, #22C55E 0%, #16A34A 100%); color: #ffffff; padding: 16px 36px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 18px; box-shadow: 0 4px 6px rgba(34, 197, 94, 0.3);">📞 Call (401) 389-0913</a>
+                    <a href="https://floralawn-and-landscaping.com/contact" style="display: inline-block; background: #22c55e; color: #ffffff; padding: 18px 40px; text-decoration: none; border-radius: 12px; font-weight: 900; font-size: 14px; text-transform: uppercase; letter-spacing: 0.1em; box-shadow: 0 10px 25px -5px rgba(34, 197, 94, 0.4);">SECURE THIS OFFER →</a>
                   </td>
                 </tr>
               </table>
               
-              ${content.closing ? `<p style="margin: 30px 0 0 0; font-size: 16px; line-height: 1.6; color: #4b5563; text-align: center; font-style: italic;">${content.closing}</p>` : ''}
+              ${content.closing ? `<p style="margin: 30px 0 0 0; font-size: 15px; line-height: 1.8; color: #64748b; text-align: center; font-style: italic;">"${content.closing}"</p>` : ''}
             </td>
           </tr>
           
           <!-- Footer -->
           <tr>
-            <td style="background-color: #f9fafb; padding: 30px; border-top: 1px solid #e5e7eb;">
+            <td style="background-color: #020617; padding: 40px; border-top: 1px solid #1e293b;">
               <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
                 <tr>
-                  <td align="center" style="padding-bottom: 15px;">
-                    <p style="margin: 0; font-size: 12px; color: #6b7280;">
-                      <a href="${unsubscribeUrl}" style="color: #6b7280; text-decoration: underline; margin: 0 8px;">Unsubscribe</a>
-                      <span style="color: #d1d5db;">|</span>
-                      <a href="${accountUrl}" style="color: #6b7280; text-decoration: underline; margin: 0 8px;">Manage Preferences</a>
+                  <td align="center" style="padding-bottom: 25px;">
+                    <p style="margin: 0; font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.1em;">
+                      <a href="${unsubscribeUrl}" style="color: #64748b; text-decoration: none; border-bottom: 1px solid #334155;">Unsubscribe</a>
+                      &nbsp;&nbsp;&bull;&nbsp;&nbsp;
+                      <a href="https://floralawn-and-landscaping.com/contact" style="color: #64748b; text-decoration: none; border-bottom: 1px solid #334155;">Contact Us</a>
                     </p>
                   </td>
                 </tr>
                 <tr>
-                  <td align="center" style="padding-top: 15px; border-top: 1px solid #e5e7eb;">
+                  <td align="center" style="padding-top: 25px; border-top: 1px solid #1e293b;">
                     <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin: 0 auto; text-align: left;">
                       <tr>
-                        <td style="padding: 0; vertical-align: middle; padding-right: 14px; border-right: 1px solid #e5e7eb; width: 60px;">
-                          <img src="https://floralawn-and-landscaping.com/flora-logo-final.png" alt="Flora Lawn" style="width: 56px; height: 56px; object-fit: contain; display: block;">
+                        <td style="padding: 0; vertical-align: middle; padding-right: 20px; border-right: 1px solid #1e293b; width: 80px;">
+                          <div style="background-color: #ffffff; padding: 6px; border-radius: 10px; display: inline-block;">
+                            <img src="https://floralawn-and-landscaping.com/flora-logo-final.png" alt="Flora Lawn" style="width: 60px; height: 60px; object-fit: contain; display: block;">
+                          </div>
                         </td>
-                        <td style="padding: 0; vertical-align: middle; padding-left: 14px;">
-                          <p style="margin: 0; font-size: 14px; font-weight: 800; color: #1f2937; line-height: 1.3;">Rafael Escobar</p>
-                          <p style="margin: 0; font-size: 11px; font-weight: 600; color: #22C55E; text-transform: uppercase; letter-spacing: 0.05em;">Owner &middot; Flora Lawn &amp; Landscaping Inc</p>
-                          <div style="height: 6px;"></div>
-                          <p style="margin: 0; font-size: 12px; color: #6b7280; line-height: 1.8;">
-                            📞 <a href="tel:4013890913" style="color: #6b7280; text-decoration: none;">(401) 389-0913</a><br>
-                            📧 <a href="mailto:floralawncareri@gmail.com" style="color: #6b7280; text-decoration: none;">floralawncareri@gmail.com</a><br>
-                            🌐 <a href="https://floralawn-and-landscaping.com" style="color: #22C55E; text-decoration: none;">floralawn-and-landscaping.com</a><br>
+                        <td style="padding: 0; vertical-align: middle; padding-left: 20px;">
+                          <p style="margin: 0; font-size: 15px; font-weight: 900; color: #f8fafc; line-height: 1.3;">Rafael Escobar</p>
+                          <p style="margin: 2px 0 0 0; font-size: 10px; font-weight: 800; color: #22c55e; text-transform: uppercase; letter-spacing: 0.1em;">Owner &middot; Flora Lawn &amp; Landscaping Inc</p>
+                          <div style="height: 10px;"></div>
+                          <p style="margin: 0; font-size: 12px; color: #64748b; line-height: 1.9;">
+                            📞 <a href="tel:4013890913" style="color: #64748b; text-decoration: none;">(401) 389-0913</a><br>
+                            📧 <a href="mailto:floralawncareri@gmail.com" style="color: #64748b; text-decoration: none;">floralawncareri@gmail.com</a><br>
                             📍 45 Vernon Street, Pawtucket, RI 02860
                           </p>
                         </td>
@@ -113,11 +107,11 @@ const createEmailTemplate = (name, unsubscribeUrl, accountUrl, content) => `
 
 // Helper to create service list card
 const createServiceCard = (title, items, icon = '') => `
-  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin: 25px 0; background-color: #f0f9ff; border-radius: 10px; border-left: 4px solid #3b82f6; overflow: hidden;">
+  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin: 30px 0; background-color: #1e293b; border-radius: 16px; border-left: 4px solid #22c55e; overflow: hidden;">
     <tr>
-      <td style="padding: 20px 25px;">
-        <p style="margin: 0 0 15px 0; font-size: 17px; font-weight: 700; color: #1e40af;">${icon} ${title}</p>
-        <ul style="margin: 0; padding-left: 20px; line-height: 2; color: #374151; font-size: 15px;">
+      <td style="padding: 25px 30px;">
+        <p style="margin: 0 0 15px 0; font-size: 11px; font-weight: 900; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.15em;">${icon} ${title}</p>
+        <ul style="margin: 0; padding-left: 20px; line-height: 2.2; color: #e2e8f0; font-size: 15px; font-weight: 500;">
           ${items.map(item => `<li style="margin-bottom: 8px;">${item}</li>`).join('')}
         </ul>
       </td>
@@ -127,14 +121,15 @@ const createServiceCard = (title, items, icon = '') => `
 
 // Helper to create discount card
 const createDiscountCard = (title, discount, code, description = '') => `
-  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin: 25px 0; background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border-radius: 12px; border: 2px solid #f59e0b; overflow: hidden; box-shadow: 0 4px 6px rgba(245, 158, 11, 0.2);">
+  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin: 30px 0; background: linear-gradient(135deg, #022c22 0%, #064e3b 100%); border-radius: 16px; border: 1px solid #059669; overflow: hidden;">
     <tr>
-      <td style="padding: 30px; text-align: center;">
-        <p style="margin: 0 0 10px 0; font-size: 18px; font-weight: 700; color: #92400e; text-transform: uppercase; letter-spacing: 0.5px;">${title}</p>
-        <p style="margin: 0 0 15px 0; font-size: 42px; font-weight: 800; color: #d97706; line-height: 1;">${discount}</p>
-        ${description ? `<p style="margin: 0 0 15px 0; font-size: 15px; color: #92400e; line-height: 1.5;">${description}</p>` : ''}
-        <div style="background-color: #ffffff; padding: 12px 20px; border-radius: 8px; display: inline-block; margin-top: 10px;">
-          <p style="margin: 0; font-size: 16px; color: #92400e; font-weight: 600;">Use code: <span style="font-size: 20px; color: #d97706; font-weight: 800; letter-spacing: 2px;">${code}</span></p>
+      <td style="padding: 35px 30px; text-align: center;">
+        <p style="margin: 0 0 12px 0; font-size: 11px; font-weight: 900; color: #34d399; text-transform: uppercase; letter-spacing: 0.2em;">${title}</p>
+        <p style="margin: 0 0 15px 0; font-size: 48px; font-weight: 900; font-style: italic; color: #ffffff; line-height: 1; text-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);">${discount}</p>
+        ${description ? `<p style="margin: 0 0 20px 0; font-size: 14px; color: #a7f3d0; line-height: 1.6; font-weight: 500;">${description}</p>` : ''}
+        <div style="background-color: #020617; padding: 16px 24px; border-radius: 12px; display: inline-block; margin-top: 10px; border: 1px dashed #34d399;">
+          <p style="margin: 0; font-size: 10px; color: #94a3b8; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em;">USE PROMO CODE</p>
+          <p style="margin: 8px 0 0 0; font-size: 24px; color: #22c55e; font-weight: 900; letter-spacing: 0.1em;">${code}</p>
         </div>
       </td>
     </tr>
@@ -186,9 +181,9 @@ const emailTemplates = {
         body: `
           <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin: 25px 0;">
             <tr>
-              <td style="padding: 20px; background-color: #f0fdf4; border-radius: 10px; border-left: 4px solid #22C55E;">
-                <p style="margin: 0 0 15px 0; font-size: 16px; font-weight: 600; color: #166534;">Benefits of Fresh Mulch:</p>
-                <ul style="margin: 0; padding-left: 20px; line-height: 2; color: #374151; font-size: 15px;">
+              <td style="padding: 25px; background-color: #064e3b; border-radius: 16px; border-left: 4px solid #34d399;">
+                <p style="margin: 0 0 15px 0; font-size: 11px; font-weight: 900; color: #a7f3d0; text-transform: uppercase; letter-spacing: 0.1em;">Benefits of Fresh Mulch:</p>
+                <ul style="margin: 0; padding-left: 20px; line-height: 2.2; color: #f8fafc; font-size: 15px; font-weight: 500;">
                   <li>Retains moisture for your plants</li>
                   <li>Prevents weed growth</li>
                   <li>Protects plant roots from temperature changes</li>
@@ -280,11 +275,11 @@ const emailTemplates = {
         body: `
           ${createDiscountCard('Holiday Special', '25% OFF', 'HOLIDAY25', 'Any service when you book before the end of the month!')}
           
-          <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin: 25px 0; background-color: #f0f9ff; border-radius: 10px; overflow: hidden;">
+          <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin: 30px 0; background-color: #1e293b; border-radius: 16px; border-left: 4px solid #3b82f6; overflow: hidden;">
             <tr>
-              <td style="padding: 20px 25px;">
-                <p style="margin: 0 0 15px 0; font-size: 17px; font-weight: 700; color: #1e40af;">Perfect for:</p>
-                <ul style="margin: 0; padding-left: 20px; line-height: 2; color: #374151; font-size: 15px;">
+              <td style="padding: 25px 30px;">
+                <p style="margin: 0 0 15px 0; font-size: 11px; font-weight: 900; color: #93c5fd; text-transform: uppercase; letter-spacing: 0.1em;">Perfect for:</p>
+                <ul style="margin: 0; padding-left: 20px; line-height: 2.2; color: #e2e8f0; font-size: 15px; font-weight: 500;">
                   <li>Gift certificates</li>
                   <li>Pre-paying for spring services</li>
                   <li>One-time cleanups</li>

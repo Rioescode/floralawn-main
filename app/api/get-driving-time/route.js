@@ -16,20 +16,22 @@ export async function POST(request) {
     // Origin can be coordinates or address string
     const originStr = typeof origin === 'object' ? `${origin.lat},${origin.lng}` : origin;
     
-    const url = `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${encodeURIComponent(originStr)}&destinations=${encodeURIComponent(destination)}&key=${API_KEY}`;
+    const url = `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${encodeURIComponent(originStr)}&destinations=${encodeURIComponent(destination)}&departure_time=now&key=${API_KEY}`;
     
     const response = await fetch(url);
     const data = await response.json();
 
     if (data.status === 'OK' && data.rows[0].elements[0].status === 'OK') {
       const element = data.rows[0].elements[0];
-      const durationSeconds = element.duration.value;
+      // Use live traffic duration if available, otherwise fallback to standard duration
+      const durationSeconds = element.duration_in_traffic ? element.duration_in_traffic.value : element.duration.value;
+      const text = element.duration_in_traffic ? element.duration_in_traffic.text : element.duration.text;
       const minutes = Math.ceil(durationSeconds / 60);
       
       return NextResponse.json({ 
         success: true, 
         minutes,
-        text: element.duration.text
+        text: text
       });
     } else {
       console.error("Distance Matrix API error:", data);

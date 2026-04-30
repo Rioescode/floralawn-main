@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase, supabaseAdmin } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import CustomerMap from '@/app/components/CustomerMap';
+import { sendNotification } from '@/lib/notifications';
 import {
   CalendarDaysIcon,
   UserIcon,
@@ -28,7 +29,9 @@ import {
   UserPlusIcon,
   TrashIcon,
   PlayIcon,
-  ArrowRightIcon
+  ArrowRightIcon,
+  CheckBadgeIcon,
+  SparklesIcon
 } from '@heroicons/react/24/outline';
 
 const DAYS_OF_WEEK = [
@@ -77,12 +80,14 @@ export default function SchedulePage() {
   const [showAddCustomerModal, setShowAddCustomerModal] = useState(false);
   const [newCustomerForm, setNewCustomerForm] = useState({
     name: '', email: '', phone: '', address: '', price: '', frequency: 'weekly',
-    service_type: 'lawn_mowing', status: 'active', notes: '', scheduled_day: ''
+    service_type: 'lawn_mowing', status: 'active', notes: '', scheduled_day: '',
+    latitude: null, longitude: null
   });
   const [addingCustomer, setAddingCustomer] = useState(false);
   const [newlyAddedIds, setNewlyAddedIds] = useState(new Set());
   const newCustomerAddressRef = useRef(null);
   const [homeBase, setHomeBase] = useState(''); // Home base address
+  const [homeBaseCoords, setHomeBaseCoords] = useState(null); // Home base coordinates
   const [proximityData, setProximityData] = useState({}); // Store proximity calculations
   const [loadingProximity, setLoadingProximity] = useState(false);
   const [loadingHomeBase, setLoadingHomeBase] = useState(false);
@@ -113,6 +118,12 @@ export default function SchedulePage() {
   const [loadingAppointments, setLoadingAppointments] = useState(false);
   const [showVisitModal, setShowVisitModal] = useState(false);
   const [selectedVisitApt, setSelectedVisitApt] = useState(null);
+  const [visitForm, setVisitForm] = useState({ date: '', time: '' });
+  const [schedulingVisit, setSchedulingVisit] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [selectedConfirmApt, setSelectedConfirmApt] = useState(null);
+  const [confirmForm, setConfirmForm] = useState({ date: '' });
+  const [confirmingJob, setConfirmingJob] = useState(false);
   const [optimizingDays, setOptimizingDays] = useState(new Set());
   const [showOptimizationModal, setShowOptimizationModal] = useState(false);
   const [optimizationData, setOptimizationData] = useState(null);
@@ -122,7 +133,26 @@ export default function SchedulePage() {
   const [selectedCustomerForNavigation, setSelectedCustomerForNavigation] = useState(null);
   const [manualTravelMins, setManualTravelMins] = useState(15);
   const [isFetchingLocation, setIsFetchingLocation] = useState(false);
+  const [showEditCustomerModal, setShowEditCustomerModal] = useState(false);
+  const [editingCustomerData, setEditingCustomerData] = useState(null);
   const homeBaseAddressRef = useRef(null);
+  const [inquiryTab, setInquiryTab] = useState('pending'); // 'pending', 'confirmed', or 'waitlist'
+  const [remindersSent, setRemindersSent] = useState(new Set()); // Track sent reminders in session
+  const [showManualJobModal, setShowManualJobModal] = useState(false);
+  const [manualJobForm, setManualJobForm] = useState({
+    name: '',
+    phone: '',
+    email: '',
+    address: '',
+    services: [],
+    notes: '',
+    date: new Date().toISOString().split('T')[0],
+    status: 'confirmed'
+  });
+  const [savingManualJob, setSavingManualJob] = useState(false);
+  const [isEditingLead, setIsEditingLead] = useState(false);
+  const manualJobAddressRef = useRef(null);
+  const editCustomerAddressRef = useRef(null);
   const router = useRouter();
 
   // Helper functions for localStorage persistence
@@ -190,12 +220,28 @@ export default function SchedulePage() {
       autocomplete.addListener('place_changed', () => {
         const place = autocomplete.getPlace();
         if (place.formatted_address) {
-          // Note: we'll handle the save in the UI button, but we can pre-set it here
-          // if we want it to be instant.
+          // Note: we'll handle the save in the UI button
         }
       });
     }
   }, [isEditingHomeBase]);
+
+  // Initialize Edit Customer Address Autocomplete
+  useEffect(() => {
+    if (showEditCustomerModal && editCustomerAddressRef.current && typeof google !== 'undefined') {
+      const autocomplete = new google.maps.places.Autocomplete(editCustomerAddressRef.current, {
+        types: ['address'],
+        componentRestrictions: { country: 'us' }
+      });
+
+      autocomplete.addListener('place_changed', () => {
+        const place = autocomplete.getPlace();
+        if (place.formatted_address) {
+          handleEditCustomerChange('address', place.formatted_address);
+        }
+      });
+    }
+  }, [showEditCustomerModal]);
 
   // Live timer update effect
   useEffect(() => {
@@ -221,6 +267,26 @@ export default function SchedulePage() {
     
     return () => clearInterval(timer);
   }, [customers]);
+
+  const formatLocalDate = (dateStr) => {
+    if (!dateStr) return '';
+    // If it's already a Date-like object or has T, handle it carefully
+    if (dateStr.includes('T')) {
+      return new Date(dateStr).toLocaleDateString();
+    }
+    const [year, month, day] = dateStr.split('-');
+    if (!year || !month || !day) return dateStr;
+    const date = new Date(year, month - 1, day);
+    return date.toLocaleDateString();
+  };
+
+  const formatLongLocalDate = (dateStr) => {
+    if (!dateStr) return '';
+    const [year, month, day] = dateStr.split('-');
+    if (!year || !month || !day) return dateStr;
+    const date = new Date(year, month - 1, day);
+    return date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+  };
 
   // Function to get current week based on date
   const getCurrentWeek = () => {
@@ -342,6 +408,40 @@ export default function SchedulePage() {
     
     // Also load from database
     loadCompletedCustomersFromDB();
+
+    // Global function for Map to call when reassigning a customer
+    window.handleMapReassign = async (customerId, newDay) => {
+      try {
+        const { error } = await supabase
+          .from('customers')
+          .update({ scheduled_day: newDay })
+          .eq('id', customerId);
+        
+        if (error) throw error;
+        
+        // Update local state
+        setCustomers(prev => prev.map(c => 
+          c.id === customerId ? { ...c, scheduled_day: newDay } : c
+        ));
+        
+        // Save to localStorage too
+        const savedMovedLocal = loadMovedCustomersFromStorage();
+        // Remove from moved if it was there
+        Object.keys(savedMovedLocal).forEach(day => {
+          savedMovedLocal[day] = savedMovedLocal[day].filter(id => id !== customerId);
+        });
+        saveMovedCustomersToStorage(savedMovedLocal);
+        
+        alert(`✅ Reassigned to ${newDay}`);
+      } catch (error) {
+        console.error('Error reassigning from map:', error);
+        alert('Failed to reassign: ' + error.message);
+      }
+    };
+    
+    return () => {
+      delete window.handleMapReassign;
+    };
   }, []);
 
   // Save completed customers to localStorage whenever it changes
@@ -372,6 +472,8 @@ export default function SchedulePage() {
       loadHomeBaseAddress();
     }
   }, [user]);
+
+  // Background scanner removed as requested to prioritize safety and manual control.
 
   useEffect(() => {
     if (customers.length > 0) {
@@ -962,7 +1064,8 @@ export default function SchedulePage() {
     setSelectedCustomerForNavigation(customer);
     
     let travelMins = 15; // Default if unknown
-    const timeText = customer.travel_time || proximityData[customer.id]?.durationText || "";
+    // Prioritize optimized travel_time_to_next, then travel_time, then proximity
+    const timeText = customer.travel_time_to_next || customer.travel_time || proximityData[customer.id]?.durationText || "";
     const match = timeText.match(/(\d+)\s*min/);
     if (match) {
       travelMins = parseInt(match[1], 10);
@@ -998,7 +1101,7 @@ export default function SchedulePage() {
           console.warn("Geolocation denied or failed", err);
           setIsFetchingLocation(false);
         },
-        { timeout: 10000, enableHighAccuracy: false }
+        { timeout: 10000, enableHighAccuracy: true }
       );
     }
   };
@@ -1586,6 +1689,60 @@ export default function SchedulePage() {
     }
   };
 
+  const handleEditCustomerChange = (field, value) => {
+    setEditingCustomerData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleSaveCustomerEdit = async () => {
+    if (!editingCustomerData) return;
+    try {
+      // Geocode the address before saving to reduce future API costs
+      let lat = editingCustomerData.latitude;
+      let lng = editingCustomerData.longitude;
+
+      if (typeof google !== 'undefined') {
+        const geocoder = new google.maps.Geocoder();
+        const results = await new Promise(resolve => geocoder.geocode({ address: editingCustomerData.address }, resolve));
+        if (results && results[0]) {
+          lat = results[0].geometry.location.lat();
+          lng = results[0].geometry.location.lng();
+        }
+      }
+
+      const { error } = await supabase
+        .from('customers')
+        .update({
+          name: editingCustomerData.name,
+          phone: editingCustomerData.phone,
+          email: editingCustomerData.email,
+          address: editingCustomerData.address,
+          latitude: lat,
+          longitude: lng,
+          price: editingCustomerData.price,
+          frequency: editingCustomerData.frequency,
+          service_type: editingCustomerData.service_type
+        })
+        .eq('id', editingCustomerData.id);
+
+      if (error) throw error;
+
+      setCustomers(prev => prev.map(c => 
+        c.id === editingCustomerData.id ? { ...c, ...editingCustomerData, latitude: lat, longitude: lng } : c
+      ));
+      
+      setShowEditCustomerModal(false);
+      setEditingCustomerData(null);
+    } catch (err) {
+      console.error('Error updating customer:', err);
+      alert('Failed to update customer');
+    }
+  };
+
+  const openEditCustomerModal = (customer) => {
+    setEditingCustomerData({ ...customer });
+    setShowEditCustomerModal(true);
+  };
+
   const updateCustomerAddress = async (customerId, address) => {
     if (!address.trim()) return;
     try {
@@ -1604,7 +1761,7 @@ export default function SchedulePage() {
 
   // ---------- Add New Customer ----------
   const openAddCustomerModal = () => {
-    setNewCustomerForm({ name: '', email: '', phone: '', address: '', price: '', frequency: 'weekly', service_type: 'lawn_mowing', status: 'active', notes: '', scheduled_day: '' });
+    setNewCustomerForm({ name: '', email: '', phone: '', address: '', price: '', frequency: 'weekly', service_type: 'lawn_mowing', status: 'active', notes: '', scheduled_day: '', latitude: null, longitude: null });
     setShowAddCustomerModal(true);
     // Init Google Places after modal renders
     setTimeout(() => {
@@ -1633,6 +1790,26 @@ export default function SchedulePage() {
     setAddingCustomer(true);
     try {
       const addressVal = newCustomerAddressRef.current?.value || newCustomerForm.address;
+      
+      // Surgical Geocoding: Get coords once now so we never pay again for this customer
+      let lat = null;
+      let lng = null;
+      if (typeof google !== 'undefined' && addressVal) {
+        try {
+          const geocoder = new google.maps.Geocoder();
+          const results = await new Promise((resolve, reject) => {
+            geocoder.geocode({ address: addressVal }, (res, status) => {
+              if (status === 'OK' && res && res[0]) resolve(res);
+              else reject(status);
+            });
+          });
+          lat = results[0].geometry.location.lat();
+          lng = results[0].geometry.location.lng();
+        } catch (err) {
+          console.error('Surgical geocoding failed for new customer:', err);
+        }
+      }
+      
       const { data, error } = await supabase
         .from('customers')
         .insert([{
@@ -1640,6 +1817,8 @@ export default function SchedulePage() {
           email: newCustomerForm.email?.trim() || null,
           phone: newCustomerForm.phone?.trim(),
           address: addressVal?.trim() || null,
+          latitude: lat,
+          longitude: lng,
           price: parseFloat(newCustomerForm.price),
           frequency: newCustomerForm.frequency,
           service_type: newCustomerForm.service_type,
@@ -1672,7 +1851,7 @@ export default function SchedulePage() {
       const { data, error } = await supabase
         .from('contact_leads')
         .select('*')
-        .eq('status', 'pending')
+        .in('status', ['pending', 'confirmed', 'waitlist'])
         .order('created_at', { ascending: false });
       if (error) throw error;
       setAppointments(data || []);
@@ -1683,17 +1862,284 @@ export default function SchedulePage() {
     }
   };
 
+  const moveToWaitlist = async (id) => {
+    try {
+      const response = await fetch('/api/leads', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status: 'waitlist' })
+      });
+      
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Failed to move to waitlist');
+      
+      setAppointments(prev => prev.map(a => a.id === id ? { ...a, status: 'waitlist' } : a));
+      alert('✅ Job moved to Waitlist for future follow-up!');
+    } catch (error) {
+      console.error('Error moving to waitlist:', error);
+      alert('Failed to move to waitlist: ' + error.message);
+    }
+  };
+
   const deleteAppointment = async (id) => {
     if (!confirm('Are you sure you want to remove this lead?')) return;
     try {
-      const { error } = await supabase.from('contact_leads').delete().eq('id', id);
-      if (error) throw error;
+      const response = await fetch('/api/leads', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id })
+      });
+      
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Failed to delete');
+      
       setAppointments(prev => prev.filter(a => a.id !== id));
     } catch (error) {
       console.error('Error deleting lead:', error);
-      alert('Failed to delete lead');
+      alert('Failed to delete lead: ' + error.message);
     }
   };
+
+  const editLead = (apt) => {
+    setManualJobForm({
+      name: apt.customer_name || '',
+      phone: apt.customer_phone || '',
+      email: apt.customer_email || '',
+      address: apt.address || '',
+      services: apt.service_type ? apt.service_type.split(', ') : [],
+      notes: apt.notes || '',
+      date: apt.visit_date || new Date().toISOString().split('T')[0],
+      status: apt.status || 'confirmed',
+      id: apt.id
+    });
+    setIsEditingLead(true);
+    setShowManualJobModal(true);
+  };
+
+  const confirmLead = (apt) => {
+    setSelectedConfirmApt(apt);
+    setConfirmForm({
+      date: new Date().toISOString().split('T')[0]
+    });
+    setShowConfirmModal(true);
+  };
+
+  const handleSaveConfirmJob = async () => {
+    if (!selectedConfirmApt || !confirmForm.date) return;
+    
+    try {
+      setConfirmingJob(true);
+      const response = await fetch('/api/leads', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          id: selectedConfirmApt.id,
+          status: 'confirmed',
+          visit_date: confirmForm.date
+        })
+      });
+      
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Failed to confirm');
+      
+      setAppointments(prev => prev.map(a => 
+        a.id === selectedConfirmApt.id 
+          ? { ...a, status: 'confirmed', visit_date: confirmForm.date } 
+          : a
+      ));
+      
+      setShowConfirmModal(false);
+      alert('✅ Job confirmed and dated successfully!');
+    } catch (error) {
+      console.error('Error confirming lead:', error);
+      alert('Failed to confirm job: ' + error.message);
+    } finally {
+      setConfirmingJob(false);
+    }
+  };
+
+  const revertToPending = async (id) => {
+    if (!confirm('Revert this job back to pending status?')) return;
+    try {
+      const response = await fetch('/api/leads', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status: 'pending' })
+      });
+      
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Failed to revert');
+      
+      setAppointments(prev => prev.map(a => a.id === id ? { ...a, status: 'pending' } : a));
+    } catch (error) {
+      console.error('Error reverting lead:', error);
+      alert('Failed to revert lead: ' + error.message);
+    }
+  };
+
+  const handleSaveManualJob = async () => {
+    if (!manualJobForm.name || !manualJobForm.date) {
+      alert('Name and Date are required');
+      return;
+    }
+    
+    try {
+      setSavingManualJob(true);
+      
+      if (isEditingLead && manualJobForm.id) {
+        const response = await fetch('/api/leads', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            id: manualJobForm.id,
+            customer_name: manualJobForm.name,
+            customer_phone: manualJobForm.phone,
+            customer_email: manualJobForm.email,
+            address: manualJobForm.address,
+            service_type: manualJobForm.services.join(', '),
+            notes: manualJobForm.notes,
+            visit_date: manualJobForm.date,
+            status: manualJobForm.status
+          })
+        });
+        
+        if (!response.ok) throw new Error('Failed to update lead');
+        
+        setAppointments(prev => prev.map(a => a.id === manualJobForm.id ? { 
+          ...a, 
+          customer_name: manualJobForm.name,
+          customer_phone: manualJobForm.phone,
+          customer_email: manualJobForm.email,
+          address: manualJobForm.address,
+          service_type: manualJobForm.services.join(', '),
+          notes: manualJobForm.notes,
+          visit_date: manualJobForm.date,
+          status: manualJobForm.status
+        } : a));
+        
+        alert('✅ Lead updated successfully!');
+      } else {
+        const response = await fetch('/api/leads', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            customer_name: manualJobForm.name,
+            customer_phone: manualJobForm.phone,
+            customer_email: manualJobForm.email,
+            address: manualJobForm.address,
+            service_type: manualJobForm.services.join(', '),
+            notes: manualJobForm.notes,
+            visit_date: manualJobForm.date,
+            status: manualJobForm.status
+          })
+        });
+
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Failed to save job');
+        
+        setAppointments(prev => [data, ...prev]);
+        alert('✅ Manual job added successfully!');
+      }
+      
+      setShowManualJobModal(false);
+      setIsEditingLead(false);
+      setManualJobForm({
+        name: '',
+        phone: '',
+        email: '',
+        address: '',
+        services: [],
+        notes: '',
+        date: new Date().toISOString().split('T')[0],
+        status: 'confirmed'
+      });
+    } catch (error) {
+      console.error('Error saving/updating lead:', error);
+      alert('Failed to save: ' + error.message);
+    } finally {
+      setSavingManualJob(false);
+    }
+  };
+
+  // Google Places Autocomplete for Manual Job
+  useEffect(() => {
+    if (!showManualJobModal || !manualJobAddressRef.current) return;
+
+    let autocomplete;
+    const initAutocomplete = async () => {
+      if (!window.google || !window.google.maps) {
+        // If google maps is not yet loaded, wait a bit
+        setTimeout(initAutocomplete, 1000);
+        return;
+      }
+      
+      try {
+        const { Autocomplete } = await window.google.maps.importLibrary("places");
+        autocomplete = new Autocomplete(manualJobAddressRef.current, {
+          componentRestrictions: { country: "us" },
+          fields: ["address_components", "formatted_address"],
+        });
+
+        autocomplete.addListener("place_changed", () => {
+          const place = autocomplete.getPlace();
+          if (place.formatted_address) {
+            setManualJobForm(prev => ({ ...prev, address: place.formatted_address }));
+          }
+        });
+      } catch (err) {
+        console.error("Google Places initialization error:", err);
+      }
+    };
+
+    initAutocomplete();
+  }, [showManualJobModal]);
+
+  const checkPendingReminders = async () => {
+    const confirmedJobs = appointments.filter(a => a.status === 'confirmed' && a.visit_date);
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
+    for (const job of confirmedJobs) {
+      const jobDate = new Date(job.visit_date + 'T12:00:00');
+      const diffTime = jobDate - today;
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      
+      const reminderId = `${job.id}-${diffDays}`;
+      const alreadySentInDB = diffDays === 7 ? job.reminder_sent_7d : job.reminder_sent_3d;
+      if (remindersSent.has(reminderId) || alreadySentInDB) continue;
+
+      if (diffDays === 7 || diffDays === 3) {
+        try {
+          const response = await fetch('/api/send-reminder-email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ job, diffDays })
+          });
+          
+          const data = await response.json();
+          if (data.success) {
+            setRemindersSent(prev => new Set(prev).add(reminderId));
+            console.log(`Email reminder sent for ${job.customer_name} (${diffDays} days)`);
+            
+            // Attempt to persist in Supabase if columns exist
+            const updateField = diffDays === 7 ? 'reminder_sent_7d' : 'reminder_sent_3d';
+            await supabase
+              .from('contact_leads')
+              .update({ [updateField]: true })
+              .eq('id', job.id);
+          }
+        } catch (err) {
+          console.error('Failed to send auto-reminder email:', err);
+        }
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (appointments.length > 0) {
+      checkPendingReminders();
+    }
+  }, [appointments]);
 
   const handleConvertToCustomer = (apt) => {
     const serviceMap = {
@@ -1775,6 +2221,9 @@ export default function SchedulePage() {
 
       if (data?.home_base_address) {
         setHomeBase(data.home_base_address);
+        if (data.home_base_lat && data.home_base_lng) {
+          setHomeBaseCoords({ lat: data.home_base_lat, lng: data.home_base_lng });
+        }
       }
     } catch (error) {
       console.error('Error loading home base address:', error);
@@ -1786,11 +2235,27 @@ export default function SchedulePage() {
   // Save home base address to Supabase
   const saveHomeBaseAddress = async (address) => {
     try {
+      let lat = null;
+      let lng = null;
+
+      // Geocode it once now so we never have to do it again
+      if (typeof google !== 'undefined') {
+        const geocoder = new google.maps.Geocoder();
+        const results = await new Promise(resolve => geocoder.geocode({ address }, resolve));
+        if (results && results[0]) {
+          lat = results[0].geometry.location.lat();
+          lng = results[0].geometry.location.lng();
+          setHomeBaseCoords({ lat, lng });
+        }
+      }
+
       const { error } = await supabase
         .from('business_settings')
         .upsert({
           user_id: user.id,
           home_base_address: address,
+          home_base_lat: lat,
+          home_base_lng: lng,
           updated_at: new Date().toISOString()
         });
 
@@ -2305,6 +2770,11 @@ export default function SchedulePage() {
             >
               <CalendarDaysIcon className="h-4 w-4" />
               Schedule
+              <span className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-black ${
+                viewMode === 'schedule' ? 'bg-white text-green-600' : 'bg-white/10 text-gray-400'
+              }`}>
+                {customers.length}
+              </span>
             </button>
             <button
               onClick={() => setViewMode('map')}
@@ -2316,6 +2786,11 @@ export default function SchedulePage() {
             >
               <MapIcon className="h-4 w-4" />
               Map
+              <span className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-black ${
+                viewMode === 'map' ? 'bg-white text-blue-600' : 'bg-white/10 text-gray-400'
+              }`}>
+                {customers.filter(c => c.address).length}
+              </span>
             </button>
             <button
               onClick={() => setViewMode('appointments')}
@@ -2327,11 +2802,11 @@ export default function SchedulePage() {
             >
               <EnvelopeIcon className="h-4 w-4" />
               Inquiries
-              {appointments.filter(a => !a.visit_date).length > 0 && (
-                <span className="flex h-4 w-4 items-center justify-center rounded-full bg-white text-[10px] font-black text-purple-600">
-                  {appointments.filter(a => !a.visit_date).length}
-                </span>
-              )}
+              <span className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-black ${
+                viewMode === 'appointments' ? 'bg-white text-purple-600' : 'bg-white/10 text-gray-400'
+              }`}>
+                {appointments.filter(a => !a.visit_date).length}
+              </span>
             </button>
             <button
               onClick={() => setViewMode('visits')}
@@ -2343,11 +2818,11 @@ export default function SchedulePage() {
             >
               <ClockIcon className="h-4 w-4" />
               Visits
-              {appointments.filter(a => a.visit_date).length > 0 && (
-                <span className="flex h-4 w-4 items-center justify-center rounded-full bg-white text-[10px] font-black text-orange-600">
-                  {appointments.filter(a => a.visit_date).length}
-                </span>
-              )}
+              <span className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-black ${
+                viewMode === 'visits' ? 'bg-white text-orange-600' : 'bg-white/10 text-gray-400'
+              }`}>
+                {appointments.filter(a => a.visit_date).length}
+              </span>
             </button>
           </div>
 
@@ -2589,17 +3064,78 @@ export default function SchedulePage() {
                     <EnvelopeIcon className="h-6 w-6 text-white" />
                   </div>
                   <div>
-                    <h2 className="text-xl font-black text-white">Pending Inquiries</h2>
-                    <p className="text-sm text-gray-500">{appointments.filter(a => !a.visit_date).length} leads waiting for response</p>
+                    <h2 className="text-xl font-black text-white">{inquiryTab === 'pending' ? 'Pending Inquiries' : 'Confirmed Jobs'}</h2>
+                    <p className="text-sm text-gray-500">
+                      {inquiryTab === 'pending' 
+                        ? `${appointments.filter(a => !a.visit_date && a.status === 'pending').length} leads waiting for response`
+                        : `${appointments.filter(a => a.status === 'confirmed').length} jobs ready for scheduling`}
+                    </p>
                   </div>
                 </div>
-                <button 
-                  onClick={fetchAppointments}
-                  className="px-4 py-2 bg-white/5 hover:bg-white/10 rounded-xl text-xs font-bold transition-all flex items-center gap-2 border border-white/5"
-                >
-                  <ArrowPathIcon className={`h-3.5 w-3.5 ${loadingAppointments ? 'animate-spin' : ''}`} />
-                  Refresh
-                </button>
+                
+                {/* Sub-tabs */}
+                <div className="flex bg-white/5 rounded-2xl p-1 border border-white/10">
+                  <button
+                    onClick={() => setInquiryTab('pending')}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                      inquiryTab === 'pending' 
+                        ? 'bg-purple-500 text-white shadow-lg shadow-purple-500/30' 
+                        : 'text-gray-500 hover:text-white'
+                    }`}
+                  >
+                    Pending ({appointments.filter(a => !a.visit_date && a.status === 'pending').length})
+                  </button>
+                  <button
+                    onClick={() => setInquiryTab('confirmed')}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                      inquiryTab === 'confirmed' 
+                        ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/30' 
+                        : 'text-gray-500 hover:text-white'
+                    }`}
+                  >
+                    Confirmed ({appointments.filter(a => a.status === 'confirmed').length})
+                  </button>
+                  <button
+                    onClick={() => setInquiryTab('waitlist')}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                      inquiryTab === 'waitlist' 
+                        ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/30' 
+                        : 'text-gray-500 hover:text-white'
+                    }`}
+                  >
+                    Waitlist ({appointments.filter(a => a.status === 'waitlist').length})
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <button 
+                    onClick={() => {
+                      setIsEditingLead(false);
+                      setManualJobForm({
+                        name: '',
+                        phone: '',
+                        email: '',
+                        address: '',
+                        services: [],
+                        notes: '',
+                        date: new Date().toISOString().split('T')[0],
+                        status: 'confirmed'
+                      });
+                      setShowManualJobModal(true);
+                    }}
+                    className="px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-2 shadow-lg shadow-blue-500/20"
+                  >
+                    <PlusIcon className="h-3.5 w-3.5" />
+                    Manual Job
+                  </button>
+                  <button 
+                    onClick={fetchAppointments}
+                    className="px-4 py-2 bg-white/5 hover:bg-white/10 rounded-xl text-xs font-bold transition-all flex items-center gap-2 border border-white/5"
+                  >
+                    <ArrowPathIcon className={`h-3.5 w-3.5 ${loadingAppointments ? 'animate-spin' : ''}`} />
+                    Refresh
+                  </button>
+                </div>
               </div>
 
               {loadingAppointments && appointments.length === 0 ? (
@@ -2607,37 +3143,108 @@ export default function SchedulePage() {
                   <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500 mx-auto mb-4"></div>
                   <p className="text-gray-500 font-medium">Scanning for new leads...</p>
                 </div>
-              ) : appointments.filter(a => !a.visit_date).length === 0 ? (
+              ) : (inquiryTab === 'pending' ? appointments.filter(a => !a.visit_date && a.status === 'pending') : appointments.filter(a => a.status === 'confirmed')).length === 0 ? (
                 <div className="py-20 text-center bg-white/[0.02] rounded-3xl border border-dashed border-white/10">
                   <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-4">
                     <EnvelopeOpenIcon className="h-8 w-8 text-gray-700" />
                   </div>
-                  <h3 className="text-white font-bold mb-1 text-lg">Inbox is Empty</h3>
-                  <p className="text-gray-500 text-sm max-w-xs mx-auto">New leads from your contact form will appear here automatically.</p>
+                  <h3 className="text-white font-bold mb-1 text-lg">{inquiryTab === 'pending' ? 'Inbox is Empty' : 'No Confirmed Jobs'}</h3>
+                  <p className="text-gray-500 text-sm max-w-xs mx-auto">
+                    {inquiryTab === 'pending' 
+                      ? 'New leads from your contact form will appear here automatically.'
+                      : inquiryTab === 'confirmed'
+                        ? 'Confirmed jobs that are ready to be added to the schedule will appear here.'
+                        : 'Completed one-time jobs and future seasonal work targets.'}
+                  </p>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-4">
-                  {appointments.filter(a => !a.visit_date).map(apt => (
+                  {(inquiryTab === 'pending' 
+                    ? appointments.filter(a => !a.visit_date && a.status === 'pending') 
+                    : inquiryTab === 'confirmed'
+                      ? appointments.filter(a => a.status === 'confirmed')
+                      : appointments.filter(a => a.status === 'waitlist')
+                  ).map(apt => (
                     <div 
                       key={apt.id} 
-                      className="bg-white/[0.03] border border-white/10 rounded-3xl p-5 hover:bg-white/[0.06] transition-all group relative overflow-hidden"
+                      className={`bg-white/[0.03] border rounded-3xl p-5 hover:bg-white/[0.06] transition-all group relative overflow-hidden ${
+                        apt.status === 'confirmed' 
+                          ? (() => {
+                              const jobDate = new Date(apt.visit_date + 'T12:00:00');
+                              const today = new Date();
+                              today.setHours(0, 0, 0, 0);
+                              jobDate.setHours(0, 0, 0, 0);
+                              
+                              if (jobDate.getTime() === today.getTime()) return 'border-green-500/50 shadow-lg shadow-green-500/10';
+                              
+                              const diffDays = Math.ceil((jobDate - today) / (1000 * 60 * 60 * 24));
+                              if (diffDays > 0 && diffDays <= 7) return 'border-amber-500/40 shadow-lg shadow-amber-500/5';
+                              
+                              return 'border-blue-500/30 shadow-lg shadow-blue-500/5';
+                            })()
+                          : 'border-white/10'
+                      }`}
                     >
                       {/* Accent glow */}
-                      <div className="absolute -top-10 -right-10 w-24 h-24 bg-purple-500/5 blur-2xl rounded-full"></div>
+                      <div className={`absolute -top-10 -right-10 w-24 h-24 blur-2xl rounded-full ${
+                        apt.status === 'confirmed' 
+                          ? (() => {
+                              const jobDate = new Date(apt.visit_date + 'T12:00:00');
+                              const today = new Date();
+                              today.setHours(0, 0, 0, 0);
+                              jobDate.setHours(0, 0, 0, 0);
+                              
+                              if (jobDate.getTime() === today.getTime()) return 'bg-green-500/15';
+                              
+                              const diffDays = Math.ceil((jobDate - today) / (1000 * 60 * 60 * 24));
+                              if (diffDays > 0 && diffDays <= 7) return 'bg-amber-500/10';
+                              
+                              return 'bg-blue-500/10';
+                            })()
+                          : 'bg-purple-500/5'
+                      }`}></div>
                       
                       <div className="flex items-start justify-between gap-4 mb-4">
-                        <div className="min-w-0">
-                          <h3 className="text-base font-black text-white truncate">{apt.customer_name}</h3>
-                          <div className="flex items-center gap-2 mt-1">
-                            <span className="px-2 py-0.5 bg-purple-500/10 text-purple-400 text-[10px] font-black rounded-full uppercase tracking-widest border border-purple-500/20">
-                              {apt.service_type || 'Inquiry'}
-                            </span>
-                            <span className="text-[10px] text-gray-500 font-bold">
-                              {new Date(apt.created_at).toLocaleDateString()}
-                            </span>
+                        <div className="min-w-0 flex-1">
+                          <h3 className="text-lg font-black text-white leading-tight mb-2">{apt.customer_name}</h3>
+                          <div className="flex flex-col gap-3">
+                            <div className="flex flex-wrap gap-2">
+                              {(apt.service_type || 'Inquiry').split(', ').map((service, idx) => (
+                                <span key={idx} className={`px-2.5 py-1 text-[10px] font-black rounded-lg uppercase tracking-widest border whitespace-nowrap ${
+                                  apt.status === 'confirmed' 
+                                    ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' 
+                                    : 'bg-purple-500/10 text-purple-400 border-purple-500/20'
+                                }`}>
+                                  {service}
+                                </span>
+                              ))}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <CalendarDaysIcon className="h-3.5 w-3.5 text-gray-600" />
+                              <span className="text-[11px] text-gray-500 font-bold">
+                                {new Date(apt.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                              </span>
+                            </div>
                           </div>
                         </div>
                         <div className="flex gap-2">
+                          {apt.status === 'pending' ? (
+                            <button 
+                              onClick={() => confirmLead(apt)}
+                              className="p-2 bg-blue-500/10 text-blue-400 rounded-xl hover:bg-blue-500/20 transition-all border border-blue-500/20"
+                              title="Confirm Job"
+                            >
+                              <CheckBadgeIcon className="h-4 w-4" />
+                            </button>
+                          ) : (
+                            <button 
+                              onClick={() => revertToPending(apt.id)}
+                              className="p-2 bg-amber-500/10 text-amber-500 rounded-xl hover:bg-amber-500/20 transition-all border border-amber-500/20"
+                              title="Revert to Pending"
+                            >
+                              <ArrowPathIcon className="h-4 w-4" />
+                            </button>
+                          )}
                           <button 
                             onClick={() => scheduleVisit(apt)}
                             className="p-2 bg-orange-500/10 text-orange-400 rounded-xl hover:bg-orange-500/20 transition-all border border-orange-500/20"
@@ -2653,12 +3260,28 @@ export default function SchedulePage() {
                             <UserPlusIcon className="h-4 w-4" />
                           </button>
                           <button 
-                            onClick={() => deleteAppointment(apt.id)}
-                            className="p-2 bg-red-500/10 text-red-400 rounded-xl hover:bg-red-500/20 transition-all border border-red-500/20"
-                            title="Delete Lead"
-                          >
-                            <TrashIcon className="h-4 w-4" />
-                          </button>
+                              onClick={() => editLead(apt)}
+                              className="p-2 bg-indigo-500/10 text-indigo-400 rounded-xl hover:bg-indigo-500/20 transition-all border border-indigo-500/20"
+                              title="Edit Lead"
+                            >
+                              <PencilIcon className="h-4 w-4" />
+                            </button>
+                            {apt.status === 'confirmed' && (
+                              <button 
+                                onClick={() => moveToWaitlist(apt.id)}
+                                className="p-2 bg-orange-500/10 text-orange-400 rounded-xl hover:bg-orange-500/20 transition-all border border-orange-500/20"
+                                title="Move to Waitlist"
+                              >
+                                <SparklesIcon className="h-4 w-4" />
+                              </button>
+                            )}
+                            <button 
+                              onClick={() => deleteAppointment(apt.id)}
+                              className="p-2 bg-red-500/10 text-red-400 rounded-xl hover:bg-red-500/20 transition-all border border-red-500/20"
+                              title="Delete Lead"
+                            >
+                              <TrashIcon className="h-4 w-4" />
+                            </button>
                         </div>
                       </div>
 
@@ -2678,18 +3301,42 @@ export default function SchedulePage() {
                       </div>
 
                       <div className="grid grid-cols-2 gap-2 mt-5">
-                        <button 
-                          onClick={() => scheduleVisit(apt)}
-                          className="py-3 bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border border-orange-500/20 flex items-center justify-center gap-2"
-                        >
-                          <ClockIcon className="h-3.5 w-3.5" />
-                          Visit Date
-                        </button>
+                        {apt.status === 'pending' ? (
+                          <button 
+                            onClick={() => confirmLead(apt)}
+                            className="py-3 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border border-blue-500/20 flex items-center justify-center gap-2"
+                          >
+                            <CheckBadgeIcon className="h-3.5 w-3.5" />
+                            Confirm Job
+                          </button>
+                        ) : (
+                          <button 
+                            onClick={() => confirmLead(apt)} // Repurpose confirmLead to edit date
+                            className="py-3 bg-blue-500/5 hover:bg-blue-500/10 text-blue-400 border border-blue-500/10 rounded-2xl flex flex-col items-center justify-center gap-0.5 transition-all relative"
+                          >
+                            <span className="text-[9px] font-black uppercase tracking-widest opacity-60">Scheduled For</span>
+                            <span className="text-[11px] font-black">{formatLocalDate(apt.visit_date)}</span>
+                            
+                            {/* Auto-reminder indicator */}
+                            {(() => {
+                              const jobDate = new Date(apt.visit_date + 'T12:00:00');
+                              const diffDays = Math.ceil((jobDate - new Date()) / (1000 * 60 * 60 * 24));
+                              if (diffDays === 7 || diffDays === 3) {
+                                return <span className="absolute -top-1 -right-1 w-2 h-2 bg-orange-500 rounded-full animate-ping"></span>;
+                              }
+                              return null;
+                            })()}
+                          </button>
+                        )}
                         <button 
                           onClick={() => handleConvertToCustomer(apt)}
-                          className="py-3 bg-white/5 hover:bg-white/10 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border border-white/10 flex items-center justify-center gap-2"
+                          className={`py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border flex items-center justify-center gap-2 ${
+                            apt.status === 'confirmed'
+                              ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white border-transparent shadow-lg shadow-green-500/20'
+                              : 'bg-white/5 hover:bg-white/10 text-white border-white/10'
+                          }`}
                         >
-                          <UserPlusIcon className="h-3.5 w-3.5 text-purple-400" />
+                          <UserPlusIcon className="h-3.5 w-3.5 text-inherit" />
                           Finalize
                         </button>
                       </div>
@@ -2748,7 +3395,7 @@ export default function SchedulePage() {
                       <div className="absolute left-[-5px] top-0 w-2.5 h-2.5 rounded-full bg-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.5)]"></div>
                       <div className="mb-6">
                         <h3 className="text-xs font-black uppercase tracking-[0.2em] text-orange-500 mb-1">
-                          {new Date(date).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+                          {formatLongLocalDate(date)}
                         </h3>
                         <div className="h-px w-24 bg-gradient-to-r from-orange-500/30 to-transparent"></div>
                       </div>
@@ -2826,7 +3473,7 @@ export default function SchedulePage() {
             </div>
             <div className="text-right">
               <span className="text-2xl font-black text-green-400">
-                ${earnings.daily[selectedDay] || 0}
+                ${earnings.daily[selectedDay]?.total || 0}
               </span>
               <span className="text-gray-600 text-sm font-bold ml-1">/ ${dailyGoal}</span>
             </div>
@@ -2835,7 +3482,7 @@ export default function SchedulePage() {
           <div className="relative h-4 bg-white/5 rounded-full overflow-hidden border border-white/5">
             <div 
               className="absolute inset-y-0 left-0 bg-gradient-to-r from-green-500 to-emerald-400 transition-all duration-1000 ease-out shadow-[0_0_20px_rgba(34,197,94,0.3)]"
-              style={{ width: `${Math.min(100, ((earnings.daily[selectedDay] || 0) / dailyGoal) * 100)}%` }}
+              style={{ width: `${Math.min(100, (((earnings.daily[selectedDay]?.total || 0) / dailyGoal) * 100))}%` }}
             >
               <div className="absolute inset-0 bg-[linear-gradient(45deg,rgba(255,255,255,0.15)_25%,transparent_25%,transparent_50%,rgba(255,255,255,0.15)_50%,rgba(255,255,255,0.15)_75%,transparent_75%,transparent)] bg-[length:1rem_1rem] animate-[move-bg_1s_linear_infinite]"></div>
             </div>
@@ -2972,6 +3619,7 @@ export default function SchedulePage() {
                     draggedCustomer={draggedCustomer}
                     newlyAddedIds={newlyAddedIds}
                     handleAddressClick={handleAddressClick}
+                    openEditCustomerModal={openEditCustomerModal}
                     searchTerm={searchTerm}
                     editingAddress={editingAddress}
                     editingNotes={editingNotes}
@@ -3027,6 +3675,9 @@ export default function SchedulePage() {
               const completedCount = completedCustomers[day]?.length || 0;
               const earningsData = earnings.daily[day];
               const progress = dayCustomers.length > 0 ? (completedCount / dayCustomers.length) * 100 : 0;
+              
+              const completedCustomersOnDay = dayCustomers.filter(c => completedCustomers[day]?.includes(c.id));
+              const totalTrackedTime = completedCustomersOnDay.reduce((sum, c) => sum + (c.last_job_duration_minutes || 0), 0);
 
               return (
                 <div
@@ -3049,11 +3700,18 @@ export default function SchedulePage() {
                           </span>
                         )}
                       </div>
-                      {earningsData && earningsData.total > 0 && (
-                        <span className="text-sm font-bold bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text text-transparent">
-                          ${earningsData.total.toFixed(0)}
-                        </span>
-                      )}
+                      <div className="flex items-center gap-3">
+                        {totalTrackedTime > 0 && (
+                          <span className="text-[10px] font-bold text-gray-400 bg-white/5 px-2 py-1 rounded-lg border border-white/10 flex items-center gap-1">
+                            ⏳ {totalTrackedTime >= 60 ? `${Math.floor(totalTrackedTime / 60)}h ${totalTrackedTime % 60}m` : `${totalTrackedTime}m`}
+                          </span>
+                        )}
+                        {earningsData && earningsData.total > 0 && (
+                          <span className="text-sm font-bold bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text text-transparent">
+                            ${earningsData.total.toFixed(0)}
+                          </span>
+                        )}
+                      </div>
                     </div>
 
                     {/* Progress bar */}
@@ -3196,6 +3854,7 @@ export default function SchedulePage() {
                             draggedCustomer={draggedCustomer}
                             newlyAddedIds={newlyAddedIds}
                             handleAddressClick={handleAddressClick}
+                            openEditCustomerModal={openEditCustomerModal}
                             searchTerm={searchTerm}
                             editingAddress={editingAddress}
                             editingNotes={editingNotes}
@@ -3649,7 +4308,242 @@ export default function SchedulePage() {
           </div>
         )}
 
-        {/* === OPTIMIZATION SUCCESS MODAL === */}
+        {/* === MANUAL JOB MODAL === */}
+        {showManualJobModal && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+            <div className="bg-[#1e293b] w-full max-w-xl rounded-[2.5rem] border border-white/10 shadow-2xl shadow-blue-500/10 overflow-hidden transform transition-all">
+              <div className="p-8">
+                <div className="flex items-center justify-between mb-8">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 bg-blue-500/20 rounded-2xl">
+                      {isEditingLead ? <PencilIcon className="h-6 w-6 text-blue-500" /> : <PlusIcon className="h-6 w-6 text-blue-500" />}
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-black text-white">{isEditingLead ? 'Edit Job Details' : 'New Confirmed Job'}</h3>
+                      <p className="text-xs text-gray-500 font-bold uppercase tracking-wider mt-0.5">{isEditingLead ? 'Update information for this project' : 'Add work directly to your pipeline'}</p>
+                    </div>
+                  </div>
+                  <button onClick={() => {
+                    setShowManualJobModal(false);
+                    setIsEditingLead(false);
+                  }} className="p-2 hover:bg-white/5 rounded-xl transition-colors">
+                    <XMarkIcon className="h-6 w-6 text-gray-500" />
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] mb-2 ml-1">Customer Name</label>
+                    <input 
+                      type="text" 
+                      placeholder="e.g. John Doe"
+                      value={manualJobForm.name}
+                      onChange={(e) => setManualJobForm(prev => ({ ...prev, name: e.target.value }))}
+                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-3.5 text-white focus:outline-none focus:border-blue-500/50 transition-all font-bold"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] mb-2 ml-1">Phone Number</label>
+                    <input 
+                      type="tel" 
+                      placeholder="(401) 000-0000"
+                      value={manualJobForm.phone}
+                      onChange={(e) => setManualJobForm(prev => ({ ...prev, phone: e.target.value }))}
+                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-3.5 text-white focus:outline-none focus:border-blue-500/50 transition-all font-bold"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] mb-2 ml-1">Email Address</label>
+                    <input 
+                      type="email" 
+                      placeholder="john@example.com"
+                      value={manualJobForm.email}
+                      onChange={(e) => setManualJobForm(prev => ({ ...prev, email: e.target.value }))}
+                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-3.5 text-white focus:outline-none focus:border-blue-500/50 transition-all font-bold"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] mb-2 ml-1">Target Date</label>
+                    <input 
+                      type="date" 
+                      value={manualJobForm.date}
+                      onChange={(e) => setManualJobForm(prev => ({ ...prev, date: e.target.value }))}
+                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-3.5 text-white focus:outline-none focus:border-blue-500/50 transition-all font-bold"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] mb-2 ml-1">Job Status</label>
+                    <div className="flex gap-4 p-2 bg-white/5 rounded-2xl border border-white/10">
+                      <button
+                        onClick={() => setManualJobForm(prev => ({ ...prev, status: 'pending' }))}
+                        className={`flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                          manualJobForm.status === 'pending'
+                            ? 'bg-purple-500 text-white shadow-lg shadow-purple-500/20'
+                            : 'text-gray-500 hover:text-white'
+                        }`}
+                      >
+                        Pending
+                      </button>
+                      <button
+                        onClick={() => setManualJobForm(prev => ({ ...prev, status: 'confirmed' }))}
+                        className={`flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                          manualJobForm.status === 'confirmed'
+                            ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/20'
+                            : 'text-gray-500 hover:text-white'
+                        }`}
+                      >
+                        Confirmed
+                      </button>
+                    </div>
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] mb-2 ml-1">Service Address (Google Suggested)</label>
+                    <div className="relative">
+                      <MapPinIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-500" />
+                      <input 
+                        ref={manualJobAddressRef}
+                        type="text" 
+                        placeholder="Start typing address..."
+                        value={manualJobForm.address}
+                        onChange={(e) => setManualJobForm(prev => ({ ...prev, address: e.target.value }))}
+                        className="w-full bg-white/5 border border-white/10 rounded-2xl pl-12 pr-5 py-3.5 text-white focus:outline-none focus:border-blue-500/50 transition-all font-bold"
+                      />
+                    </div>
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] mb-2 ml-1">Job Notes / Instructions</label>
+                    <textarea 
+                      placeholder="Enter specific instructions for the crew..."
+                      value={manualJobForm.notes}
+                      onChange={(e) => setManualJobForm(prev => ({ ...prev, notes: e.target.value }))}
+                      rows={3}
+                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-3.5 text-white focus:outline-none focus:border-blue-500/50 transition-all font-bold resize-none"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] mb-4 ml-1">Select Services</label>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                      {[
+                        'Lawn Mowing',
+                        'Spring Cleanup',
+                        'Mulch Installation',
+                        'Fall Cleanup',
+                        'Bush Trimming',
+                        'Dethatching',
+                        'Aeration',
+                        'Fertilization',
+                        'Pruning',
+                        'Other'
+                      ].map(service => (
+                        <label 
+                          key={service}
+                          className={`flex items-center gap-3 p-3 rounded-2xl border transition-all cursor-pointer ${
+                            manualJobForm.services.includes(service)
+                              ? 'bg-blue-500/10 border-blue-500/50 text-white shadow-lg shadow-blue-500/5'
+                              : 'bg-white/5 border-white/10 text-gray-500 hover:border-white/20'
+                          }`}
+                        >
+                          <div className={`w-5 h-5 rounded-lg border-2 flex items-center justify-center transition-all ${
+                            manualJobForm.services.includes(service)
+                              ? 'bg-blue-500 border-blue-500'
+                              : 'border-white/20'
+                          }`}>
+                            {manualJobForm.services.includes(service) && <CheckIcon className="h-3.5 w-3.5 text-white" />}
+                          </div>
+                          <input 
+                            type="checkbox"
+                            className="hidden"
+                            checked={manualJobForm.services.includes(service)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setManualJobForm(prev => ({ ...prev, services: [...prev.services, service] }));
+                              } else {
+                                setManualJobForm(prev => ({ ...prev, services: prev.services.filter(s => s !== service) }));
+                              }
+                            }}
+                          />
+                          <span className="text-[11px] font-black uppercase tracking-wider">{service}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-10 flex flex-col gap-3">
+                  <button
+                    onClick={handleSaveManualJob}
+                    disabled={savingManualJob}
+                    className="w-full py-4 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-2xl text-xs font-black uppercase tracking-[0.2em] shadow-xl shadow-blue-500/20 hover:shadow-blue-500/40 active:scale-95 transition-all disabled:opacity-50"
+                  >
+                    {savingManualJob ? (isEditingLead ? 'Updating...' : 'Adding...') : (isEditingLead ? 'Save Changes' : 'Create Confirmed Job')}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowManualJobModal(false);
+                      setIsEditingLead(false);
+                    }}
+                    className="w-full py-4 bg-white/5 text-gray-400 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-white/10 transition-all"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* === CONFIRM JOB MODAL === */}
+        {showConfirmModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+            <div className="bg-[#1e293b] w-full max-w-md rounded-[2.5rem] border border-white/10 shadow-2xl shadow-blue-500/10 overflow-hidden transform transition-all">
+              <div className="p-8">
+                <div className="flex items-center justify-between mb-8">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 bg-blue-500/20 rounded-2xl">
+                      <CheckBadgeIcon className="h-6 w-6 text-blue-500" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-black text-white">Confirm Job</h3>
+                      <p className="text-xs text-gray-500 font-bold uppercase tracking-wider mt-0.5">{selectedConfirmApt?.customer_name}</p>
+                    </div>
+                  </div>
+                  <button onClick={() => setShowConfirmModal(false)} className="p-2 hover:bg-white/5 rounded-xl transition-colors">
+                    <XMarkIcon className="h-6 w-6 text-gray-500" />
+                  </button>
+                </div>
+
+                <div className="space-y-6">
+                  <div>
+                    <label className="block text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] mb-3 ml-1">Work Date</label>
+                    <input 
+                      type="date" 
+                      value={confirmForm.date}
+                      onChange={(e) => setConfirmForm(prev => ({ ...prev, date: e.target.value }))}
+                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white focus:outline-none focus:border-blue-500/50 transition-all font-bold"
+                    />
+                    <p className="text-[10px] text-gray-600 mt-2 ml-1 italic">This will move the lead to the "Confirmed" tab with this date.</p>
+                  </div>
+                </div>
+
+                <div className="mt-10 flex flex-col gap-3">
+                  <button
+                    onClick={handleSaveConfirmJob}
+                    disabled={confirmingJob || !confirmForm.date}
+                    className="w-full py-4 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-2xl text-xs font-black uppercase tracking-[0.2em] shadow-xl shadow-blue-500/20 hover:shadow-blue-500/40 active:scale-95 transition-all disabled:opacity-50"
+                  >
+                    {confirmingJob ? 'Confirming...' : 'Confirm & Set Date'}
+                  </button>
+                  <button
+                    onClick={() => setShowConfirmModal(false)}
+                    className="w-full py-4 bg-white/5 text-gray-400 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-white/10 transition-all"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
         {showOptimizationModal && optimizationData && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
             <div className="bg-[#1e293b] w-full max-w-sm rounded-[3rem] border border-white/10 shadow-2xl shadow-purple-500/20 overflow-hidden transform transition-all animate-in zoom-in-95 duration-300">
@@ -3874,6 +4768,86 @@ export default function SchedulePage() {
             </div>
           </div>
         )}
+
+        {/* Edit Customer Modal */}
+        {showEditCustomerModal && editingCustomerData && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowEditCustomerModal(false)}></div>
+            <div className="bg-[#111] border border-white/10 rounded-3xl w-full max-w-lg relative z-10 overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+              {/* Header */}
+              <div className="bg-gradient-to-r from-blue-600/20 to-purple-900/20 p-6 border-b border-white/5 shrink-0">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-10 h-10 bg-blue-500 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20">
+                    <UserIcon className="h-5 w-5 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-black text-white">Edit Customer</h3>
+                    <p className="text-xs text-blue-400 font-bold uppercase tracking-widest">Update Profile</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-6 overflow-y-auto custom-scrollbar">
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-400 mb-1">Name</label>
+                    <input type="text" value={editingCustomerData.name} onChange={(e) => handleEditCustomerChange('name', e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-blue-500 outline-none" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold text-gray-400 mb-1">Phone</label>
+                      <input type="text" value={editingCustomerData.phone || ''} onChange={(e) => handleEditCustomerChange('phone', e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-blue-500 outline-none" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-400 mb-1">Email</label>
+                      <input type="email" value={editingCustomerData.email || ''} onChange={(e) => handleEditCustomerChange('email', e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-blue-500 outline-none" />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold text-gray-400 mb-1">Price ($)</label>
+                      <input type="number" value={editingCustomerData.price || ''} onChange={(e) => handleEditCustomerChange('price', parseFloat(e.target.value) || 0)} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-blue-500 outline-none" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-400 mb-1">Frequency</label>
+                      <select value={editingCustomerData.frequency} onChange={(e) => handleEditCustomerChange('frequency', e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-blue-500 outline-none appearance-none">
+                        <option value="weekly" className="bg-gray-900">Weekly</option>
+                        <option value="bi_weekly" className="bg-gray-900">Bi-Weekly</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-400 mb-1">Service Address</label>
+                    <div className="relative">
+                      <MapPinIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
+                      <input 
+                        ref={editCustomerAddressRef}
+                        type="text" 
+                        defaultValue={editingCustomerData.address || ''} 
+                        onChange={(e) => handleEditCustomerChange('address', e.target.value)} 
+                        placeholder="Start typing address..."
+                        className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-3 text-sm text-white focus:border-blue-500 outline-none" 
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-400 mb-1">Service Type</label>
+                    <input type="text" value={editingCustomerData.service_type || ''} onChange={(e) => handleEditCustomerChange('service_type', e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-blue-500 outline-none" />
+                  </div>
+                </div>
+
+                <div className="flex gap-3 mt-8">
+                  <button onClick={() => setShowEditCustomerModal(false)} className="flex-1 py-4 bg-white/5 text-gray-400 rounded-2xl text-xs font-black uppercase tracking-[0.2em] hover:bg-white/10 transition-all">
+                    Cancel
+                  </button>
+                  <button onClick={handleSaveCustomerEdit} className="flex-[2] py-4 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-2xl text-xs font-black uppercase tracking-[0.2em] shadow-xl shadow-blue-500/20 hover:shadow-blue-500/40 active:scale-95 transition-all">
+                    Save Changes
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -3902,6 +4876,7 @@ function CustomerCard({
   draggedCustomer,
   newlyAddedIds,
   handleAddressClick,
+  openEditCustomerModal,
   searchTerm,
   editingAddress,
   editingNotes,
@@ -3944,10 +4919,10 @@ function CustomerCard({
   const [isDragOver, setIsDragOver] = useState(false);
   
   const proximity = proximityData[customer.id];
-  // Determine distance and travel time - prioritize database fields
-  const distanceDisplay = customer.distance_miles ? `${customer.distance_miles} mi` : proximity?.distanceText;
-  const travelTimeDisplay = customer.travel_time || proximity?.durationText;
-  const hasProximityData = distanceDisplay || travelTimeDisplay;
+  // Determine distance and travel time - prioritize optimized route fields
+  const distanceDisplay = customer.distance_to_next || (customer.distance_miles ? `${customer.distance_miles} mi` : proximity?.distanceText);
+  const travelTimeDisplay = customer.travel_time_to_next || customer.travel_time || proximity?.durationText;
+  const hasProximityData = !!(distanceDisplay || travelTimeDisplay);
 
   const handleDragOverCard = (e) => {
     e.preventDefault();
@@ -4019,7 +4994,9 @@ function CustomerCard({
           <span className="px-2 py-0.5 bg-gradient-to-r from-violet-500 to-purple-600 text-white text-[10px] font-black rounded-full tracking-wider uppercase animate-pulse shadow-lg shadow-purple-500/30">✦ New</span>
         )}
         {isCompleted && (
-          <span className="px-2 py-0.5 bg-green-500 text-white text-[10px] font-bold rounded-full tracking-wider uppercase">✓ Done</span>
+          <span className="px-2 py-0.5 bg-green-500 text-white text-[10px] font-bold rounded-full tracking-wider uppercase">
+            ✓ Done {customer.last_job_duration_minutes ? `(${customer.last_job_duration_minutes}m)` : ''}
+          </span>
         )}
         {isMoved && (
           <span className="px-2 py-0.5 bg-orange-500 text-white text-[10px] font-bold rounded-full">→ Moved</span>
@@ -4091,11 +5068,20 @@ function CustomerCard({
               }`}>
                 {customer.frequency === 'bi_weekly' ? 'Bi-W' : 'W'}
               </span>
-              {hasProximityData && (
-                <span className="text-[10px] text-gray-600">{distanceDisplay}</span>
+              {hasProximityData && distanceDisplay && (
+                <span className="text-[10px] text-gray-600 font-medium tracking-wide">
+                  {distanceDisplay}
+                </span>
               )}
-              {travelTimeDisplay && (
-                <span className="text-[10px] text-gray-600">⏱ {travelTimeDisplay}</span>
+              {hasProximityData && travelTimeDisplay && (
+                <span className="text-[10px] text-gray-600 font-medium tracking-wide flex items-center gap-0.5">
+                  ⏱ {travelTimeDisplay}
+                </span>
+              )}
+              {isCompleted && customer.last_job_duration_minutes && (
+                <span className="text-[10px] text-gray-400 font-bold bg-white/5 px-1.5 py-0.5 rounded border border-white/10 flex items-center gap-1">
+                  ⏳ {customer.last_job_duration_minutes} mins on-site
+                </span>
               )}
             </div>
           </div>
@@ -4259,6 +5245,9 @@ function CustomerCard({
 
           {/* Action buttons */}
           <div className="flex flex-wrap gap-2 pt-1">
+            <button onClick={(e) => { e.stopPropagation(); openEditCustomerModal(customer); }} className="px-3 py-1.5 text-[11px] font-medium text-gray-300 bg-white/5 rounded-lg border border-white/10 hover:bg-white/10 transition-all">
+              ✏️ Edit Customer
+            </button>
             {day && isCompleted && (
               <button onClick={(e) => { e.stopPropagation(); toggleCustomerCompletion(day, customer.id); }} className="px-3 py-1.5 text-[11px] font-medium text-green-400 bg-green-500/10 rounded-lg border border-green-500/20 hover:bg-green-500/20 transition-all">
                 ↩ Undo Complete

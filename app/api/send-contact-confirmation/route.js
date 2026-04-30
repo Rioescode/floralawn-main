@@ -230,7 +230,35 @@ export async function POST(request) {
       console.error('❌ Database save exception (leads):', dbErr);
     }
 
-    // --- SAVE TO EMAIL SUBSCRIBERS ---
+    // --- SAVE TO COMMUNICATION PREFERENCES (10DLC AUDIT TRAIL) ---
+    try {
+      console.log('📝 Upserting into communication_preferences for audit trail...');
+      // Extract boolean values directly since the frontend passes them in a nested object sometimes
+      const emailConsent = body.emailPreferences?.subscribe === true || body.emailPreferences === true;
+      const smsConsent = body.smsPreferences?.subscribe === true || body.sendSMS === true;
+
+      const { error: commError } = await supabaseAdmin.from('communication_preferences').upsert({
+        email: sanitizedEmail,
+        phone: phone || null,
+        first_name: sanitizedName.split(' ')[0] || null,
+        last_name: sanitizedName.split(' ').slice(1).join(' ') || null,
+        email_consent: emailConsent,
+        sms_consent: smsConsent,
+        opt_in_source: 'contact_form',
+        ip_address: clientIP,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'email' });
+      
+      if (commError) {
+        console.warn('⚠️ communication_preferences upsert failed (Did you run the SQL?):', commError.message);
+      } else {
+        console.log('✅ Communication preferences audit trail saved');
+      }
+    } catch (commErr) {
+      console.warn('⚠️ communication_preferences save exception:', commErr);
+    }
+
+    // --- SAVE TO EMAIL SUBSCRIBERS (LEGACY SUPPORT) ---
     try {
       console.log('📝 Upserting email subscriber...');
       const { error: subError } = await supabaseAdmin.from('email_subscribers').upsert({
@@ -240,8 +268,8 @@ export async function POST(request) {
         city: sanitizedCity,
         source: 'contact_form',
         preferences: { 
-          email: body.emailPreferences || true, 
-          sms: body.smsPreferences || { subscribe: true, notifications: true } 
+          email: body.emailPreferences?.subscribe ?? true, 
+          sms: body.smsPreferences?.subscribe ?? true 
         },
         subscribed_at: new Date().toISOString()
       }, { onConflict: 'email' });
@@ -418,7 +446,7 @@ export async function POST(request) {
         if (validatePhone(phone)) {
           try {
             const { sendSMS: sendSMSFunction } = await import('@/libs/twilio');
-            const smsMessage = `Hi ${sanitizedName}! Thank you for contacting Flora Lawn & Landscaping. We've received your inquiry about ${sanitizedService || 'your service'} and will get back to you within 1-6 hours. Reply STOP to opt-out.`;
+            const smsMessage = `Flora Lawn: We received your quote request for ${sanitizedService || 'service'}. Our team is reviewing it now. Reply STOP to opt-out. Msg&Data rates apply.`;
             
             const smsResult = await sendSMSFunction(phone, smsMessage);
             console.log('✅ SMS sent successfully:', smsResult);

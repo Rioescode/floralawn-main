@@ -998,7 +998,9 @@ function ContactForm() {
                                  <input type="checkbox" className="hidden" checked={smsPreferences.subscribe} onChange={(e) => setSmsPreferences({...smsPreferences, subscribe: e.target.checked})} />
                                  <div>
                                     <p className="font-black text-xs uppercase tracking-tight italic text-slate-900">SMS Notifications</p>
-                                    <p className="text-[10px] text-slate-400 font-bold italic">Receive reminders and status updates regarding your property.</p>
+                                    <p className="text-[9px] text-slate-500 font-medium leading-relaxed mt-1">
+                                       By checking this box, you agree to receive automated SMS notifications and job status updates from Flora Lawn & Landscaping. Message frequency varies. Message and data rates may apply. Reply STOP to opt out. See our <Link href="/privacy-policy" className="underline hover:text-green-600">Privacy Policy</Link> and <Link href="/terms-of-service" className="underline hover:text-green-600">Terms of Service</Link>.
+                                    </p>
                                  </div>
                               </label>
                            </div>

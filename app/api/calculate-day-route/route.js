@@ -13,19 +13,46 @@ export async function POST(request) {
       return NextResponse.json({ success: false, error: 'Google Maps API key not configured' });
     }
 
-    console.log(`Calculating route for ${day} with ${customers.length} customers`);
+    console.log(`Calculating ZERO-COST route for ${day} with ${customers.length} customers`);
 
-    // First, geocode the home base address
-    const homeBaseCoords = await geocodeAddress(homeBase, API_KEY);
-    if (!homeBaseCoords) {
-      return NextResponse.json({ 
-        success: false, 
-        error: `Could not geocode home base address: "${homeBase}"` 
-      });
+    // 1. Get Home Base Coordinates (Geocode only if not a lat/lng string)
+    let homeCoords = null;
+    if (typeof homeBase === 'string' && homeBase.includes(',')) {
+      const [lat, lng] = homeBase.split(',').map(s => parseFloat(s.trim()));
+      if (!isNaN(lat) && !isNaN(lng)) homeCoords = { lat, lng };
+    }
+    
+    if (!homeCoords) {
+      homeCoords = await geocodeAddress(homeBase, API_KEY);
     }
 
-    // Calculate optimized route
-    const routeData = await calculateOptimizedRoute(homeBaseCoords, customers, API_KEY);
+    if (!homeCoords) {
+      return NextResponse.json({ success: false, error: `Could not geocode home base address` });
+    }
+
+    // 2. Ensure all customers have coordinates (Prioritize DB coords)
+    const processedCustomers = [];
+    for (const customer of customers) {
+      let lat = parseFloat(customer.latitude);
+      let lng = parseFloat(customer.longitude);
+
+      if (isNaN(lat) || isNaN(lng)) {
+        // Only geocode if missing (this is the only cost-path, and it's one-time)
+        const coords = await geocodeAddress(customer.address, API_KEY);
+        if (coords) {
+          lat = coords.lat;
+          lng = coords.lng;
+        }
+      }
+
+      processedCustomers.push({ ...customer, lat, lng });
+    }
+
+    // 3. Optimize Route using Haversine (Crow-fly) - COMPLETELY FREE
+    const optimizedList = optimizeRouteFree(homeCoords, processedCustomers);
+    
+    // 4. Calculate estimated travel times/distances (Free Math)
+    const routeData = calculateRouteMetricsFree(homeCoords, optimizedList);
     
     return NextResponse.json({
       success: true,
@@ -45,191 +72,96 @@ export async function POST(request) {
 }
 
 async function geocodeAddress(address, apiKey) {
-  const tryGeocode = async (addr) => {
-    try {
-      const response = await fetch(
-        `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(addr)}&key=${apiKey}`
-      );
-      const data = await response.json();
-      
-      if (data.status === 'OK' && data.results.length > 0) {
-        const location = data.results[0].geometry.location;
-        return {
-          lat: location.lat,
-          lng: location.lng,
-          formatted_address: data.results[0].formatted_address
-        };
-      }
-      console.log(`Geocoding status for "${addr}":`, data.status, data.error_message || '');
-      return null;
-    } catch (error) {
-      console.error('Geocoding fetch error:', error);
-      return null;
+  try {
+    const response = await fetch(
+      `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${apiKey}`
+    );
+    const data = await response.json();
+    if (data.status === 'OK' && data.results.length > 0) {
+      return data.results[0].geometry.location;
     }
-  };
-
-  // First try: exact address
-  let result = await tryGeocode(address);
-  
-  // Second try: append RI if it seems to be a local address
-  if (!result && !address.toLowerCase().includes(', ri') && !address.toLowerCase().includes(' rhode island')) {
-    console.log('Retrying geocoding with RI appended...');
-    result = await tryGeocode(`${address}, RI`);
+    return null;
+  } catch (err) {
+    return null;
   }
-
-  return result;
 }
 
-async function calculateOptimizedRoute(homeBase, customers, apiKey) {
-  // First, reorder customers by proximity for optimal routing
-  const optimizedCustomers = await reorderCustomersByProximity(homeBase, customers, apiKey);
-  
-  // Then calculate the route with the optimized order
-  return await calculateFallbackRoute(homeBase, optimizedCustomers, apiKey);
-}
-
-async function reorderCustomersByProximity(homeBase, customers, apiKey) {
+// Optimization Logic: Uses Haversine distance (FREE)
+function optimizeRouteFree(homeBase, customers) {
   if (customers.length <= 1) return customers;
   
-  const orderedCustomers = [];
-  const remainingCustomers = [...customers];
-  let currentLocation = homeBase;
+  const ordered = [];
+  const remaining = [...customers];
+  let current = homeBase;
   
-  // Start from home base and find closest customer each time
-  while (remainingCustomers.length > 0) {
-    let closestCustomer = null;
-    let shortestDistance = Infinity;
-    let closestIndex = -1;
+  while (remaining.length > 0) {
+    let closestIdx = -1;
+    let minGroupDist = Infinity;
     
-    // Find the closest remaining customer to current location
-    for (let i = 0; i < remainingCustomers.length; i++) {
-      const customer = remainingCustomers[i];
-      
-      try {
-        const origin = typeof currentLocation === 'object' 
-          ? `${currentLocation.lat},${currentLocation.lng}`
-          : encodeURIComponent(currentLocation);
-        const destination = encodeURIComponent(customer.address);
-        
-        const response = await fetch(
-          `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${origin}&destinations=${destination}&units=imperial&departure_time=now&traffic_model=best_guess&key=${apiKey}`
-        );
-        
-        const data = await response.json();
-        
-        if (data.status === 'OK' && data.rows[0].elements[0].status === 'OK') {
-          const distance = data.rows[0].elements[0].distance.value; // in meters
-          
-          if (distance < shortestDistance) {
-            shortestDistance = distance;
-            closestCustomer = customer;
-            closestIndex = i;
-          }
-        }
-      } catch (error) {
-        console.error('Error calculating distance to customer:', error);
+    for (let i = 0; i < remaining.length; i++) {
+      const dist = haversineDistance(
+        current.lat, current.lng,
+        remaining[i].lat || 0, remaining[i].lng || 0
+      );
+      if (dist < minGroupDist) {
+        minGroupDist = dist;
+        closestIdx = i;
       }
     }
     
-    // Add the closest customer to ordered list
-    if (closestCustomer) {
-      orderedCustomers.push(closestCustomer);
-      remainingCustomers.splice(closestIndex, 1);
-      currentLocation = closestCustomer.address; // Update current location
+    if (closestIdx !== -1) {
+      const found = remaining.splice(closestIdx, 1)[0];
+      ordered.push(found);
+      current = { lat: found.lat, lng: found.lng };
     } else {
-      // If we can't find distances, just add remaining customers in original order
-      orderedCustomers.push(...remainingCustomers);
+      ordered.push(...remaining);
       break;
     }
   }
-  
-  console.log('Optimized customer order:', orderedCustomers.map(c => c.name));
-  return orderedCustomers;
+  return ordered;
 }
 
-async function calculateFallbackRoute(homeBase, customers, apiKey) {
-  // Calculate distance between consecutive customers in the route
-  const routeData = [];
-  let totalDistance = 0;
-  let totalTime = 0;
-  
-  for (let i = 0; i < customers.length; i++) {
-    const customer = customers[i];
+// Metrics Logic: Uses estimated speed and haversine (FREE)
+function calculateRouteMetricsFree(homeBase, customers) {
+  const route = [];
+  let totalMeters = 0;
+  let totalSeconds = 0;
+  let current = homeBase;
+
+  customers.forEach((customer, i) => {
+    const distToNext = i < customers.length - 1 
+      ? haversineDistance(customer.lat, customer.lng, customers[i+1].lat, customers[i+1].lng)
+      : 0;
     
-    // Calculate distance TO the next customer (not from home base)
-    let travelTimeToNext = 'End of route';
-    let distanceToNext = 'Return to base';
-    let distanceToNextMeters = 0;
-    let timeToNextSeconds = 0;
-    
-    if (i < customers.length - 1) {
-      // There is a next customer
-      const nextCustomer = customers[i + 1];
-      const origin = encodeURIComponent(customer.address);
-      const destination = encodeURIComponent(nextCustomer.address);
-      
-      try {
-        const response = await fetch(
-          `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${origin}&destinations=${destination}&units=imperial&departure_time=now&traffic_model=best_guess&key=${apiKey}`
-        );
-        
-        const data = await response.json();
-        
-        if (data.status === 'OK' && data.rows[0].elements[0].status === 'OK') {
-          const element = data.rows[0].elements[0];
-          travelTimeToNext = element.duration.text;
-          distanceToNext = element.distance.text;
-          distanceToNextMeters = element.distance.value;
-          timeToNextSeconds = element.duration.value;
-        } else {
-          travelTimeToNext = 'Unknown';
-          distanceToNext = 'Unknown';
-        }
-      } catch (error) {
-        console.error('Fallback route calculation error:', error);
-        travelTimeToNext = 'Error';
-        distanceToNext = 'Error';
-      }
-    }
-    
-    // Also calculate distance from previous location for total calculation
-    if (i === 0) {
-      // First customer - calculate from home base
-      const origin = `${homeBase.lat},${homeBase.lng}`;
-      const destination = encodeURIComponent(customer.address);
-      
-      try {
-        const response = await fetch(
-          `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${origin}&destinations=${destination}&units=imperial&departure_time=now&traffic_model=best_guess&key=${apiKey}`
-        );
-        
-        const data = await response.json();
-        
-        if (data.status === 'OK' && data.rows[0].elements[0].status === 'OK') {
-          const element = data.rows[0].elements[0];
-          totalDistance += element.distance.value;
-          totalTime += element.duration.value;
-        }
-      } catch (error) {
-        console.error('Error calculating distance from home base:', error);
-      }
-    }
-    
-    routeData.push({
+    const distFromPrev = haversineDistance(current.lat, current.lng, customer.lat, customer.lng);
+    totalMeters += distFromPrev * 1609.34;
+    // Estimate: 20mph average in residential neighborhoods
+    totalSeconds += (distFromPrev / 20) * 3600;
+
+    route.push({
       ...customer,
       order: i + 1,
-      travelTimeToNext: travelTimeToNext,
-      distanceToNext: distanceToNext,
-      distanceToNextMeters: distanceToNextMeters,
-      timeToNextSeconds: timeToNextSeconds
+      distanceToNext: i < customers.length - 1 ? `${distToNext.toFixed(1)} mi` : 'End of route',
+      travelTimeToNext: i < customers.length - 1 ? `${Math.round(distToNext / 20 * 60)} mins` : 'Return to base'
     });
-  }
-  
+    
+    current = { lat: customer.lat, lng: customer.lng };
+  });
+
   return {
-    customers: routeData,
-    totalDistance: `${(totalDistance / 1609.34).toFixed(1)} miles`,
-    totalTime: `${Math.round(totalTime / 60)} minutes`,
-    totalDistanceMeters: totalDistance,
-    totalTimeSeconds: totalTime
+    customers: route,
+    totalDistance: `${(totalMeters / 1609.34).toFixed(1)} miles`,
+    totalTime: `${Math.round(totalSeconds / 60)} minutes`
   };
-} 
+}
+
+function haversineDistance(lat1, lon1, lat2, lon2) {
+  const R = 3959; // Earth's radius in miles
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon/2) * Math.sin(dLon/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return R * c;
+}

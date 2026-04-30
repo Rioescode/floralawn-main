@@ -20,6 +20,14 @@ export default function EmailMarketingPage() {
   const [sending, setSending] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterActive, setFilterActive] = useState(true);
+  const [showTestModal, setShowTestModal] = useState(false);
+  const [testEmailAddress, setTestEmailAddress] = useState('floralawncareri@gmail.com');
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+
+  const showToast = (message, type = 'success') => {
+    setToast({ show: true, message, type });
+    setTimeout(() => setToast({ show: false, message: '', type: 'success' }), 4000);
+  };
 
   useEffect(() => {
     fetchSubscribers();
@@ -29,18 +37,15 @@ export default function EmailMarketingPage() {
     try {
       setLoading(true);
       const { data, error } = await supabase
-        .from('email_subscribers')
+        .from('communication_preferences')
         .select('*')
-        .order('subscribed_at', { ascending: false });
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
 
       // Filter active subscribers who opted in for email marketing
-      // Check preferences.email.subscribe === true (the checkbox they checked)
       const activeSubscribers = data.filter(sub => 
-        sub.is_active !== false && // Active or null/undefined (defaults to active)
-        sub.preferences?.email?.subscribe === true && // Explicit email marketing consent
-        !sub.unsubscribed_at
+        sub.email_consent === true
       );
 
       setSubscribers(activeSubscribers);
@@ -52,10 +57,10 @@ export default function EmailMarketingPage() {
   };
 
   const filteredSubscribers = subscribers.filter(sub => {
+    const fullName = `${sub.first_name || ''} ${sub.last_name || ''}`.trim();
     const matchesSearch = 
-      sub.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      sub.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      sub.city?.toLowerCase().includes(searchTerm.toLowerCase());
+      fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      sub.email?.toLowerCase().includes(searchTerm.toLowerCase());
     
     return matchesSearch;
   });
@@ -252,7 +257,7 @@ Flora Lawn & Landscaping Team`
     setSending(true);
     try {
       const template = emailTemplates[selectedTemplate];
-      const activeSubscribers = filteredSubscribers.filter(sub => sub.is_active);
+      const activeSubscribers = filteredSubscribers;
 
       // Send emails via API
       const response = await fetch('/api/send-marketing-email', {
@@ -262,7 +267,7 @@ Flora Lawn & Landscaping Team`
           template: selectedTemplate,
           subscribers: activeSubscribers.map(sub => ({
             email: sub.email,
-            name: sub.name
+            name: `${sub.first_name || ''} ${sub.last_name || ''}`.trim() || 'Valued Customer'
           }))
         })
       });
@@ -270,15 +275,49 @@ Flora Lawn & Landscaping Team`
       const result = await response.json();
       
       if (response.ok) {
-        alert(`✅ Successfully sent ${result.sent} emails!`);
+        showToast(`Campaign successfully deployed to ${result.sent} subscribers!`, 'success');
         setShowSendModal(false);
         setSelectedTemplate(null);
       } else {
-        alert(`❌ Error: ${result.error}`);
+        showToast(result.error || 'Failed to deploy campaign', 'error');
       }
     } catch (error) {
       console.error('Error sending emails:', error);
-      alert('❌ Failed to send emails. Please try again.');
+      showToast('System error. Failed to send emails.', 'error');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleSendTestEmail = async () => {
+    if (!selectedTemplate || !testEmailAddress) return;
+
+    setSending(true);
+    try {
+      // Send single email via API
+      const response = await fetch('/api/send-marketing-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          template: selectedTemplate,
+          subscribers: [{
+            email: testEmailAddress,
+            name: 'Test Customer'
+          }]
+        })
+      });
+
+      const result = await response.json();
+      
+      if (response.ok) {
+        showToast(`Test preview successfully delivered to ${testEmailAddress}`, 'success');
+        setShowTestModal(false);
+      } else {
+        showToast(result.error || 'Failed to send test preview', 'error');
+      }
+    } catch (error) {
+      console.error('Error sending test email:', error);
+      showToast('System error. Failed to send test preview.', 'error');
     } finally {
       setSending(false);
     }
@@ -302,7 +341,7 @@ Flora Lawn & Landscaping Team`
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
           {[
             { label: 'Total Subscribers', value: subscribers.length, icon: UserGroupIcon, color: 'text-green-400', bg: 'bg-green-500/10' },
-            { label: 'Active Subscribers', value: subscribers.filter(s => s.is_active).length, icon: EnvelopeIcon, color: 'text-blue-400', bg: 'bg-blue-500/10' },
+            { label: 'Active Subscribers', value: subscribers.filter(s => s.email_consent).length, icon: EnvelopeIcon, color: 'text-blue-400', bg: 'bg-blue-500/10' },
             { label: 'Current Season', value: getCurrentSeason(), icon: CalendarIcon, color: 'text-purple-400', bg: 'bg-purple-500/10' }
           ].map((stat, i) => (
             <div key={i} className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[2.5rem] p-8 hover:bg-white/10 transition-all group overflow-hidden relative">
@@ -392,22 +431,21 @@ Flora Lawn & Landscaping Team`
                       {filteredSubscribers.map((subscriber) => (
                         <tr key={subscriber.id} className="hover:bg-white/[0.02] transition-colors group">
                           <td className="px-8 py-6">
-                            <div className="font-black text-white italic group-hover:text-green-500 transition-colors uppercase tracking-tight">{subscriber.name}</div>
-                            <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">{subscriber.city || 'Rhode Island'}</div>
+                            <div className="font-black text-white italic group-hover:text-green-500 transition-colors uppercase tracking-tight">
+                              {`${subscriber.first_name || ''} ${subscriber.last_name || ''}`.trim() || 'Unknown'}
+                            </div>
+                            <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">Rhode Island</div>
                           </td>
                           <td className="px-8 py-6">
                             <div className="font-bold text-slate-300 text-sm mb-1">{subscriber.email}</div>
                             <div className="text-[10px] font-black text-slate-600 uppercase tracking-widest">
-                               Joined {new Date(subscriber.subscribed_at).toLocaleDateString()}
+                               Joined {new Date(subscriber.created_at).toLocaleDateString()}
                             </div>
                           </td>
                           <td className="px-8 py-6">
                             <div className="flex flex-wrap gap-2">
-                              {subscriber.preferences?.email?.subscribe && (
+                              {subscriber.email_consent && (
                                 <span className="px-3 py-1 text-[8px] font-black bg-green-500/10 text-green-400 rounded-full border border-green-500/20 uppercase tracking-widest">Marketing</span>
-                              )}
-                              {subscriber.preferences?.email?.coupons && (
-                                <span className="px-3 py-1 text-[8px] font-black bg-yellow-500/10 text-yellow-500 rounded-full border border-yellow-500/20 uppercase tracking-widest">VIP</span>
                               )}
                               {subscriber.sms_consent && (
                                 <span className="px-3 py-1 text-[8px] font-black bg-blue-500/10 text-blue-400 rounded-full border border-blue-500/20 uppercase tracking-widest">SMS</span>
@@ -497,7 +535,14 @@ Flora Lawn & Landscaping Team`
                   }}
                   className="flex-1 px-8 py-5 border border-white/10 rounded-2xl text-white font-black uppercase text-xs tracking-widest hover:bg-white/5 transition-all"
                 >
-                  Abandone Campaign
+                  Abandon
+                </button>
+                <button
+                  onClick={() => setShowTestModal(true)}
+                  disabled={sending}
+                  className="flex-1 px-8 py-5 bg-blue-600/20 text-blue-400 border border-blue-500/30 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-blue-600/40 hover:text-white disabled:opacity-30 transition-all shadow-lg"
+                >
+                  {sending ? 'Sending Test...' : 'Send Test'}
                 </button>
                 <button
                   onClick={handleSendEmail}
@@ -517,6 +562,74 @@ Flora Lawn & Landscaping Team`
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Test Email Modal */}
+      {showTestModal && (
+        <div className="fixed inset-0 bg-slate-950/90 backdrop-blur-md flex items-center justify-center z-[60] p-4 animate-in fade-in duration-300">
+          <div className="bg-[#1e293b] rounded-[2.5rem] max-w-md w-full border border-white/10 shadow-4xl relative overflow-hidden">
+            <div className="p-8">
+              <h3 className="text-2xl font-black italic text-white uppercase tracking-tight mb-2 text-center">
+                Send Test Campaign
+              </h3>
+              <p className="text-sm font-semibold text-slate-400 text-center mb-8">
+                Enter an email address to preview this exact campaign.
+              </p>
+              
+              <div className="mb-8">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 block">Test Email Address:</label>
+                <input
+                  type="email"
+                  value={testEmailAddress}
+                  onChange={(e) => setTestEmailAddress(e.target.value)}
+                  placeholder="Enter email..."
+                  className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 font-bold text-white focus:border-blue-500 focus:bg-blue-500/5 outline-none transition-all"
+                  autoFocus
+                />
+              </div>
+
+              <div className="flex flex-col gap-3">
+                <button
+                  onClick={handleSendTestEmail}
+                  disabled={sending || !testEmailAddress}
+                  className="w-full px-8 py-4 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-blue-500 disabled:opacity-30 transition-all shadow-xl shadow-blue-900/40 flex items-center justify-center gap-3"
+                >
+                  {sending ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      SENDING...
+                    </>
+                  ) : (
+                    <>
+                      SEND TEST PREVIEW <PaperAirplaneIcon className="w-5 h-5" />
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={() => setShowTestModal(false)}
+                  disabled={sending}
+                  className="w-full px-8 py-4 border border-white/10 rounded-2xl text-slate-400 font-black uppercase text-xs tracking-widest hover:bg-white/5 hover:text-white transition-all"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toast Notification */}
+      {toast.show && (
+        <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[100] animate-in slide-in-from-bottom-10 fade-in duration-300">
+          <div className={`flex items-center gap-3 px-6 py-4 rounded-full shadow-2xl border ${toast.type === 'success' ? 'bg-green-500/10 border-green-500/30 text-green-400' : 'bg-red-500/10 border-red-500/30 text-red-400'} backdrop-blur-xl`}>
+            {toast.type === 'success' ? (
+              <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+            ) : (
+              <div className="w-2 h-2 rounded-full bg-red-500" />
+            )}
+            <p className="font-black uppercase text-xs tracking-widest">{toast.message}</p>
           </div>
         </div>
       )}
