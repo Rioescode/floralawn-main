@@ -36,16 +36,7 @@ export default function AutoLawnPage() {
         addressRef.current.value = preAddress;
         // Small delay to let maps load then trigger
         setTimeout(() => {
-            const geocoder = new window.google.maps.Geocoder();
-            geocoder.geocode({ address: preAddress }, (results, status) => {
-                if (status === 'OK' && results[0]) {
-                    handlePlaceSelect({
-                        name: preAddress,
-                        formatted_address: results[0].formatted_address,
-                        geometry: results[0].geometry
-                    });
-                }
-            });
+          alert("Property lookup is currently in 'Safe Mode'. Please move the map manually to the property.");
         }, 1500);
     }
 

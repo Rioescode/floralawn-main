@@ -78,29 +78,13 @@ async function calculateDistanceMatrixEfficiently(customers) {
         lng: parseFloat(c.longitude)
       });
     } else {
-      needGeocoding.push(c);
-    }
-  });
-
-  // 2. Geocode only those missing coordinates (One-time cost)
-  if (needGeocoding.length > 0) {
-    console.log(`Geocoding ${needGeocoding.length} missing addresses for smart assign`);
-    for (const customer of needGeocoding) {
-      try {
-        const response = await fetch(
-          `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(customer.address)}&key=${apiKey}`
-        );
-        const data = await response.json();
-        if (data.status === 'OK' && data.results.length > 0) {
-          const loc = data.results[0].geometry.location;
-          geocodedCustomers.push({ ...customer, lat: loc.lat, lng: loc.lng });
-          // Note: Ideally we'd save these back to DB here, but we'll do it via the UI logic later
-        }
-      } catch (err) {
-        console.error(`Error geocoding ${customer.name}:`, err);
-      }
-    }
-  }
+  
+  // Geocoding removed to eliminate costs. Smart-assign now only works with customers already having GPS data.
+  const geocodedCustomers = customers.filter(c => !isNaN(parseFloat(c.latitude)) && !isNaN(parseFloat(c.longitude))).map(c => ({
+    ...c,
+    lat: parseFloat(c.latitude),
+    lng: parseFloat(c.longitude)
+  }));
 
   // 3. Generate Matrix using Haversine (Zero Cost Math)
   // We use Haversine (crow-fly distance) because it's FREE and extremely fast.

@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import { supabase } from '@/lib/supabase';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
 import {
@@ -22,7 +22,7 @@ import {
   IdentificationIcon
 } from '@heroicons/react/24/outline';
 
-export default function InvoiceMakerPage() {
+function InvoiceMakerContent() {
   const [user, setUser] = useState(null);
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -30,7 +30,6 @@ export default function InvoiceMakerPage() {
   
   const [docType, setDocType] = useState('Invoice'); // 'Invoice' | 'Quote'
   const [isManual, setIsManual] = useState(false);
-
   const [isManualBalance, setIsManualBalance] = useState(false);
 
   const [invoiceData, setInvoiceData] = useState({
@@ -50,7 +49,10 @@ export default function InvoiceMakerPage() {
     deposit_amount: '0',
     manual_balance: '0'
   });
+
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const leadId = searchParams.get('leadId');
   const addressRef = useRef(null);
 
   useEffect(() => {
@@ -63,6 +65,17 @@ export default function InvoiceMakerPage() {
       generateInvoiceNumber();
     }
   }, [user]);
+
+  // Handle leadId from query param
+  useEffect(() => {
+    if (leadId && customers.length > 0) {
+      setInvoiceData(prev => ({
+        ...prev,
+        customer_id: leadId
+      }));
+      setDocType('Quote'); // Default to Quote for leads
+    }
+  }, [leadId, customers]);
 
   // --- GOOGLE PLACES AUTOCOMPLETE ---
   useEffect(() => {
@@ -108,9 +121,6 @@ export default function InvoiceMakerPage() {
   const checkAuth = async () => {
     try {
       const { data: { user: authUser }, error } = await supabase.auth.getUser();
-      
-      // If no valid auth user, we still allow them to use the page as a guest admin
-      // This fulfills your request to remove authentication barriers.
       if (!authUser) {
         setUser({ email: 'guest@floralawn.com', id: 'guest' });
       } else {
@@ -126,15 +136,40 @@ export default function InvoiceMakerPage() {
 
   const fetchCustomers = async () => {
     try {
-      const { data, error } = await supabase
+      // Fetch Active Customers
+      const { data: activeData, error: activeError } = await supabase
         .from('customers')
         .select('*')
         .eq('status', 'active')
         .order('name');
-      if (error) throw error;
-      setCustomers(data || []);
+      
+      if (activeError) throw activeError;
+
+      // Fetch Pending Leads
+      const { data: leadData, error: leadError } = await supabase
+        .from('contact_leads')
+        .select('*')
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false });
+
+      if (leadError) throw leadError;
+
+      // Combine them
+      const combined = [
+        ...(activeData || []).map(c => ({ ...c, type: 'customer' })),
+        ...(leadData || []).map(l => ({ 
+          id: l.id, 
+          name: l.customer_name, 
+          email: l.customer_email, 
+          address: l.address,
+          phone: l.customer_phone,
+          type: 'lead' 
+        }))
+      ];
+
+      setCustomers(combined);
     } catch (error) {
-      console.error('Error fetching customers:', error);
+      console.error('Error fetching customers/leads:', error);
     }
   };
 
@@ -171,11 +206,9 @@ export default function InvoiceMakerPage() {
   ];
 
   const addQuickService = (serviceName) => {
-    // If the first service is empty, replace it. Otherwise append.
     setInvoiceData(prev => {
       const isFirstEmpty = prev.services.length === 1 && !prev.services[0].description;
       const newService = { description: serviceName, quantity: 1, rate: '', amount: '' };
-      
       return {
         ...prev,
         services: isFirstEmpty ? [newService] : [...prev.services, newService]
@@ -321,7 +354,6 @@ export default function InvoiceMakerPage() {
     `;
     
     setGeneratedInvoice(invoiceHTML);
-    
     setTimeout(() => {
       document.getElementById('invoice-preview-container')?.scrollIntoView({ behavior: 'smooth' });
     }, 500);
@@ -358,10 +390,8 @@ export default function InvoiceMakerPage() {
       <section className="pb-32">
          <div className="max-w-7xl mx-auto px-4">
             <div className="grid lg:grid-cols-12 gap-12 items-start">
-               
                <div className="lg:col-span-12 space-y-8">
                   <div className="bg-white/5 backdrop-blur-3xl border border-white/10 rounded-[4rem] p-10 md:p-20 relative overflow-hidden">
-                      
                       <div className="flex flex-col xl:flex-row items-start xl:items-center justify-between gap-12 mb-16 border-b border-white/10 pb-16">
                          <div className="flex flex-col sm:flex-row items-center gap-4 bg-white/5 p-2 rounded-[2.5rem] border border-white/10">
                             <button 
@@ -425,9 +455,11 @@ export default function InvoiceMakerPage() {
                                 onChange={(e) => setInvoiceData({...invoiceData, customer_id: e.target.value})}
                                 className="w-full bg-white/5 border-2 border-white/10 rounded-2xl pl-16 pr-8 py-5 text-lg font-bold text-white focus:outline-none focus:border-green-500 transition-all appearance-none"
                               >
-                                <option value="" className="bg-slate-900">Choose Registered Customer...</option>
+                                <option value="" className="bg-slate-900">Choose Customer or Lead...</option>
                                 {customers.map(c => (
-                                  <option key={c.id} value={c.id} className="bg-slate-900">{c.name} ({c.address})</option>
+                                  <option key={`${c.type}-${c.id}`} value={c.id} className="bg-slate-900">
+                                    {c.type === 'lead' ? '✦ LEAD: ' : ''}{c.name} ({c.address || 'No Address'})
+                                  </option>
                                 ))}
                               </select>
                            </div>
@@ -474,7 +506,6 @@ export default function InvoiceMakerPage() {
                          )}
                       </div>
 
-                      {/* QUICK SERVICE SELECTION */}
                       <div className="mb-16 animate-in fade-in slide-in-from-right-10 duration-1000">
                          <h3 className="text-xl font-black italic uppercase tracking-wider mb-6 flex items-center gap-2">
                            Quick Selection <SparklesIcon className="w-5 h-5 text-green-400" />
@@ -557,14 +588,52 @@ export default function InvoiceMakerPage() {
                   </div>
                </div>
 
-               {/* PREVIEW SECTION */}
                {generatedInvoice && (
                   <div id="invoice-preview-container" className="lg:col-span-12 mt-12 animate-in fade-in slide-in-from-bottom-10 duration-700">
                       <div className="flex flex-col sm:flex-row items-center justify-between mb-10 px-10 gap-6 text-center sm:text-left">
                          <h2 className="text-4xl font-black italic tracking-tight">{docType} <span className="text-green-500">Preview</span></h2>
-                         <button onClick={printInvoice} className="bg-white text-slate-900 font-black px-10 py-5 rounded-2xl flex items-center gap-4 hover:bg-green-400 hover:scale-105 transition-all shadow-xl">
-                            <PrinterIcon className="w-6 h-6" /> Print {docType}
-                         </button>
+                         <div className="flex flex-wrap items-center justify-center sm:justify-end gap-4">
+                            <button 
+                              onClick={async () => {
+                                const btn = document.getElementById('send-email-btn');
+                                const originalText = btn.innerHTML;
+                                btn.innerHTML = '<span class="animate-pulse">Sending...</span>';
+                                btn.disabled = true;
+                                try {
+                                  let selectedCustomer = isManual ? invoiceData.manual_customer : customers.find(c => c.id === invoiceData.customer_id);
+                                  const response = await fetch('/api/send-invoice-email', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                      email: selectedCustomer.email,
+                                      name: selectedCustomer.name,
+                                      subject: `Elite ${docType}: ${invoiceData.invoice_number} from Flora Lawn`,
+                                      html: generatedInvoice,
+                                      docType: docType
+                                    })
+                                  });
+                                  const res = await response.json();
+                                  if (res.success) {
+                                    btn.innerHTML = '✅ Sent Successfully';
+                                    btn.className = "bg-green-500 text-white font-black px-10 py-5 rounded-2xl flex items-center gap-4 transition-all shadow-xl";
+                                  } else {
+                                    throw new Error(res.error);
+                                  }
+                                } catch (err) {
+                                  alert("Failed to send: " + err.message);
+                                  btn.innerHTML = originalText;
+                                  btn.disabled = false;
+                                }
+                              }}
+                              id="send-email-btn"
+                              className="bg-green-600 text-white font-black px-10 py-5 rounded-2xl flex items-center gap-4 hover:bg-green-500 hover:scale-105 transition-all shadow-xl shadow-green-500/20"
+                            >
+                               <EnvelopeIcon className="w-6 h-6" /> Send via Email
+                            </button>
+                            <button onClick={printInvoice} className="bg-white text-slate-900 font-black px-10 py-5 rounded-2xl flex items-center gap-4 hover:bg-green-400 hover:scale-105 transition-all shadow-xl">
+                               <PrinterIcon className="w-6 h-6" /> Print {docType}
+                            </button>
+                         </div>
                       </div>
                       <div className="bg-white rounded-[3rem] p-12 md:p-24 shadow-2xl border border-white/10 min-h-[1000px] overflow-x-auto">
                           <div className="invoice-html-rendered text-slate-900" dangerouslySetInnerHTML={{ __html: generatedInvoice }} />
@@ -576,7 +645,6 @@ export default function InvoiceMakerPage() {
       </section>
 
       <Footer />
-
       <style jsx global>{`
         @media print {
           body > :not(#invoice-preview-container) { display: none !important; }
@@ -593,4 +661,10 @@ export default function InvoiceMakerPage() {
   );
 }
 
- 
+export default function InvoiceMakerPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-slate-950 flex items-center justify-center"><div className="w-16 h-16 border-4 border-green-500/30 border-t-green-500 rounded-full animate-spin"></div></div>}>
+      <InvoiceMakerContent />
+    </Suspense>
+  );
+}

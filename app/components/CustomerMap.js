@@ -82,7 +82,7 @@ const CustomerMap = ({
   useEffect(() => {
     if (!map || !google) return;
 
-    const geocoder = new google.maps.Geocoder();
+    // Geocoder removed to eliminate costs.
     const bounds = new google.maps.LatLngBounds();
     const today = new Date();
     const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -94,14 +94,7 @@ const CustomerMap = ({
         let position = homeBaseCoords;
 
         if (!position && homeBase) {
-          /* DISABLED FOR VERIFICATION
-          if (!coordsCacheRef.current[homeBase]) {
-            const results = await new Promise(resolve => geocoder.geocode({ address: homeBase }, resolve));
-            if (results && results[0]) coordsCacheRef.current[homeBase] = results[0].geometry.location;
-          }
-          position = coordsCacheRef.current[homeBase];
-          */
-          console.log("TEST: HQ Geocoding is DISABLED. If HQ is missing, it needs to be saved in Settings.");
+          console.log("HQ position missing in DB. Go to Settings to save HQ address.");
         }
 
         if (position) {
@@ -131,25 +124,10 @@ const CustomerMap = ({
     customers.filter(c => c.address).forEach(async (customer) => {
       let position = null;
 
-      // FIRST: Check if we already have coordinates in the database (Zero-Cost Path)
+      // ONLY use database coordinates. Never call API.
       if (customer.latitude && customer.longitude) {
         position = { lat: parseFloat(customer.latitude), lng: parseFloat(customer.longitude) };
-      } 
-      // SECOND: Check memory cache
-      else if (coordsCacheRef.current[customer.address]) {
-        position = coordsCacheRef.current[customer.address];
-      } 
-      // THIRD: Call API (Expensive Path - DISABLED FOR VERIFICATION)
-      /* 
-      else {
-        console.log("TEST: Geocoding is DISABLED. If you see this, this customer is missing DB coordinates:", customer.name);
-        const results = await new Promise(resolve => geocoder.geocode({ address: customer.address }, resolve));
-        if (results && results[0]) {
-          position = results[0].geometry.location;
-          coordsCacheRef.current[customer.address] = position;
-        }
       }
-      */
 
       if (!position) return;
 

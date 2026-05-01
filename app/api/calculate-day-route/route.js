@@ -23,11 +23,9 @@ export async function POST(request) {
     }
     
     if (!homeCoords) {
-      homeCoords = await geocodeAddress(homeBase, API_KEY);
-    }
-
-    if (!homeCoords) {
-      return NextResponse.json({ success: false, error: `Could not geocode home base address` });
+      console.error("Home Base is missing coordinates in DB. Optimization will be inaccurate.");
+      // Fallback to center of RI if absolutely nothing found, but no API call!
+      homeCoords = { lat: 41.7, lng: -71.5 }; 
     }
 
     // 2. Ensure all customers have coordinates (Prioritize DB coords)
@@ -37,12 +35,8 @@ export async function POST(request) {
       let lng = parseFloat(customer.longitude);
 
       if (isNaN(lat) || isNaN(lng)) {
-        // Only geocode if missing (this is the only cost-path, and it's one-time)
-        const coords = await geocodeAddress(customer.address, API_KEY);
-        if (coords) {
-          lat = coords.lat;
-          lng = coords.lng;
-        }
+        console.log(`Skipping zero-cost optimization for ${customer.name} - No coordinates in DB.`);
+        continue;
       }
 
       processedCustomers.push({ ...customer, lat, lng });
@@ -71,20 +65,7 @@ export async function POST(request) {
   }
 }
 
-async function geocodeAddress(address, apiKey) {
-  try {
-    const response = await fetch(
-      `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${apiKey}`
-    );
-    const data = await response.json();
-    if (data.status === 'OK' && data.results.length > 0) {
-      return data.results[0].geometry.location;
-    }
-    return null;
-  } catch (err) {
-    return null;
-  }
-}
+// geocodeAddress removed to eliminate costs.
 
 // Optimization Logic: Uses Haversine distance (FREE)
 function optimizeRouteFree(homeBase, customers) {

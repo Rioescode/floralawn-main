@@ -473,7 +473,7 @@ export default function SchedulePage() {
     }
   }, [user]);
 
-  // Background scanner removed as requested to prioritize safety and manual control.
+  // Background geocoding logic deleted to eliminate costs.
 
   useEffect(() => {
     if (customers.length > 0) {
@@ -1696,18 +1696,8 @@ export default function SchedulePage() {
   const handleSaveCustomerEdit = async () => {
     if (!editingCustomerData) return;
     try {
-      // Geocode the address before saving to reduce future API costs
-      let lat = editingCustomerData.latitude;
-      let lng = editingCustomerData.longitude;
-
-      if (typeof google !== 'undefined') {
-        const geocoder = new google.maps.Geocoder();
-        const results = await new Promise(resolve => geocoder.geocode({ address: editingCustomerData.address }, resolve));
-        if (results && results[0]) {
-          lat = results[0].geometry.location.lat();
-          lng = results[0].geometry.location.lng();
-        }
-      }
+      const lat = editingCustomerData.latitude;
+      const lng = editingCustomerData.longitude;
 
       const { error } = await supabase
         .from('customers')
@@ -1791,24 +1781,9 @@ export default function SchedulePage() {
     try {
       const addressVal = newCustomerAddressRef.current?.value || newCustomerForm.address;
       
-      // Surgical Geocoding: Get coords once now so we never pay again for this customer
-      let lat = null;
-      let lng = null;
-      if (typeof google !== 'undefined' && addressVal) {
-        try {
-          const geocoder = new google.maps.Geocoder();
-          const results = await new Promise((resolve, reject) => {
-            geocoder.geocode({ address: addressVal }, (res, status) => {
-              if (status === 'OK' && res && res[0]) resolve(res);
-              else reject(status);
-            });
-          });
-          lat = results[0].geometry.location.lat();
-          lng = results[0].geometry.location.lng();
-        } catch (err) {
-          console.error('Surgical geocoding failed for new customer:', err);
-        }
-      }
+      // Geocoding removed entirely to eliminate costs. New customers will only have coordinates if manually added to DB.
+      const lat = null;
+      const lng = null;
       
       const { data, error } = await supabase
         .from('customers')
@@ -2758,8 +2733,41 @@ export default function SchedulePage() {
             </p>
           </div>
           
-          {/* View Toggle */}
-          <div className="flex items-center bg-white/5 backdrop-blur-xl rounded-2xl p-1 border border-white/10">
+          {/* Mobile View Toggle - Fixed Bottom Bar */}
+          <div className="fixed bottom-0 left-0 right-0 bg-[#161922]/95 backdrop-blur-2xl border-t border-white/10 p-2.5 px-6 flex items-center justify-around z-[100] sm:hidden shadow-[0_-10px_40px_rgba(0,0,0,0.4)]">
+            <button
+              onClick={() => setViewMode('schedule')}
+              className={`flex flex-col items-center gap-1.5 p-1 transition-all ${viewMode === 'schedule' ? 'text-green-400 scale-110' : 'text-gray-500'}`}
+            >
+              <CalendarDaysIcon className="h-6 w-6" />
+              <span className="text-[9px] font-black uppercase tracking-widest">Jobs</span>
+            </button>
+            <button
+              onClick={() => setViewMode('map')}
+              className={`flex flex-col items-center gap-1.5 p-1 transition-all ${viewMode === 'map' ? 'text-blue-400 scale-110' : 'text-gray-500'}`}
+            >
+              <MapIcon className="h-6 w-6" />
+              <span className="text-[9px] font-black uppercase tracking-widest">Map</span>
+            </button>
+            <button
+              onClick={() => setViewMode('appointments')}
+              className={`flex flex-col items-center gap-1.5 p-1 transition-all ${viewMode === 'appointments' ? 'text-purple-400 scale-110' : 'text-gray-500'}`}
+            >
+              <EnvelopeIcon className="h-6 w-6" />
+              <span className="text-[9px] font-black uppercase tracking-widest">Leads</span>
+            </button>
+            <button
+              onClick={() => setViewMode('visits')}
+              className={`flex flex-col items-center gap-1.5 p-1 transition-all ${viewMode === 'visits' ? 'text-orange-400 scale-110' : 'text-gray-500'}`}
+            >
+              <ClockIcon className="h-6 w-6" />
+              <span className="text-[9px] font-black uppercase tracking-widest">Visits</span>
+            </button>
+          </div>
+
+          {/* Desktop View Toggle - Hidden on Mobile */}
+          <div className="hidden sm:flex items-center bg-white/5 backdrop-blur-xl rounded-2xl p-1 border border-white/10">
+            {/* ... (buttons remain as they were in the desktop view) ... */}
             <button
               onClick={() => setViewMode('schedule')}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 ${
@@ -2826,14 +2834,14 @@ export default function SchedulePage() {
             </button>
           </div>
 
-          {/* Add Customer Button */}
+          {/* Add Customer Button - Floats on Mobile */}
           <button
             onClick={openAddCustomerModal}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-bold bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-lg shadow-green-500/25 hover:shadow-green-500/40 hover:scale-105 transition-all duration-200 active:scale-95"
+            className="fixed bottom-24 right-6 sm:static flex items-center gap-2 px-6 py-5 sm:px-4 sm:py-2.5 rounded-full sm:rounded-2xl text-sm font-bold bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-2xl shadow-green-500/40 sm:shadow-green-500/25 hover:scale-105 transition-all duration-200 active:scale-95 z-[90]"
           >
-            <PlusIcon className="h-4 w-4" />
+            <PlusIcon className="h-6 w-6 sm:h-4 sm:w-4" />
             <span className="hidden sm:inline">Add Customer</span>
-            <span className="sm:hidden">+ Add</span>
+            <span className="sm:hidden">New Customer</span>
           </button>
         </div>
 
@@ -3275,13 +3283,20 @@ export default function SchedulePage() {
                                 <SparklesIcon className="h-4 w-4" />
                               </button>
                             )}
-                            <button 
-                              onClick={() => deleteAppointment(apt.id)}
-                              className="p-2 bg-red-500/10 text-red-400 rounded-xl hover:bg-red-500/20 transition-all border border-red-500/20"
-                              title="Delete Lead"
-                            >
-                              <TrashIcon className="h-4 w-4" />
-                            </button>
+                          <button 
+                            onClick={() => router.push(`/invoices?leadId=${apt.id}`)}
+                            className="p-2 bg-purple-500/10 text-purple-400 rounded-xl hover:bg-purple-500/20 transition-all border border-purple-500/20"
+                            title="Create Invoice/Quote"
+                          >
+                            <DocumentTextIcon className="h-4 w-4" />
+                          </button>
+                          <button 
+                            onClick={() => deleteAppointment(apt.id)}
+                            className="p-2 bg-red-500/10 text-red-400 rounded-xl hover:bg-red-500/20 transition-all border border-red-500/20"
+                            title="Delete Lead"
+                          >
+                            <TrashIcon className="h-4 w-4" />
+                          </button>
                         </div>
                       </div>
 
@@ -5087,27 +5102,27 @@ function CustomerCard({
           </div>
 
           {/* Quick actions + expand */}
-          <div className="flex items-center gap-1 shrink-0">
+          <div className="flex items-center gap-2 shrink-0">
             {day && !isCompleted && (
               <button
                 onClick={(e) => { e.stopPropagation(); toggleCustomerCompletion(day, customer.id); }}
-                className="p-1.5 rounded-lg bg-green-500/10 text-green-400 hover:bg-green-500/20 transition-all"
+                className="p-3 sm:p-1.5 rounded-xl bg-green-500/10 text-green-400 hover:bg-green-500/20 transition-all border border-green-500/20"
                 title="Mark complete"
               >
-                <CheckCircleIcon className="h-4 w-4" />
+                <CheckCircleIcon className="h-6 w-6 sm:h-4 sm:w-4" />
               </button>
             )}
             {day && (
               <button
                 onClick={(e) => { e.stopPropagation(); moveSingleCustomerToNextDay(day, customer.id); }}
-                className="p-1.5 rounded-lg bg-orange-500/10 text-orange-400 hover:bg-orange-500/20 transition-all"
+                className="p-3 sm:p-1.5 rounded-xl bg-orange-500/10 text-orange-400 hover:bg-orange-500/20 transition-all border border-orange-500/20"
                 title="Move to next day"
               >
-                <span className="text-xs">→</span>
+                <span className="text-base sm:text-xs">→</span>
               </button>
             )}
-            <div className={`ml-1 text-gray-600 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}>
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+            <div className={`ml-1 p-2 text-gray-600 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}>
+              <svg className="w-4 h-4 sm:w-3.5 sm:h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
             </div>
           </div>
         </div>

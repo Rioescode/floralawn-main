@@ -8,15 +8,11 @@ export async function POST(request) {
       return NextResponse.json({ success: false, error: 'Home base and customers are required' });
     }
 
-    const API_KEY = process.env.GOOGLE_MAPS_API_KEY;
-    if (!API_KEY) {
-      return NextResponse.json({ success: false, error: 'Google Maps API key not configured' });
-    }
-
     // 1. Geocode Home Base
-    const homeBaseCoords = await geocodeAddress(homeBase, API_KEY);
-    if (!homeBaseCoords) {
-      return NextResponse.json({ success: false, error: `Could not geocode home base` });
+    let homeCoords = homeBaseCoords;
+    if (!homeCoords) {
+      console.error("Home Base missing coordinates. Proximity will be inaccurate.");
+      homeCoords = { lat: 41.7, lng: -71.5 }; // Default fallback center of RI
     }
 
     // 2. Efficiently calculate proximity using math (FREE)
@@ -61,20 +57,7 @@ export async function POST(request) {
   }
 }
 
-async function geocodeAddress(address, apiKey) {
-  try {
-    const response = await fetch(
-      `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${apiKey}`
-    );
-    const data = await response.json();
-    if (data.status === 'OK' && data.results.length > 0) {
-      return data.results[0].geometry.location;
-    }
-    return null;
-  } catch (err) {
-    return null;
-  }
-}
+// geocodeAddress removed to eliminate costs.
 
 function haversineDistance(lat1, lon1, lat2, lon2) {
   const R = 3959; // Earth's radius in miles
