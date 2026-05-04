@@ -38,14 +38,6 @@ const nextConfig = {
       '@': require('path').resolve(__dirname, './')
     };
     
-    // Externalize server-only packages to prevent bundling
-    if (isServer) {
-      config.externals = config.externals || [];
-      config.externals.push({
-        'twilio': 'commonjs twilio'
-      });
-    }
-    
     // Production optimizations
     if (!dev && !isServer) {
       config.optimization.splitChunks.cacheGroups = {
