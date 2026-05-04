@@ -191,6 +191,8 @@ function InvoiceMakerContent() {
   }, [docType]);
 
   const quickServices = [
+    { name: "Weekly Maintenance 10% OFF", isDiscount: true, percent: 10 },
+    { name: "All Year Bundle (Spring, Fall, Mulch, Aerate, Dethatch) 20% OFF", isDiscount: true, percent: 20 },
     { name: "Lawn Mowing", rate: "" },
     { name: "Fertilization", rate: "" },
     { name: "Dethatching", rate: "" },
@@ -205,10 +207,25 @@ function InvoiceMakerContent() {
     { name: "Weed Control", rate: "" }
   ];
 
-  const addQuickService = (serviceName) => {
+  const addQuickService = (qs) => {
     setInvoiceData(prev => {
+      let newService;
+      if (qs.isDiscount) {
+        const currentSubtotal = prev.services.reduce((total, service) => {
+          return total + (parseFloat(service.amount) || 0);
+        }, 0);
+        const discountAmount = currentSubtotal * (qs.percent / 100);
+        newService = { 
+          description: qs.name, 
+          quantity: 1, 
+          rate: `-${discountAmount.toFixed(2)}`, 
+          amount: `-${discountAmount.toFixed(2)}` 
+        };
+      } else {
+        newService = { description: qs.name, quantity: 1, rate: '', amount: '' };
+      }
+
       const isFirstEmpty = prev.services.length === 1 && !prev.services[0].description;
-      const newService = { description: serviceName, quantity: 1, rate: '', amount: '' };
       return {
         ...prev,
         services: isFirstEmpty ? [newService] : [...prev.services, newService]
@@ -219,7 +236,7 @@ function InvoiceMakerContent() {
   const addService = () => {
     setInvoiceData(prev => ({
       ...prev,
-      services: [...prev.services, { description: '', quantity: 1, rate: '', amount: '' }]
+      services: [...prev.services, { description: '', quantity: 1, rate: '', amount: '', frequency: '', includedTasks: [] }]
     }));
   };
 
@@ -230,6 +247,19 @@ function InvoiceMakerContent() {
       const quantity = parseFloat(newServices[index].quantity) || 0;
       const rate = parseFloat(newServices[index].rate) || 0;
       newServices[index].amount = (quantity * rate).toFixed(2);
+    }
+    setInvoiceData(prev => ({ ...prev, services: newServices }));
+  };
+
+  const toggleIncludedTask = (index, task) => {
+    const newServices = [...invoiceData.services];
+    if (!newServices[index].includedTasks) {
+       newServices[index].includedTasks = [];
+    }
+    if (newServices[index].includedTasks.includes(task)) {
+       newServices[index].includedTasks = newServices[index].includedTasks.filter(t => t !== task);
+    } else {
+       newServices[index].includedTasks.push(task);
     }
     setInvoiceData(prev => ({ ...prev, services: newServices }));
   };
@@ -314,7 +344,13 @@ function InvoiceMakerContent() {
           <tbody>
             ${invoiceData.services.map(s => `
               <tr style="border-bottom: 1px solid #f1f5f9;">
-                <td style="padding: 20px 0; font-size: 15px; font-weight: 700; color: #0f172a;">${s.description}</td>
+                <td style="padding: 20px 0; font-size: 15px; font-weight: 700; color: #0f172a;">
+                  ${s.description}
+                  ${s.frequency ? `<br><span style="font-size: 12px; font-weight: 600; color: #64748b; font-style: italic;">• Frequency: ${s.frequency}</span>` : ''}
+                  ${s.mulchColor ? `<br><span style="font-size: 12px; font-weight: 600; color: #64748b; font-style: italic;">• Color: ${s.mulchColor} Mulch</span>` : ''}
+                  ${s.hedgeDetails ? `<br><span style="font-size: 12px; font-weight: 600; color: #64748b; font-style: italic;">• Covers: ${s.hedgeDetails}</span>` : ''}
+                  ${s.includedTasks && s.includedTasks.length > 0 ? `<br><span style="font-size: 12px; font-weight: 600; color: #64748b; font-style: italic;">• Includes: ${s.includedTasks.join(', ')}</span>` : ''}
+                </td>
                 <td style="padding: 20px 0; text-align: center; font-size: 15px; font-weight: 600; color: #475569;">${s.quantity}</td>
                 <td style="padding: 20px 0; text-align: right; font-size: 15px; font-weight: 600; color: #475569;">$${parseFloat(s.rate || 0).toLocaleString()}</td>
                 <td style="padding: 20px 0; text-align: right; font-size: 16px; font-weight: 900; color: #059669;">$${parseFloat(s.amount || 0).toLocaleString()}</td>
@@ -514,7 +550,7 @@ function InvoiceMakerContent() {
                            {quickServices.map((qs, i) => (
                              <button
                                key={i}
-                               onClick={() => addQuickService(qs.name)}
+                               onClick={() => addQuickService(qs)}
                                className="px-6 py-3 rounded-xl bg-white/5 border border-white/10 text-xs font-black uppercase tracking-widest hover:bg-green-600 hover:scale-105 transition-all outline-none"
                              >
                                {qs.name}
@@ -550,23 +586,93 @@ function InvoiceMakerContent() {
                             </button>
                          </div>
                          <div className="space-y-4">
-                            {invoiceData.services.map((service, index) => (
-                               <div key={index} className="grid grid-cols-12 gap-4 items-center group">
+                            {invoiceData.services.map((service, index) => {
+                               const descLower = service.description?.toLowerCase() || '';
+                               const isMowing = descLower.includes('mowing');
+                               const isCleanup = descLower.includes('cleanup');
+                               const isMulch = descLower.includes('mulch');
+                               const isHedge = descLower.includes('hedge') || descLower.includes('trimming') || descLower.includes('pruning');
+                               const cleanupTasks = [
+                                 "Blow out entire yard and flower beds",
+                                 "Pick up fallen branches and sticks",
+                                 "Haul away and dispose of yard debris",
+                                 "Cut back perennials and ornamental grasses"
+                               ];
+
+                               return (
+                               <div key={index} className="grid grid-cols-12 gap-4 items-center group bg-white/5 border border-white/5 rounded-3xl p-4 md:p-6 mb-4">
                                   <div className="col-span-12 md:col-span-6">
-                                     <input placeholder="Service description" value={service.description} onChange={(e) => updateService(index, 'description', e.target.value)} className="w-full bg-white/5 border-2 border-white/5 rounded-2xl px-6 py-4 font-bold focus:border-green-500 outline-none" />
+                                     <input placeholder="Service description" value={service.description} onChange={(e) => updateService(index, 'description', e.target.value)} className="w-full bg-slate-900 border-2 border-white/5 rounded-2xl px-6 py-4 font-bold focus:border-green-500 outline-none" />
                                   </div>
                                   <div className="col-span-4 md:col-span-2">
-                                     <input type="number" placeholder="Qty" value={service.quantity} onChange={(e) => updateService(index, 'quantity', e.target.value)} className="w-full bg-white/5 border-2 border-white/5 rounded-2xl px-4 py-4 font-bold text-center" />
+                                     <input type="number" placeholder="Qty" value={service.quantity} onChange={(e) => updateService(index, 'quantity', e.target.value)} className="w-full bg-slate-900 border-2 border-white/5 rounded-2xl px-4 py-4 font-bold text-center" />
                                   </div>
                                   <div className="col-span-4 md:col-span-2">
-                                     <input type="number" placeholder="Rate" value={service.rate} onChange={(e) => updateService(index, 'rate', e.target.value)} className="w-full bg-white/5 border-2 border-white/5 rounded-2xl px-4 py-4 font-bold text-center" />
+                                     <input type="number" placeholder="Rate" value={service.rate} onChange={(e) => updateService(index, 'rate', e.target.value)} className="w-full bg-slate-900 border-2 border-white/5 rounded-2xl px-4 py-4 font-bold text-center" />
                                   </div>
                                   <div className="col-span-3 md:col-span-1 text-right font-black italic text-green-400">${service.amount || '0.00'}</div>
                                   <div className="col-span-1 text-right">
                                      <button onClick={() => removeService(index)} disabled={invoiceData.services.length === 1} className="text-slate-600 hover:text-red-500 transition-colors disabled:opacity-0"><TrashIcon className="w-5 h-5" /></button>
                                   </div>
+                                  
+                                  {(isMowing || isCleanup || isMulch || isHedge) && (
+                                    <div className="col-span-12 mt-2 pt-4 border-t border-white/10">
+                                      {isMowing && (
+                                        <div className="flex items-center gap-4 text-sm font-bold text-slate-400 mb-3">
+                                           <span className="text-xs uppercase tracking-widest text-slate-500">Frequency:</span>
+                                           <label className="flex items-center gap-2 cursor-pointer hover:text-white transition-colors">
+                                             <input type="radio" name={`freq-${index}`} checked={service.frequency === 'Weekly'} onChange={() => updateService(index, 'frequency', 'Weekly')} className="accent-green-500 w-4 h-4" /> Weekly
+                                           </label>
+                                           <label className="flex items-center gap-2 cursor-pointer hover:text-white transition-colors">
+                                             <input type="radio" name={`freq-${index}`} checked={service.frequency === 'Bi-Weekly'} onChange={() => updateService(index, 'frequency', 'Bi-Weekly')} className="accent-green-500 w-4 h-4" /> Bi-Weekly
+                                           </label>
+                                        </div>
+                                      )}
+                                      {isMulch && (
+                                        <div className="flex items-center gap-4 text-sm font-bold text-slate-400 mb-3">
+                                           <span className="text-xs uppercase tracking-widest text-slate-500">Color:</span>
+                                           {['Black', 'Brown', 'Red', 'Natural'].map(color => (
+                                             <label key={color} className="flex items-center gap-2 cursor-pointer hover:text-white transition-colors">
+                                               <input type="radio" name={`mulch-${index}`} checked={service.mulchColor === color} onChange={() => updateService(index, 'mulchColor', color)} className="accent-green-500 w-4 h-4" /> {color}
+                                             </label>
+                                           ))}
+                                        </div>
+                                      )}
+                                      {isHedge && (
+                                        <div className="flex items-center gap-4 text-sm font-bold text-slate-400 mb-3">
+                                           <span className="text-xs uppercase tracking-widest text-slate-500 whitespace-nowrap">Bushes/Hedges Info:</span>
+                                           <input 
+                                              type="text" 
+                                              placeholder="e.g. 15 small bushes, 2 large hedges" 
+                                              value={service.hedgeDetails || ''} 
+                                              onChange={(e) => updateService(index, 'hedgeDetails', e.target.value)} 
+                                              className="w-full max-w-md bg-slate-900 border border-white/20 rounded-xl px-4 py-2 font-semibold focus:border-green-500 outline-none" 
+                                           />
+                                        </div>
+                                      )}
+                                      {isCleanup && (
+                                        <div className="space-y-3">
+                                          <span className="text-xs font-black uppercase text-slate-500 block tracking-widest">Included Tasks:</span>
+                                          <div className="grid sm:grid-cols-2 gap-3">
+                                            {cleanupTasks.map(task => (
+                                              <label key={task} className="flex items-center gap-3 text-sm font-semibold text-slate-400 cursor-pointer hover:text-white transition-colors">
+                                                <input 
+                                                   type="checkbox" 
+                                                   checked={(service.includedTasks || []).includes(task)}
+                                                   onChange={() => toggleIncludedTask(index, task)}
+                                                   className="w-4 h-4 rounded border-white/20 bg-slate-900 accent-green-500"
+                                                />
+                                                {task}
+                                              </label>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
                                </div>
-                            ))}
+                               );
+                            })}
                          </div>
                       </div>
 

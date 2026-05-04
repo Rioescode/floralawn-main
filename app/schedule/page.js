@@ -2492,7 +2492,6 @@ export default function SchedulePage() {
           totalDistance: data.totalDistance,
           totalTime: data.totalTime
         });
-        setShowOptimizationModal(true);
       } else {
         console.error('Route calculation failed:', data.error);
         alert(`❌ Route optimization failed: ${data.error}`);
@@ -4559,42 +4558,7 @@ export default function SchedulePage() {
             </div>
           </div>
         )}
-        {showOptimizationModal && optimizationData && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
-            <div className="bg-[#1e293b] w-full max-w-sm rounded-[3rem] border border-white/10 shadow-2xl shadow-purple-500/20 overflow-hidden transform transition-all animate-in zoom-in-95 duration-300">
-              <div className="p-10 text-center">
-                <div className="w-20 h-20 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-xl shadow-purple-500/30">
-                  <CheckCircleIcon className="h-10 w-10 text-white" />
-                </div>
-                
-                <h3 className="text-2xl font-black text-white mb-2 tracking-tight">Route Optimized!</h3>
-                <p className="text-gray-400 text-sm font-medium mb-8">Successfully reordered your schedule for <span className="text-purple-400">{optimizationData.day}</span></p>
-                
-                <div className="grid grid-cols-3 gap-3 mb-10">
-                  <div className="bg-white/5 p-4 rounded-2xl border border-white/5">
-                    <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest mb-1">Clients</p>
-                    <p className="text-lg font-black text-white">{optimizationData.customerCount}</p>
-                  </div>
-                  <div className="bg-white/5 p-4 rounded-2xl border border-white/5">
-                    <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest mb-1">Distance</p>
-                    <p className="text-lg font-black text-white whitespace-nowrap">{optimizationData.totalDistance.split(' ')[0]} mi</p>
-                  </div>
-                  <div className="bg-white/5 p-4 rounded-2xl border border-white/5">
-                    <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest mb-1">Time</p>
-                    <p className="text-lg font-black text-white whitespace-nowrap">{optimizationData.totalTime.split(' ')[0]} m</p>
-                  </div>
-                </div>
 
-                <button
-                  onClick={() => setShowOptimizationModal(false)}
-                  className="w-full py-4 bg-gradient-to-r from-purple-500 to-indigo-600 text-white rounded-2xl text-xs font-black uppercase tracking-[0.2em] shadow-xl shadow-purple-500/20 hover:shadow-purple-500/40 active:scale-95 transition-all"
-                >
-                  Done
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* === SUCCESS MODAL === */}
         {showSuccessModal && (
