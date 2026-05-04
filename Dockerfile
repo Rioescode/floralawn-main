@@ -56,7 +56,7 @@ ENV TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN}
 ENV TWILIO_PHONE_NUMBER=${TWILIO_PHONE_NUMBER}
 
 # First run next build with verbose output
-RUN npm run build --verbose || (echo "Next.js build failed" && npm run build --verbose && exit 1)
+RUN npm run build --verbose || (echo "Next.js build failed, retrying..." && npm run build --verbose)
 
 # Then run sitemap generation if needed (postbuild script handles this)
 # Note: next-sitemap runs automatically via postbuild script
