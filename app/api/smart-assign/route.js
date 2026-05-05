@@ -64,21 +64,6 @@ export async function POST(request) {
 
 // Highly Efficient Distance Matrix - Uses Saved DB Coords First
 async function calculateDistanceMatrixEfficiently(customers) {
-  const apiKey = process.env.GOOGLE_MAPS_API_KEY;
-  
-  // 1. Ensure we have Lat/Lng for everyone
-  const geocodedCustomers = [];
-  const needGeocoding = [];
-
-  customers.forEach(c => {
-    if (c.latitude && c.longitude) {
-      geocodedCustomers.push({
-        ...c,
-        lat: parseFloat(c.latitude),
-        lng: parseFloat(c.longitude)
-      });
-    } else {
-  
   // Geocoding removed to eliminate costs. Smart-assign now only works with customers already having GPS data.
   const geocodedCustomers = customers.filter(c => !isNaN(parseFloat(c.latitude)) && !isNaN(parseFloat(c.longitude))).map(c => ({
     ...c,
@@ -86,9 +71,8 @@ async function calculateDistanceMatrixEfficiently(customers) {
     lng: parseFloat(c.longitude)
   }));
 
-  // 3. Generate Matrix using Haversine (Zero Cost Math)
+  // Generate Matrix using Haversine (Zero Cost Math)
   // We use Haversine (crow-fly distance) because it's FREE and extremely fast.
-  // For clustering neighborhood jobs, crow-fly is 99% as accurate as road distance.
   const matrix = [];
   for (let i = 0; i < geocodedCustomers.length; i++) {
     matrix[i] = [];
