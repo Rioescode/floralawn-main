@@ -29,8 +29,9 @@ import {
   UserPlusIcon,
   TrashIcon,
   PlayIcon,
-  ArrowRightIcon,
+  ChevronRightIcon,
   CheckBadgeIcon,
+  ChevronDownIcon,
   SparklesIcon
 } from '@heroicons/react/24/outline';
 
@@ -1140,13 +1141,14 @@ export default function SchedulePage() {
         durationMinutes = Math.max(0, Math.round((end - start) / (1000 * 60)));
       }
 
-      // Update customer's last_service date and reset timer
+      // Update customer's last_service date, increment service_count, and reset timer
       const { error: updateError } = await supabase
         .from('customers')
         .update({ 
           last_service: new Date().toISOString().split('T')[0],
           job_started_at: null,
-          last_job_duration_minutes: durationMinutes
+          last_job_duration_minutes: durationMinutes,
+          service_count: (customer.service_count || 0) + 1
         })
         .eq('id', customer.id);
 
@@ -1154,7 +1156,13 @@ export default function SchedulePage() {
 
       // Update local state to reflect the database changes
       setCustomers(prev => prev.map(c => 
-        c.id === customer.id ? { ...c, job_started_at: null, last_job_duration_minutes: durationMinutes, last_service: new Date().toISOString().split('T')[0] } : c
+        c.id === customer.id ? { 
+          ...c, 
+          job_started_at: null, 
+          last_job_duration_minutes: durationMinutes, 
+          last_service: new Date().toISOString().split('T')[0],
+          service_count: (c.service_count || 0) + 1
+        } : c
       ));
 
       // Create or update appointment record with completed status
@@ -1710,7 +1718,8 @@ export default function SchedulePage() {
           longitude: lng,
           price: editingCustomerData.price,
           frequency: editingCustomerData.frequency,
-          service_type: editingCustomerData.service_type
+          service_type: editingCustomerData.service_type,
+          service_count: parseInt(editingCustomerData.service_count || 0, 10)
         })
         .eq('id', editingCustomerData.id);
 
@@ -1751,7 +1760,7 @@ export default function SchedulePage() {
 
   // ---------- Add New Customer ----------
   const openAddCustomerModal = () => {
-    setNewCustomerForm({ name: '', email: '', phone: '', address: '', price: '', frequency: 'weekly', service_type: 'lawn_mowing', status: 'active', notes: '', scheduled_day: '', latitude: null, longitude: null });
+    setNewCustomerForm({ name: '', email: '', phone: '', address: '', price: '', frequency: 'weekly', service_type: 'lawn_mowing', status: 'active', notes: '', scheduled_day: '', service_count: 0, latitude: null, longitude: null });
     setShowAddCustomerModal(true);
     // Init Google Places after modal renders
     setTimeout(() => {
@@ -1800,6 +1809,7 @@ export default function SchedulePage() {
           status: newCustomerForm.status,
           notes: newCustomerForm.notes?.trim() || null,
           scheduled_day: newCustomerForm.scheduled_day || null,
+          service_count: parseInt(newCustomerForm.service_count || 0, 10)
         }])
         .select()
         .single();
@@ -4217,6 +4227,18 @@ export default function SchedulePage() {
                   </div>
                 </div>
 
+                {/* Visit Count */}
+                <div>
+                  <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Initial Visit Count</label>
+                  <input
+                    type="number"
+                    value={newCustomerForm.service_count}
+                    onChange={e => setNewCustomerForm(prev => ({ ...prev, service_count: e.target.value }))}
+                    placeholder="0"
+                    className="w-full p-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white outline-none focus:border-green-500/50"
+                  />
+                </div>
+
                 {/* Notes */}
                 <div>
                   <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Notes</label>
@@ -4740,7 +4762,7 @@ export default function SchedulePage() {
                     onClick={() => startNavigationAndTracking(selectedCustomerForNavigation)}
                     className="flex-[2] py-4 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-2xl text-xs font-black uppercase tracking-[0.2em] shadow-xl shadow-blue-500/20 hover:shadow-blue-500/40 active:scale-95 transition-all flex items-center justify-center gap-2"
                   >
-                    Start Driving <ArrowRightIcon className="w-4 h-4" />
+                    Start Driving <ChevronRightIcon className="w-4 h-4" />
                   </button>
                 </div>
               </div>
@@ -4809,9 +4831,15 @@ export default function SchedulePage() {
                       />
                     </div>
                   </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-400 mb-1">Service Type</label>
-                    <input type="text" value={editingCustomerData.service_type || ''} onChange={(e) => handleEditCustomerChange('service_type', e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-blue-500 outline-none" />
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold text-gray-400 mb-1">Service Type</label>
+                      <input type="text" value={editingCustomerData.service_type || ''} onChange={(e) => handleEditCustomerChange('service_type', e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-blue-500 outline-none" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-400 mb-1">Visit Count</label>
+                      <input type="number" value={editingCustomerData.service_count || 0} onChange={(e) => handleEditCustomerChange('service_count', e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-blue-500 outline-none" />
+                    </div>
                   </div>
                 </div>
 
@@ -4948,12 +4976,12 @@ function CustomerCard({
   
   return (
     <div 
-      className={`relative group rounded-xl overflow-hidden transition-all duration-300 ${
-        isCompleted ? 'bg-green-500/10 border border-green-500/30' 
-        : isMoved ? 'bg-orange-500/10 border border-orange-500/30'
-        : isSelected ? 'bg-green-500/10 border border-green-500/30'
-        : isDragOver ? 'bg-blue-500/15 border border-blue-500/40 scale-[1.02]'
-        : 'bg-white/[0.04] border border-white/[0.08] hover:bg-white/[0.08] hover:border-white/[0.15]'
+      className={`relative group rounded-2xl overflow-hidden transition-all duration-500 ${
+        isCompleted ? 'bg-green-500/5 border border-green-500/20 shadow-lg shadow-green-500/5' 
+        : isMoved ? 'bg-orange-500/5 border border-orange-500/20'
+        : isSelected ? 'bg-blue-500/10 border border-blue-500/30 ring-1 ring-blue-500/20'
+        : isDragOver ? 'bg-blue-500/15 border border-blue-500/40 scale-[1.02] shadow-2xl shadow-blue-500/20'
+        : 'bg-white/[0.03] border border-white/[0.08] hover:bg-white/[0.06] hover:border-white/[0.15] hover:shadow-xl hover:shadow-black/20'
       } ${draggedCustomer?.id === customer.id ? 'opacity-40 scale-95' : ''}`}
       draggable={true}
       onDragStart={handleDragStartCard}
@@ -4964,45 +4992,47 @@ function CustomerCard({
     >
       {/* Reorder indicator */}
       {isDragOver && draggedCustomer && draggedCustomer.scheduled_day === customer.scheduled_day && (
-        <div className="absolute -top-0.5 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-500 to-cyan-400 rounded-full"></div>
+        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 via-cyan-400 to-blue-500 rounded-full animate-pulse"></div>
       )}
 
-      {/* Status badges - positioned absolutely */}
-      <div className="absolute top-2.5 right-2.5 flex gap-1.5 z-10">
+      {/* Floating Status Badges - Top Right */}
+      <div className="absolute top-3 right-3 flex items-center gap-1.5 z-10">
         {newlyAddedIds.has(customer.id) && (
-          <span className="px-2 py-0.5 bg-gradient-to-r from-violet-500 to-purple-600 text-white text-[10px] font-black rounded-full tracking-wider uppercase animate-pulse shadow-lg shadow-purple-500/30">✦ New</span>
+          <span className="px-2 py-0.5 bg-gradient-to-r from-violet-600 to-indigo-600 text-white text-[9px] font-black rounded-lg tracking-wider uppercase animate-bounce shadow-lg shadow-indigo-500/40">✦ New</span>
         )}
         {isCompleted && (
-          <span className="px-2 py-0.5 bg-green-500 text-white text-[10px] font-bold rounded-full tracking-wider uppercase">
-            ✓ Done {customer.last_job_duration_minutes ? `(${customer.last_job_duration_minutes}m)` : ''}
-          </span>
+          <div className="flex items-center gap-1 px-2 py-0.5 bg-green-500 text-white text-[9px] font-black rounded-lg tracking-wider uppercase shadow-lg shadow-green-500/30">
+            <CheckBadgeIcon className="h-3 w-3" />
+            <span>Done</span>
+          </div>
         )}
         {isMoved && (
-          <span className="px-2 py-0.5 bg-orange-500 text-white text-[10px] font-bold rounded-full">→ Moved</span>
-        )}
-        {customer.route_order && (
-          <span className="w-5 h-5 flex items-center justify-center bg-purple-500/20 text-purple-400 text-[10px] font-bold rounded-full">
-            {customer.route_order}
-          </span>
+          <span className="px-2 py-0.5 bg-orange-500 text-white text-[9px] font-black rounded-lg uppercase tracking-wider shadow-lg shadow-orange-500/30">→ Moved</span>
         )}
         {customer.job_started_at && activeJobTimers[customer.id] && (
-          <span className="px-2 py-0.5 bg-gradient-to-r from-purple-500 to-indigo-600 text-white text-[10px] font-black rounded-full shadow-lg shadow-purple-500/30 flex items-center gap-1 animate-pulse">
-            <ClockIcon className="h-2.5 w-2.5" />
-            {activeJobTimers[customer.id]}
-          </span>
-        )}
-        {customer.safety_notes && (
-          <span className="px-2 py-0.5 bg-red-500 text-white text-[10px] font-black rounded-full shadow-lg shadow-red-500/30 flex items-center gap-1">
-            <XCircleIcon className="h-2.5 w-2.5" />
-            Alert
-          </span>
+          <div className="flex items-center gap-1 px-2 py-0.5 bg-gradient-to-r from-purple-600 to-blue-600 text-white text-[9px] font-black rounded-lg shadow-lg shadow-purple-500/40 animate-pulse">
+            <ClockIcon className="h-3 w-3" />
+            <span>{activeJobTimers[customer.id]}</span>
+          </div>
         )}
       </div>
+
+      {/* Visit & Route Counter - Top Left Floating */}
+      <div className="absolute top-3 left-3 flex gap-1 z-10 pointer-events-none">
+        {customer.route_order && (
+          <div className="w-5 h-5 flex items-center justify-center bg-white/10 backdrop-blur-md border border-white/20 text-white text-[10px] font-black rounded-lg shadow-sm">
+            {customer.route_order}
+          </div>
+        )}
+        <div className="px-1.5 py-0.5 bg-blue-500/20 backdrop-blur-md border border-blue-500/30 text-blue-400 text-[9px] font-black rounded-lg">
+          V: {customer.service_count || 0}
+        </div>
+      </div>
       
-      {/* Main clickable row */}
-      <div className="px-3.5 py-3 cursor-pointer" onClick={() => setIsExpanded(!isExpanded)}>
-        <div className="flex items-center gap-3">
-          {/* Checkbox */}
+      {/* Main Content Area */}
+      <div className="pt-9 pb-3.5 px-4 cursor-pointer" onClick={() => setIsExpanded(!isExpanded)}>
+        <div className="flex items-start gap-4">
+          {/* Checkbox Side */}
           {showCheckbox && (
             <div 
               onClick={(e) => {
@@ -5010,83 +5040,80 @@ function CustomerCard({
                 if (day && daySelectionHandler) daySelectionHandler(day, customer.id);
                 else toggleCustomerSelection(customer.id, e);
               }}
-              className="shrink-0"
+              className="mt-1"
             >
-              <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all cursor-pointer ${
-                isSelected ? 'bg-green-500 border-green-500' : 'border-white/20 hover:border-white/40'
+              <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${
+                isSelected ? 'bg-blue-500 border-blue-500 shadow-lg shadow-blue-500/30' : 'border-white/10 hover:border-white/30'
               }`}>
-                {isSelected && <span className="text-white text-xs">✓</span>}
+                {isSelected && <CheckIcon className="h-4 w-4 text-white font-black" />}
               </div>
             </div>
           )}
 
-          {/* Customer info */}
+          {/* Core Info */}
           <div className="flex-1 min-w-0">
-            <div className="flex items-center justify-between gap-2">
-              <h3 className={`text-sm font-semibold truncate ${isCompleted ? 'line-through text-gray-500' : 'text-white'}`}>
+            <div className="flex items-center justify-between gap-3 mb-1.5">
+              <h3 className={`text-base font-black tracking-tight truncate ${isCompleted ? 'text-gray-500' : 'text-white'}`}>
                 {highlightSearchTerm(customer.name, searchTerm)}
               </h3>
-              <span className="shrink-0 text-sm font-bold text-green-400">${customer.price}</span>
+              <div className="flex flex-col items-end shrink-0">
+                <span className="text-sm font-black text-green-400 drop-shadow-[0_0_10px_rgba(74,222,128,0.3)]">${customer.price}</span>
+                {customer.last_job_duration_minutes && isCompleted && (
+                  <span className="text-[9px] text-gray-500 font-bold uppercase tracking-widest">{customer.last_job_duration_minutes}m</span>
+                )}
+              </div>
             </div>
             
-            {/* Address + metadata row */}
-            <div className="flex items-center gap-2 mt-1 flex-wrap">
+            {/* Metadata Row - Organized Pills */}
+            <div className="flex items-center gap-2 flex-wrap">
               {customer.address && (
                 <button 
                   onClick={(e) => {
                     e.stopPropagation();
                     handleAddressClick(customer);
                   }}
-                  className="text-[11px] text-left text-gray-500 hover:text-blue-400 truncate max-w-[180px] transition-colors"
+                  className="flex items-center gap-1.5 px-2 py-1 bg-white/5 rounded-lg text-[10px] text-gray-400 hover:text-blue-400 hover:bg-blue-500/10 transition-all border border-transparent hover:border-blue-500/20 group/addr"
                 >
-                  📍 {customer.address.split(',')[0]}
+                  <MapPinIcon className="h-3 w-3 text-gray-600 group-hover/addr:text-blue-400" />
+                  <span className="truncate max-w-[150px]">{customer.address.split(',')[0]}</span>
                 </button>
               )}
-              <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider ${
-                customer.frequency === 'weekly' ? 'bg-green-500/15 text-green-400' : 'bg-blue-500/15 text-blue-400'
+
+              <div className={`px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider border ${
+                customer.frequency === 'weekly' 
+                  ? 'bg-emerald-500/5 text-emerald-400 border-emerald-500/20' 
+                  : 'bg-cyan-500/5 text-cyan-400 border-cyan-500/20'
               }`}>
-                {customer.frequency === 'bi_weekly' ? 'Bi-W' : 'W'}
-              </span>
-              {hasProximityData && distanceDisplay && (
-                <span className="text-[10px] text-gray-600 font-medium tracking-wide">
-                  {distanceDisplay}
-                </span>
-              )}
-              {hasProximityData && travelTimeDisplay && (
-                <span className="text-[10px] text-gray-600 font-medium tracking-wide flex items-center gap-0.5">
-                  ⏱ {travelTimeDisplay}
-                </span>
-              )}
-              {isCompleted && customer.last_job_duration_minutes && (
-                <span className="text-[10px] text-gray-400 font-bold bg-white/5 px-1.5 py-0.5 rounded border border-white/10 flex items-center gap-1">
-                  ⏳ {customer.last_job_duration_minutes} mins on-site
-                </span>
+                {customer.frequency === 'bi_weekly' ? 'Bi-Weekly' : 'Weekly'}
+              </div>
+
+              {hasProximityData && (distanceDisplay || travelTimeDisplay) && (
+                <div className="flex items-center gap-2 px-2 py-1 bg-white/5 border border-white/5 rounded-lg text-[9px] font-bold text-gray-500">
+                  {distanceDisplay && <span>{distanceDisplay}</span>}
+                  {travelTimeDisplay && (
+                    <span className="flex items-center gap-1">
+                      <span className="w-1 h-1 rounded-full bg-gray-700"></span>
+                      {travelTimeDisplay}
+                    </span>
+                  )}
+                </div>
               )}
             </div>
           </div>
 
-          {/* Quick actions + expand */}
-          <div className="flex items-center gap-2 shrink-0">
+          {/* Quick Actions Panel */}
+          <div className="flex flex-col items-center gap-2 shrink-0">
             {day && !isCompleted && (
               <button
                 onClick={(e) => { e.stopPropagation(); toggleCustomerCompletion(day, customer.id); }}
-                className="p-3 sm:p-1.5 rounded-xl bg-green-500/10 text-green-400 hover:bg-green-500/20 transition-all border border-green-500/20"
-                title="Mark complete"
+                className="w-9 h-9 flex items-center justify-center rounded-xl bg-green-500/10 text-green-400 hover:bg-green-500 hover:text-white transition-all border border-green-500/20 shadow-lg shadow-green-500/5"
+                title="Complete"
               >
-                <CheckCircleIcon className="h-6 w-6 sm:h-4 sm:w-4" />
+                <CheckCircleIcon className="h-5 w-5" />
               </button>
             )}
-            {day && (
-              <button
-                onClick={(e) => { e.stopPropagation(); moveSingleCustomerToNextDay(day, customer.id); }}
-                className="p-3 sm:p-1.5 rounded-xl bg-orange-500/10 text-orange-400 hover:bg-orange-500/20 transition-all border border-orange-500/20"
-                title="Move to next day"
-              >
-                <span className="text-base sm:text-xs">→</span>
-              </button>
-            )}
-            <div className={`ml-1 p-2 text-gray-600 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}>
-              <svg className="w-4 h-4 sm:w-3.5 sm:h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+            <div className={`p-1.5 rounded-lg bg-white/5 text-gray-600 transition-all group-hover:text-gray-400 ${isExpanded ? 'rotate-180 bg-blue-500/10 text-blue-400' : ''}`}>
+              <ChevronDownIcon className="h-4 w-4" />
             </div>
           </div>
         </div>
@@ -5224,6 +5251,15 @@ function CustomerCard({
 
           {/* Action buttons */}
           <div className="flex flex-wrap gap-2 pt-1">
+            {day && !isCompleted && (
+              <button
+                onClick={(e) => { e.stopPropagation(); moveSingleCustomerToNextDay(day, customer.id); }}
+                className="px-3 py-1.5 text-[11px] font-medium text-orange-400 bg-orange-500/10 rounded-lg border border-orange-500/20 hover:bg-orange-500/20 transition-all flex items-center gap-1"
+                title="Move to next day"
+              >
+                <span>Move to Next Day →</span>
+              </button>
+            )}
             <button onClick={(e) => { e.stopPropagation(); openEditCustomerModal(customer); }} className="px-3 py-1.5 text-[11px] font-medium text-gray-300 bg-white/5 rounded-lg border border-white/10 hover:bg-white/10 transition-all">
               ✏️ Edit Customer
             </button>
