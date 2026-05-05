@@ -98,6 +98,37 @@ export default function SchedulePage() {
   const [sendEmail, setSendEmail] = useState(true);
   const [sendSMS, setSendSMS] = useState(false);
   const [markingDone, setMarkingDone] = useState(false);
+
+  // Email Preview Modal State
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [selectedEmailLead, setSelectedEmailLead] = useState(null);
+  const [emailTemplate, setEmailTemplate] = useState('fully_booked');
+  const [emailSubject, setEmailSubject] = useState('');
+  const [emailBody, setEmailBody] = useState('');
+  const [sendingEmail, setSendingEmail] = useState(false);
+
+  const EMAIL_TEMPLATES = {
+    fully_booked: {
+      name: 'Fully Booked (Wait Next Week)',
+      subject: (name) => `Update regarding your Spring Cleanup request - Flora Lawn`,
+      body: (name) => `Hi ${name || 'there'},\n\nThank you for reaching out to us for your spring cleanup! We really appreciate the opportunity to work with you.\n\nWe wanted to let you know that we are fully booked for this week. However, if you are able to wait until next week, we would love to take care of your property!\n\nI can stop by tomorrow or Wednesday to give you an exact price for the cleanup so we are ready to go for next week.\n\nPlease let me know if this works for you, and we'll get you on the schedule!\n\nBest regards,\nFlora Lawn & Landscaping`
+    },
+    spring_cleanup: {
+      name: 'Spring Cleanup Estimate',
+      subject: (name) => `Spring Cleanup Estimate for ${name} - Flora Lawn`,
+      body: (name) => `Hi ${name || 'there'},\n\nThanks for your interest in a Spring Cleanup! I'm looking at your request now.\n\nI can stop by tomorrow or Wednesday to take a quick look at the property and give you an exact price for the cleanup. You don't need to be home!\n\nOnce I give you the price, we can get you on the schedule for next week.\n\nTalk soon,\nFlora Lawn & Landscaping`
+    },
+    fall_cleanup: {
+      name: 'Fall Cleanup Estimate',
+      subject: (name) => `Fall Cleanup Estimate for ${name} - Flora Lawn`,
+      body: (name) => `Hi ${name || 'there'},\n\nThanks for reaching out about a Fall Cleanup estimate!\n\nI can head over tomorrow or Wednesday to check out the yard and give you a price for the leaf removal and cleanup. \n\nI'll send the quote over as soon as I've looked at the property.\n\nBest regards,\nFlora Lawn & Landscaping`
+    },
+    mowing: {
+      name: 'Weekly Mowing Quote',
+      subject: (name) => `Lawn Mowing Quote Request - Flora Lawn`,
+      body: (name) => `Hi ${name || 'there'},\n\nThanks for the request for weekly mowing! \n\nI'll be in your area this week and can stop by to take a look at the lawn. I'll provide you with a weekly price and let you know which day of the week we'd be able to service your property.\n\nLooking forward to helping you with your lawn!\n\nBest,\nFlora Lawn & Landscaping`
+    }
+  };
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [showDelayModal, setShowDelayModal] = useState(false);
@@ -1909,6 +1940,54 @@ export default function SchedulePage() {
     setShowConfirmModal(true);
   };
 
+  const openEmailModal = (apt) => {
+    setSelectedEmailLead(apt);
+    setEmailTemplate('fully_booked');
+    setEmailSubject(EMAIL_TEMPLATES.fully_booked.subject(apt.customer_name));
+    setEmailBody(EMAIL_TEMPLATES.fully_booked.body(apt.customer_name));
+    setShowEmailModal(true);
+  };
+
+  const handleTemplateChange = (templateKey) => {
+    setEmailTemplate(templateKey);
+    const template = EMAIL_TEMPLATES[templateKey];
+    setEmailSubject(template.subject(selectedEmailLead.customer_name));
+    setEmailBody(template.body(selectedEmailLead.customer_name));
+  };
+
+  const sendCustomEmail = async () => {
+    if (!selectedEmailLead || sendingEmail) return;
+    
+    try {
+      setSendingEmail(true);
+      const response = await fetch('/api/leads/send-booked-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customer_email: selectedEmailLead.customer_email,
+          customer_name: selectedEmailLead.customer_name,
+          lead_id: selectedEmailLead.id,
+          subject: emailSubject,
+          body: emailBody
+        })
+      });
+      
+      if (response.ok) {
+        alert('Email sent successfully!');
+        setShowEmailModal(false);
+        fetchAppointments(); 
+      } else {
+        const err = await response.json();
+        throw new Error(err.error || 'Failed to send email');
+      }
+    } catch (error) {
+      console.error('Error sending email:', error);
+      alert('Error: ' + error.message);
+    } finally {
+      setSendingEmail(false);
+    }
+  };
+
   const handleSaveConfirmJob = async () => {
     if (!selectedConfirmApt || !confirmForm.date) return;
     
@@ -3221,148 +3300,103 @@ export default function SchedulePage() {
                           : 'bg-purple-500/5'
                       }`}></div>
                       
-                      <div className="flex items-start justify-between gap-4 mb-4">
-                        <div className="min-w-0 flex-1">
-                          <h3 className="text-lg font-black text-white leading-tight mb-2">{apt.customer_name}</h3>
-                          <div className="flex flex-col gap-3">
-                            <div className="flex flex-wrap gap-2">
-                              {(apt.service_type || 'Inquiry').split(', ').map((service, idx) => (
-                                <span key={idx} className={`px-2.5 py-1 text-[10px] font-black rounded-lg uppercase tracking-widest border whitespace-nowrap ${
-                                  apt.status === 'confirmed' 
-                                    ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' 
-                                    : 'bg-purple-500/10 text-purple-400 border-purple-500/20'
-                                }`}>
-                                  {service}
+                      <div className="flex flex-col h-full">
+                        {/* Header: Name and Quick Actions cluster */}
+                        <div className="flex items-start justify-between gap-4 mb-4">
+                          <div className="min-w-0 flex-1">
+                            <h3 className="text-lg font-black text-white leading-tight mb-2 truncate">
+                              {highlightSearchTerm(apt.customer_name, searchTerm)}
+                            </h3>
+                            <div className="flex flex-col gap-3">
+                              <div className="flex flex-wrap gap-2">
+                                {(apt.service_type || 'Inquiry').split(', ').map((service, idx) => (
+                                  <span key={idx} className={`px-2.5 py-1 text-[10px] font-black rounded-lg uppercase tracking-widest border whitespace-nowrap ${
+                                    apt.status === 'confirmed' 
+                                      ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' 
+                                      : 'bg-purple-500/10 text-purple-400 border-purple-500/20'
+                                  }`}>
+                                    {service}
+                                  </span>
+                                ))}
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <CalendarDaysIcon className="h-3.5 w-3.5 text-gray-600" />
+                                <span className="text-[11px] text-gray-500 font-bold uppercase tracking-wider">
+                                  {new Date(apt.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
                                 </span>
-                              ))}
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <CalendarDaysIcon className="h-3.5 w-3.5 text-gray-600" />
-                              <span className="text-[11px] text-gray-500 font-bold">
-                                {new Date(apt.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
-                              </span>
+                              </div>
                             </div>
                           </div>
+
+                          {/* The Icon Cluster - Far Right */}
+                          <div className="flex flex-wrap justify-end gap-1.5 shrink-0 max-w-[140px]">
+                            {apt.status === 'pending' && (
+                              <button onClick={() => openEmailModal(apt)} className="p-2 bg-purple-500/10 text-purple-400 rounded-xl hover:bg-purple-500/20 transition-all border border-purple-500/20" title="Send Email">
+                                <EnvelopeIcon className="h-4 w-4" />
+                              </button>
+                            )}
+                            <button onClick={() => editLead(apt)} className="p-2 bg-indigo-500/10 text-indigo-400 rounded-xl hover:bg-indigo-500/20 transition-all border border-indigo-500/20" title="Edit Lead">
+                              <PencilIcon className="h-4 w-4" />
+                            </button>
+                            <button onClick={() => scheduleVisit(apt)} className="p-2 bg-orange-500/10 text-orange-400 rounded-xl hover:bg-orange-500/20 transition-all border border-orange-500/20" title="Schedule Visit">
+                              <ClockIcon className="h-4 w-4" />
+                            </button>
+                            <button onClick={() => router.push(`/invoices?leadId=${apt.id}`)} className="p-2 bg-purple-500/10 text-purple-400 rounded-xl hover:bg-purple-500/20 transition-all border border-purple-500/20" title="Create Invoice">
+                              <DocumentTextIcon className="h-4 w-4" />
+                            </button>
+                            <button onClick={() => deleteAppointment(apt.id)} className="p-2 bg-red-500/10 text-red-400 rounded-xl hover:bg-red-500/20 transition-all border border-red-500/20" title="Delete">
+                              <TrashIcon className="h-4 w-4" />
+                            </button>
+                          </div>
                         </div>
-                        <div className="flex gap-2">
+
+                        {/* Details Section */}
+                        <div className="space-y-3 mb-6">
+                          <div className="flex items-center gap-3 text-xs text-gray-400">
+                            <PhoneIcon className="h-3.5 w-3.5 text-gray-600" />
+                            <a href={`tel:${apt.customer_phone}`} className="hover:text-white transition-colors">{apt.customer_phone || 'No phone'}</a>
+                          </div>
+                          <div className="flex items-center gap-3 text-xs text-gray-400">
+                            <EnvelopeIcon className="h-3.5 w-3.5 text-gray-600" />
+                            <a href={`mailto:${apt.customer_email}`} className="hover:text-white transition-colors truncate">{apt.customer_email || 'No email'}</a>
+                          </div>
+                          <div className="flex items-start gap-3 text-xs text-gray-400">
+                            <MapPinIcon className="h-3.5 w-3.5 text-gray-600 mt-0.5" />
+                            <span className="line-clamp-1">{apt.address || apt.city || 'No address provided'}</span>
+                          </div>
+                        </div>
+
+                        {/* Bottom Action Row */}
+                        <div className="grid grid-cols-2 gap-2 mt-auto">
                           {apt.status === 'pending' ? (
                             <button 
                               onClick={() => confirmLead(apt)}
-                              className="p-2 bg-blue-500/10 text-blue-400 rounded-xl hover:bg-blue-500/20 transition-all border border-blue-500/20"
-                              title="Confirm Job"
+                              className="py-3 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border border-blue-500/20 flex items-center justify-center gap-2"
                             >
-                              <CheckBadgeIcon className="h-4 w-4" />
+                              <CheckBadgeIcon className="h-3.5 w-3.5" />
+                              Confirm Lead
                             </button>
                           ) : (
                             <button 
-                              onClick={() => revertToPending(apt.id)}
-                              className="p-2 bg-amber-500/10 text-amber-500 rounded-xl hover:bg-amber-500/20 transition-all border border-amber-500/20"
-                              title="Revert to Pending"
+                              onClick={() => confirmLead(apt)}
+                              className="py-3 bg-blue-500/5 hover:bg-blue-500/10 text-blue-400 border border-blue-500/10 rounded-2xl flex flex-col items-center justify-center gap-0.5 transition-all"
                             >
-                              <ArrowPathIcon className="h-4 w-4" />
+                              <span className="text-[9px] font-black uppercase tracking-widest opacity-60">Scheduled For</span>
+                              <span className="text-[11px] font-black">{formatLocalDate(apt.visit_date)}</span>
                             </button>
                           )}
                           <button 
-                            onClick={() => scheduleVisit(apt)}
-                            className="p-2 bg-orange-500/10 text-orange-400 rounded-xl hover:bg-orange-500/20 transition-all border border-orange-500/20"
-                            title="Schedule Visit"
-                          >
-                            <ClockIcon className="h-4 w-4" />
-                          </button>
-                          <button 
                             onClick={() => handleConvertToCustomer(apt)}
-                            className="p-2 bg-green-500/10 text-green-400 rounded-xl hover:bg-green-500/20 transition-all border border-green-500/20"
-                            title="Convert to Customer"
+                            className={`py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border flex items-center justify-center gap-2 ${
+                              apt.status === 'confirmed'
+                                ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white border-transparent shadow-lg shadow-green-500/20'
+                                : 'bg-white/5 hover:bg-white/10 text-white border-white/10'
+                            }`}
                           >
-                            <UserPlusIcon className="h-4 w-4" />
-                          </button>
-                          <button 
-                              onClick={() => editLead(apt)}
-                              className="p-2 bg-indigo-500/10 text-indigo-400 rounded-xl hover:bg-indigo-500/20 transition-all border border-indigo-500/20"
-                              title="Edit Lead"
-                            >
-                              <PencilIcon className="h-4 w-4" />
-                            </button>
-                            {apt.status === 'confirmed' && (
-                              <button 
-                                onClick={() => moveToWaitlist(apt.id)}
-                                className="p-2 bg-orange-500/10 text-orange-400 rounded-xl hover:bg-orange-500/20 transition-all border border-orange-500/20"
-                                title="Move to Waitlist"
-                              >
-                                <SparklesIcon className="h-4 w-4" />
-                              </button>
-                            )}
-                          <button 
-                            onClick={() => router.push(`/invoices?leadId=${apt.id}`)}
-                            className="p-2 bg-purple-500/10 text-purple-400 rounded-xl hover:bg-purple-500/20 transition-all border border-purple-500/20"
-                            title="Create Invoice/Quote"
-                          >
-                            <DocumentTextIcon className="h-4 w-4" />
-                          </button>
-                          <button 
-                            onClick={() => deleteAppointment(apt.id)}
-                            className="p-2 bg-red-500/10 text-red-400 rounded-xl hover:bg-red-500/20 transition-all border border-red-500/20"
-                            title="Delete Lead"
-                          >
-                            <TrashIcon className="h-4 w-4" />
+                            <UserPlusIcon className="h-3.5 w-3.5 text-inherit" />
+                            Finalize
                           </button>
                         </div>
-                      </div>
-
-                      <div className="space-y-3 mb-5">
-                        <div className="flex items-center gap-3 text-xs text-gray-400">
-                          <PhoneIcon className="h-3.5 w-3.5 text-gray-600" />
-                          <a href={`tel:${apt.customer_phone}`} className="hover:text-white transition-colors">{apt.customer_phone || 'No phone'}</a>
-                        </div>
-                        <div className="flex items-center gap-3 text-xs text-gray-400">
-                          <EnvelopeIcon className="h-3.5 w-3.5 text-gray-600" />
-                          <a href={`mailto:${apt.customer_email}`} className="hover:text-white transition-colors truncate">{apt.customer_email || 'No email'}</a>
-                        </div>
-                        <div className="flex items-start gap-3 text-xs text-gray-400">
-                          <MapPinIcon className="h-3.5 w-3.5 text-gray-600 mt-0.5" />
-                          <span className="line-clamp-1">{apt.address || apt.city || 'No address provided'}</span>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-2 mt-5">
-                        {apt.status === 'pending' ? (
-                          <button 
-                            onClick={() => confirmLead(apt)}
-                            className="py-3 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border border-blue-500/20 flex items-center justify-center gap-2"
-                          >
-                            <CheckBadgeIcon className="h-3.5 w-3.5" />
-                            Confirm Job
-                          </button>
-                        ) : (
-                          <button 
-                            onClick={() => confirmLead(apt)} // Repurpose confirmLead to edit date
-                            className="py-3 bg-blue-500/5 hover:bg-blue-500/10 text-blue-400 border border-blue-500/10 rounded-2xl flex flex-col items-center justify-center gap-0.5 transition-all relative"
-                          >
-                            <span className="text-[9px] font-black uppercase tracking-widest opacity-60">Scheduled For</span>
-                            <span className="text-[11px] font-black">{formatLocalDate(apt.visit_date)}</span>
-                            
-                            {/* Auto-reminder indicator */}
-                            {(() => {
-                              const jobDate = new Date(apt.visit_date + 'T12:00:00');
-                              const diffDays = Math.ceil((jobDate - new Date()) / (1000 * 60 * 60 * 24));
-                              if (diffDays === 7 || diffDays === 3) {
-                                return <span className="absolute -top-1 -right-1 w-2 h-2 bg-orange-500 rounded-full animate-ping"></span>;
-                              }
-                              return null;
-                            })()}
-                          </button>
-                        )}
-                        <button 
-                          onClick={() => handleConvertToCustomer(apt)}
-                          className={`py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border flex items-center justify-center gap-2 ${
-                            apt.status === 'confirmed'
-                              ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white border-transparent shadow-lg shadow-green-500/20'
-                              : 'bg-white/5 hover:bg-white/10 text-white border-white/10'
-                          }`}
-                        >
-                          <UserPlusIcon className="h-3.5 w-3.5 text-inherit" />
-                          Finalize
-                        </button>
                       </div>
                     </div>
                   ))}
@@ -4770,7 +4804,94 @@ export default function SchedulePage() {
           </div>
         )}
 
-        {/* Edit Customer Modal */}
+        {/* Email Preview Modal */}
+      {showEmailModal && selectedEmailLead && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-[#0f172a] w-full max-w-2xl rounded-[2.5rem] border border-white/10 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            {/* Header */}
+            <div className="p-8 border-b border-white/10 bg-gradient-to-br from-purple-500/10 to-transparent">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-purple-500/20 rounded-2xl">
+                    <EnvelopeIcon className="h-6 w-6 text-purple-400" />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-black text-white tracking-tight">Email Preview</h2>
+                    <p className="text-sm text-gray-500">Sending to {selectedEmailLead.customer_name}</p>
+                  </div>
+                </div>
+                <button onClick={() => setShowEmailModal(false)} className="p-2 hover:bg-white/5 rounded-full transition-colors">
+                  <XMarkIcon className="h-6 w-6 text-gray-500" />
+                </button>
+              </div>
+
+              {/* Template Selector */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {Object.entries(EMAIL_TEMPLATES).map(([key, template]) => (
+                  <button
+                    key={key}
+                    onClick={() => handleTemplateChange(key)}
+                    className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border ${
+                      emailTemplate === key 
+                        ? 'bg-purple-500 text-white border-purple-400 shadow-lg shadow-purple-500/20' 
+                        : 'bg-white/5 text-gray-500 border-white/10 hover:border-white/20'
+                    }`}
+                  >
+                    {template.name.split(' (')[0]}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Editor Area */}
+            <div className="flex-1 overflow-y-auto p-8 space-y-6">
+              <div>
+                <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 mb-2">Subject Line</label>
+                <input 
+                  type="text" 
+                  value={emailSubject}
+                  onChange={(e) => setEmailSubject(e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-4 text-sm text-white focus:border-purple-500/50 outline-none transition-all"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 mb-2">Email Body (Edit as needed)</label>
+                <textarea 
+                  value={emailBody}
+                  onChange={(e) => setEmailBody(e.target.value)}
+                  rows={10}
+                  className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-4 text-sm text-white focus:border-purple-500/50 outline-none transition-all resize-none leading-relaxed"
+                />
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="p-8 border-t border-white/10 bg-white/[0.02] flex gap-3">
+              <button 
+                onClick={() => setShowEmailModal(false)}
+                className="flex-1 py-4 bg-white/5 text-gray-400 rounded-2xl text-xs font-black uppercase tracking-[0.2em] hover:bg-white/10 transition-all"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={sendCustomEmail}
+                disabled={sendingEmail}
+                className="flex-[2] py-4 bg-gradient-to-r from-purple-500 to-indigo-600 text-white rounded-2xl text-xs font-black uppercase tracking-[0.2em] shadow-xl shadow-purple-500/20 hover:shadow-purple-500/40 active:scale-95 transition-all disabled:opacity-50 disabled:scale-100 flex items-center justify-center gap-2"
+              >
+                {sendingEmail ? (
+                  <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                ) : (
+                  <EnvelopeIcon className="h-4 w-4" />
+                )}
+                {sendingEmail ? 'Sending...' : 'Send Email Now'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Customer Modal */}
         {showEditCustomerModal && editingCustomerData && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowEditCustomerModal(false)}></div>
