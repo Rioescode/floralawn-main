@@ -30,9 +30,13 @@ import {
   TrashIcon,
   PlayIcon,
   ChevronRightIcon,
+  ChevronLeftIcon,
   CheckBadgeIcon,
   ChevronDownIcon,
-  SparklesIcon
+  SparklesIcon,
+  CloudIcon,
+  PaperAirplaneIcon,
+  ArrowUturnLeftIcon
 } from '@heroicons/react/24/outline';
 
 const DAYS_OF_WEEK = [
@@ -127,6 +131,16 @@ export default function SchedulePage() {
       name: 'Weekly Mowing Quote',
       subject: (name) => `Lawn Mowing Quote Request - Flora Lawn`,
       body: (name) => `Hi ${name || 'there'},\n\nThanks for the request for weekly mowing! \n\nI'll be in your area this week and can stop by to take a look at the lawn. I'll provide you with a weekly price and let you know which day of the week we'd be able to service your property.\n\nLooking forward to helping you with your lawn!\n\nBest,\nFlora Lawn & Landscaping`
+    },
+    tomorrow_behind: {
+      name: 'Tomorrow Visit (Running Behind)',
+      subject: (name) => `Update on your estimate visit - Flora Lawn`,
+      body: (name) => `Hi ${name || 'there'},\n\nI wanted to reach out and apologize—we're running a bit behind on our route today finishing up a larger project.\n\nI won't be able to make it to your property this afternoon as planned, but I'll be there first thing tomorrow morning to take a look and get that price over to you!\n\nYou don't need to be home. I'll send the quote via email as soon as I'm done.\n\nThanks for your patience!\n\nBest,\nFlora Lawn & Landscaping`
+    },
+    tomorrow_route: {
+      name: 'Tomorrow Visit (Neighborhood Route)',
+      subject: (name) => `Quick update regarding your estimate - Flora Lawn`,
+      body: (name) => `Hi ${name || 'there'},\n\nThanks again for reaching out! I'm actually going to be in your immediate neighborhood all day tomorrow servicing several other properties.\n\nTo keep things efficient, I'll stop by your place tomorrow to do the measurement and give you an exact price for the service.\n\nI'll have the quote sent over to you by tomorrow afternoon!\n\nBest regards,\nFlora Lawn & Landscaping`
     }
   };
   const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -183,9 +197,218 @@ export default function SchedulePage() {
   });
   const [savingManualJob, setSavingManualJob] = useState(false);
   const [isEditingLead, setIsEditingLead] = useState(false);
+  const [updatingLeadStatus, setUpdatingLeadStatus] = useState(null); // id of lead being updated
+  const [scheduledReviews, setScheduledReviews] = useState([]); // Reviews pending (completed < 24h ago)
+  const [sendingReviewFor, setSendingReviewFor] = useState(null); // id of lead currently sending review
+  const [showQuickBIModal, setShowQuickBIModal] = useState(false);
+  const [pricing, setPricing] = useState({
+    lawn_mowing: { base_house: 50, base_sqft_limit: 6000, price_per_1k_sqft: 10, bi_weekly_surcharge: 1.3 },
+    materials: { mulch_per_yd: 135, edging_per_ft: 1.25, mulch_depth_inches: 3, tree_trim_flat: 75 },
+    seasonal: { spring_cleanup_base: 189, fall_cleanup_base: 235, med_scale_mult_1_4k: 1.8, lrg_scale_mult_5k_plus: 2.6 },
+    advanced_care: { aeration_base: 150, aeration_price_per_1k: 35.36, dethatch_base: 167, seed_price_per_1k: 45, snow_base: 75 },
+    operations: { fertilizer_base: 35, gutter_base: 150, shrub_rates: { small: 25, medium: 45, large: 75 }, disposal_fee: 125 }
+  });
+  const [savingBI, setSavingBI] = useState(false);
+  const [emailLogs, setEmailLogs] = useState([]);
+  const [loadingEmails, setLoadingEmails] = useState(false);
+  const [selectedHistoryLog, setSelectedHistoryLog] = useState(null);
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [messageFilter, setMessageFilter] = useState('ALL');
+  const [isReplyMode, setIsReplyMode] = useState(false);
+  const [replyText, setReplyText] = useState('');
+  const [isSendingReply, setIsSendingReply] = useState(false);
   const manualJobAddressRef = useRef(null);
   const editCustomerAddressRef = useRef(null);
   const router = useRouter();
+
+  const fetchEmailLogs = async () => {
+    try {
+      setLoadingEmails(true);
+      const { data, error } = await supabase
+        .from('email_logs')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        if (error.code !== '42P01') { // Ignore error if table doesn't exist yet
+          console.error('Error fetching email logs:', error);
+        }
+        return;
+      }
+      setEmailLogs(data || []);
+    } catch (err) {
+      console.error('Email fetch error:', err);
+    } finally {
+      setLoadingEmails(false);
+    }
+  };
+
+  const autoReviewRanRef = useRef(false);
+
+  const processAutoReviews = async () => {
+    // GUARD: Only run once per session
+    if (autoReviewRanRef.current) return;
+    autoReviewRanRef.current = true;
+
+    try {
+      console.log('Checking for pending automated reviews (one-time jobs only)...');
+      
+      // 1. Get ONLY completed leads/inquiries (not recurring W1/W2 schedule customers)
+      const seventyTwoHoursAgo = new Date(Date.now() - 72 * 60 * 60 * 1000).toISOString();
+      
+      const { data: recentJobs, error: jobsError } = await supabase
+        .from('contact_leads')
+        .select('*')
+        .eq('status', 'completed')
+        .gte('updated_at', seventyTwoHoursAgo);
+        
+      if (jobsError || !recentJobs || recentJobs.length === 0) {
+        setScheduledReviews([]);
+        return;
+      }
+      
+      // 2. Deduplicate by email — one review per customer, not per job
+      const uniqueByEmail = {};
+      for (const job of recentJobs) {
+        if (!job.customer_email) continue;
+        // Keep the most recent lead for each email
+        if (!uniqueByEmail[job.customer_email] || new Date(job.updated_at) > new Date(uniqueByEmail[job.customer_email].updated_at)) {
+          uniqueByEmail[job.customer_email] = job;
+        }
+      }
+      const dedupedJobs = Object.values(uniqueByEmail);
+      
+      // 3. Check email logs — look for REVIEW or GENERAL type with review subject (catch old ones)
+      const emails = dedupedJobs.map(j => j.customer_email);
+      const { data: sentReviews, error: logsError } = await supabase
+        .from('email_logs')
+        .select('recipient_email')
+        .in('recipient_email', emails)
+        .or('type.eq.REVIEW,subject.ilike.%checking in on your property%');
+        
+      if (logsError) return;
+      
+      const sentEmailSet = new Set(sentReviews?.map(r => r.recipient_email) || []);
+      
+      // 4. Separate into "To Send Now" and "Scheduled for Later"
+      const now = Date.now();
+      const twentyFourHours = 24 * 60 * 60 * 1000;
+      const toSendNow = [];
+      const scheduled = [];
+      
+      for (const job of dedupedJobs) {
+        if (sentEmailSet.has(job.customer_email)) continue;
+        
+        const completedAt = new Date(job.updated_at).getTime();
+        const sendAt = completedAt + twentyFourHours;
+        
+        if (now >= sendAt) {
+          toSendNow.push(job);
+        } else {
+          scheduled.push({ ...job, sendAt });
+        }
+      }
+      
+      setScheduledReviews(scheduled);
+      
+      // 5. Send reviews — one per unique email only
+      for (const job of toSendNow) {
+        console.log(`Auto-sending review request to ${job.customer_name} (${job.customer_email})`);
+        
+        await fetch('/api/customers/send-message', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            customerData: {
+              customer_email: job.customer_email,
+              customer_name: job.customer_name
+            },
+            sendEmail: true,
+            type: 'review',
+            subject: `Checking in on your property! 🌿 - Flora Lawn & Landscaping`,
+            message: `It was a pleasure working on your property! We hope you're loving the results.`
+          })
+        });
+        
+        // Immediately mark as sent so no re-runs can duplicate
+        sentEmailSet.add(job.customer_email);
+      }
+      
+    } catch (err) {
+      console.error('Auto-review error:', err);
+    }
+  };
+
+  useEffect(() => {
+    if (viewMode === 'messages') {
+      fetchEmailLogs();
+    }
+  }, [viewMode]);
+
+  // Run auto-review check exactly ONCE on mount
+  useEffect(() => {
+    processAutoReviews();
+  }, []);
+
+  const handleSendReply = async () => {
+    if (!replyText.trim() || !selectedHistoryLog) return;
+    
+    // Try to find the real name from our existing appointments list
+    const knownCustomer = appointments.find(a => a.customer_email === selectedHistoryLog.recipient_email);
+    const displayName = knownCustomer?.customer_name || selectedHistoryLog.recipient_name || 'there';
+
+    try {
+      setIsSendingReply(true);
+      const response = await fetch('/api/customers/send-message', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customerData: {
+            customer_email: selectedHistoryLog.recipient_email,
+            customer_name: displayName
+          },
+          sendEmail: true,
+          subject: `Re: ${selectedHistoryLog.subject}`,
+          message: replyText
+        })
+      });
+
+      if (response.ok) {
+        setReplyText('');
+        setIsReplyMode(false);
+        fetchEmailLogs(); // Refresh logs to show new reply
+      } else {
+        alert('Failed to send reply. Please check your connection.');
+      }
+    } catch (err) {
+      console.error('Reply error:', err);
+    } finally {
+      setIsSendingReply(false);
+    }
+  };
+
+  const handleUpdateLeadStatus = async (id, newStatus) => {
+    try {
+      setUpdatingLeadStatus(id);
+      const { error } = await supabase
+        .from('contact_leads')
+        .update({ status: newStatus })
+        .eq('id', id);
+
+      if (error) throw error;
+      
+      // Refresh local state
+      setAppointments(prev => prev.map(apt => 
+        apt.id === id ? { ...apt, status: newStatus } : apt
+      ));
+      
+    } catch (err) {
+      console.error('Status update error:', err);
+      alert('Failed to update status.');
+    } finally {
+      setUpdatingLeadStatus(null);
+    }
+  };
 
   // Helper functions for localStorage persistence
   const getTodayKey = () => {
@@ -496,6 +719,52 @@ export default function SchedulePage() {
   useEffect(() => {
     checkAuth();
   }, []);
+  
+  useEffect(() => {
+    fetchPricing();
+  }, []);
+
+  const [lastSyncedBI, setLastSyncedBI] = useState(null);
+
+  const fetchPricing = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('business_config')
+        .select('data, updated_at')
+        .eq('category', 'master_pricing')
+        .single();
+      if (!error && data?.data) {
+        setPricing(data.data);
+        if (data.updated_at) setLastSyncedBI(new Date(data.updated_at).toLocaleString());
+      }
+    } catch (err) {
+      console.error('Error fetching BI pricing:', err);
+    }
+  };
+
+  const saveQuickBI = async () => {
+    try {
+      setSavingBI(true);
+      const now = new Date().toISOString();
+      const { error } = await supabase
+        .from('business_config')
+        .upsert({
+          category: 'master_pricing',
+          data: pricing,
+          updated_at: now
+        }, { onConflict: 'category' });
+
+      if (error) throw error;
+      setLastSyncedBI(new Date(now).toLocaleString());
+      setShowQuickBIModal(false);
+      // Optional: show a small toast or success state
+    } catch (err) {
+      console.error('Error saving Quick BI:', err);
+      alert('Failed to save configuration');
+    } finally {
+      setSavingBI(false);
+    }
+  };
 
   useEffect(() => {
     if (user) {
@@ -1081,8 +1350,17 @@ export default function SchedulePage() {
         c.id === customer.id ? { ...c, job_started_at: nowISO } : c
       ));
       
-      // Open maps
-      window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(customer.address)}`, '_blank');
+      // Open maps — use directions URL so it opens turn-by-turn navigation
+      const address = encodeURIComponent(customer.address);
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${address}&travelmode=driving`;
+      
+      if (isMobile) {
+        // On mobile, use location.href to avoid popup blockers and open native maps
+        window.location.href = mapsUrl;
+      } else {
+        window.open(mapsUrl, '_blank');
+      }
       
       setShowNavigationModal(false);
       setSelectedCustomerForNavigation(null);
@@ -1172,29 +1450,43 @@ export default function SchedulePage() {
         durationMinutes = Math.max(0, Math.round((end - start) / (1000 * 60)));
       }
 
-      // Update customer's last_service date, increment service_count, and reset timer
-      const { error: updateError } = await supabase
-        .from('customers')
-        .update({ 
-          last_service: new Date().toISOString().split('T')[0],
-          job_started_at: null,
-          last_job_duration_minutes: durationMinutes,
-          service_count: (customer.service_count || 0) + 1
-        })
-        .eq('id', customer.id);
+      // Update either customer or lead based on the type
+      if (customer.status === 'confirmed' || customer.day === 'One-time Job') {
+        // It's a lead/inquiry being completed
+        const { error: leadError } = await supabase
+          .from('contact_leads')
+          .update({ status: 'completed' })
+          .eq('id', customer.id);
+        
+        if (leadError) throw leadError;
+        
+        // Also refresh appointments list
+        fetchAppointments();
+      } else {
+        // It's a regular active customer
+        const { error: updateError } = await supabase
+          .from('customers')
+          .update({ 
+            last_service: new Date().toISOString().split('T')[0],
+            job_started_at: null,
+            last_job_duration_minutes: durationMinutes,
+            service_count: (customer.service_count || 0) + 1
+          })
+          .eq('id', customer.id);
 
-      if (updateError) throw updateError;
+        if (updateError) throw updateError;
 
-      // Update local state to reflect the database changes
-      setCustomers(prev => prev.map(c => 
-        c.id === customer.id ? { 
-          ...c, 
-          job_started_at: null, 
-          last_job_duration_minutes: durationMinutes, 
-          last_service: new Date().toISOString().split('T')[0],
-          service_count: (c.service_count || 0) + 1
-        } : c
-      ));
+        // Update local state for regular customers
+        setCustomers(prev => prev.map(c => 
+          c.id === customer.id ? { 
+            ...c, 
+            job_started_at: null, 
+            last_job_duration_minutes: durationMinutes, 
+            last_service: new Date().toISOString().split('T')[0],
+            service_count: (c.service_count || 0) + 1
+          } : c
+        ));
+      }
 
       // Create or update appointment record with completed status
       const today = new Date().toISOString().split('T')[0];
@@ -1367,6 +1659,7 @@ export default function SchedulePage() {
             message: completionMessage,
             sendEmail: sendEmail,
             sendSMS: sendSMS,
+            type: 'completed',
             customerData: appointmentData // Pass customer data directly
           })
         });
@@ -1867,7 +2160,7 @@ export default function SchedulePage() {
       const { data, error } = await supabase
         .from('contact_leads')
         .select('*')
-        .in('status', ['pending', 'confirmed', 'waitlist'])
+        .in('status', ['pending', 'confirmed', 'waitlist', 'completed'])
         .order('created_at', { ascending: false });
       if (error) throw error;
       setAppointments(data || []);
@@ -2808,21 +3101,33 @@ export default function SchedulePage() {
         <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-[120px]"></div>
       </div>
 
-      <div className="relative z-10 max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6">
+      <div className="relative z-10 max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 pb-24 lg:pb-6">
         
         {/* === HEADER === */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
           <div>
-            <h1 className="text-3xl sm:text-4xl font-black tracking-tight">
-              <span className="bg-gradient-to-r from-green-400 via-emerald-400 to-teal-400 bg-clip-text text-transparent">Schedule</span>
-            </h1>
+            <div className="flex items-center gap-3">
+              <h1 className="text-3xl sm:text-4xl font-black tracking-tight">
+                <span className="bg-gradient-to-r from-green-400 via-emerald-400 to-teal-400 bg-clip-text text-transparent">Schedule</span>
+              </h1>
+              <button 
+                onClick={(e) => {
+                  e.preventDefault();
+                  setShowQuickBIModal(true);
+                }}
+                className="hidden lg:flex items-center gap-2 px-3 py-1 bg-green-500/10 border border-green-500/20 rounded-full hover:bg-green-500/20 transition-all group"
+              >
+                <SparklesIcon className="h-3 w-3 text-green-400 group-hover:scale-125 transition-transform" />
+                <span className="text-[10px] font-black uppercase tracking-widest text-green-400">Quick BI</span>
+              </button>
+            </div>
             <p className="text-sm text-gray-400 mt-1">
               {getCurrentDayName()}, {getCurrentWeek()} &bull; {customers.length} active customers
             </p>
           </div>
           
           {/* Mobile View Toggle - Fixed Bottom Bar */}
-          <div className="fixed bottom-0 left-0 right-0 bg-[#161922]/95 backdrop-blur-2xl border-t border-white/10 p-2.5 px-6 flex items-center justify-around z-[100] sm:hidden shadow-[0_-10px_40px_rgba(0,0,0,0.4)]">
+          <div className="fixed bottom-0 left-0 right-0 bg-[#161922]/95 backdrop-blur-2xl border-t border-white/10 p-2.5 px-6 flex items-center justify-around z-[100] lg:hidden shadow-[0_-10px_40px_rgba(0,0,0,0.4)]">
             <button
               onClick={() => setViewMode('schedule')}
               className={`flex flex-col items-center gap-1.5 p-1 transition-all ${viewMode === 'schedule' ? 'text-green-400 scale-110' : 'text-gray-500'}`}
@@ -2845,17 +3150,30 @@ export default function SchedulePage() {
               <span className="text-[9px] font-black uppercase tracking-widest">Leads</span>
             </button>
             <button
+              onClick={() => setViewMode('messages')}
+              className={`flex flex-col items-center gap-1.5 p-1 transition-all ${viewMode === 'messages' ? 'text-pink-400 scale-110' : 'text-gray-500'}`}
+            >
+              <EnvelopeOpenIcon className="h-6 w-6" />
+              <span className="text-[9px] font-black uppercase tracking-widest">Chat</span>
+            </button>
+            <button
               onClick={() => setViewMode('visits')}
               className={`flex flex-col items-center gap-1.5 p-1 transition-all ${viewMode === 'visits' ? 'text-orange-400 scale-110' : 'text-gray-500'}`}
             >
               <ClockIcon className="h-6 w-6" />
               <span className="text-[9px] font-black uppercase tracking-widest">Visits</span>
             </button>
+            <button
+              onClick={() => setShowQuickBIModal(true)}
+              className="flex flex-col items-center gap-1.5 p-1 text-green-500"
+            >
+              <SparklesIcon className="h-6 w-6" />
+              <span className="text-[9px] font-black uppercase tracking-widest">BI v2.0</span>
+            </button>
           </div>
 
           {/* Desktop View Toggle - Hidden on Mobile */}
-          <div className="hidden sm:flex items-center bg-white/5 backdrop-blur-xl rounded-2xl p-1 border border-white/10">
-            {/* ... (buttons remain as they were in the desktop view) ... */}
+          <div className="hidden lg:flex items-center bg-white/5 backdrop-blur-xl rounded-2xl p-1 border border-white/10">
             <button
               onClick={() => setViewMode('schedule')}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 ${
@@ -2905,6 +3223,24 @@ export default function SchedulePage() {
               </span>
             </button>
             <button
+              onClick={() => setViewMode('messages')}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 ${
+                viewMode === 'messages'
+                  ? 'bg-gradient-to-r from-pink-500 to-rose-600 text-white shadow-lg shadow-pink-500/25'
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              <EnvelopeOpenIcon className="h-4 w-4" />
+              Messages
+              {emailLogs.length > 0 && (
+                <span className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-black ${
+                  viewMode === 'messages' ? 'bg-white text-pink-600' : 'bg-white/10 text-gray-400'
+                }`}>
+                  {emailLogs.length}
+                </span>
+              )}
+            </button>
+            <button
               onClick={() => setViewMode('visits')}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 ${
                 viewMode === 'visits'
@@ -2920,16 +3256,16 @@ export default function SchedulePage() {
                 {appointments.filter(a => a.visit_date).length}
               </span>
             </button>
-          </div>
+        </div>
 
           {/* Add Customer Button - Floats on Mobile */}
           <button
             onClick={openAddCustomerModal}
-            className="fixed bottom-24 right-6 sm:static flex items-center gap-2 px-6 py-5 sm:px-4 sm:py-2.5 rounded-full sm:rounded-2xl text-sm font-bold bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-2xl shadow-green-500/40 sm:shadow-green-500/25 hover:scale-105 transition-all duration-200 active:scale-95 z-[90]"
+            className="fixed bottom-24 right-6 lg:static flex items-center gap-2 px-6 py-5 lg:px-4 lg:py-2.5 rounded-full lg:rounded-2xl text-sm font-bold bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-2xl shadow-green-500/40 lg:shadow-green-500/25 hover:scale-105 transition-all duration-200 active:scale-95 z-[90]"
           >
-            <PlusIcon className="h-6 w-6 sm:h-4 sm:w-4" />
-            <span className="hidden sm:inline">Add Customer</span>
-            <span className="sm:hidden">New Customer</span>
+            <PlusIcon className="h-6 w-6 lg:h-4 lg:w-4" />
+            <span className="hidden lg:inline">Add Customer</span>
+            <span className="lg:hidden">New Customer</span>
           </button>
         </div>
 
@@ -3160,11 +3496,20 @@ export default function SchedulePage() {
                     <EnvelopeIcon className="h-6 w-6 text-white" />
                   </div>
                   <div>
-                    <h2 className="text-xl font-black text-white">{inquiryTab === 'pending' ? 'Pending Inquiries' : 'Confirmed Jobs'}</h2>
+                    <h2 className="text-xl font-black text-white">
+                      {inquiryTab === 'pending' ? 'Pending Inquiries' 
+                        : inquiryTab === 'confirmed' ? 'Confirmed Jobs'
+                        : inquiryTab === 'waitlist' ? 'Waitlist'
+                        : 'Completed Jobs'}
+                    </h2>
                     <p className="text-sm text-gray-500">
                       {inquiryTab === 'pending' 
                         ? `${appointments.filter(a => !a.visit_date && a.status === 'pending').length} leads waiting for response`
-                        : `${appointments.filter(a => a.status === 'confirmed').length} jobs ready for scheduling`}
+                        : inquiryTab === 'confirmed'
+                          ? `${appointments.filter(a => a.status === 'confirmed').length} jobs ready for scheduling`
+                        : inquiryTab === 'waitlist'
+                          ? `${appointments.filter(a => a.status === 'waitlist').length} leads on hold`
+                          : `${appointments.filter(a => a.status === 'completed').length} finished jobs`}
                     </p>
                   </div>
                 </div>
@@ -3200,6 +3545,16 @@ export default function SchedulePage() {
                     }`}
                   >
                     Waitlist ({appointments.filter(a => a.status === 'waitlist').length})
+                  </button>
+                  <button
+                    onClick={() => setInquiryTab('completed')}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                      inquiryTab === 'completed' 
+                        ? 'bg-green-500 text-white shadow-lg shadow-green-500/30' 
+                        : 'text-gray-500 hover:text-white'
+                    }`}
+                  >
+                    Completed ({appointments.filter(a => a.status === 'completed').length})
                   </button>
                 </div>
 
@@ -3239,18 +3594,29 @@ export default function SchedulePage() {
                   <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500 mx-auto mb-4"></div>
                   <p className="text-gray-500 font-medium">Scanning for new leads...</p>
                 </div>
-              ) : (inquiryTab === 'pending' ? appointments.filter(a => !a.visit_date && a.status === 'pending') : appointments.filter(a => a.status === 'confirmed')).length === 0 ? (
+              ) : (inquiryTab === 'pending' ? appointments.filter(a => !a.visit_date && a.status === 'pending') 
+                  : inquiryTab === 'confirmed' ? appointments.filter(a => a.status === 'confirmed')
+                  : inquiryTab === 'waitlist' ? appointments.filter(a => a.status === 'waitlist')
+                  : appointments.filter(a => a.status === 'completed')
+              ).length === 0 ? (
                 <div className="py-20 text-center bg-white/[0.02] rounded-3xl border border-dashed border-white/10">
                   <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-4">
                     <EnvelopeOpenIcon className="h-8 w-8 text-gray-700" />
                   </div>
-                  <h3 className="text-white font-bold mb-1 text-lg">{inquiryTab === 'pending' ? 'Inbox is Empty' : 'No Confirmed Jobs'}</h3>
+                  <h3 className="text-white font-bold mb-1 text-lg">
+                    {inquiryTab === 'pending' ? 'Inbox is Empty' 
+                      : inquiryTab === 'confirmed' ? 'No Confirmed Jobs'
+                      : inquiryTab === 'waitlist' ? 'Waitlist is Empty'
+                      : 'No Completed Jobs Yet'}
+                  </h3>
                   <p className="text-gray-500 text-sm max-w-xs mx-auto">
                     {inquiryTab === 'pending' 
                       ? 'New leads from your contact form will appear here automatically.'
                       : inquiryTab === 'confirmed'
                         ? 'Confirmed jobs that are ready to be added to the schedule will appear here.'
-                        : 'Completed one-time jobs and future seasonal work targets.'}
+                      : inquiryTab === 'waitlist'
+                        ? 'Leads moved to the waitlist will appear here.'
+                        : 'Jobs you mark as done will appear here with review tracking.'}
                   </p>
                 </div>
               ) : (
@@ -3259,7 +3625,9 @@ export default function SchedulePage() {
                     ? appointments.filter(a => !a.visit_date && a.status === 'pending') 
                     : inquiryTab === 'confirmed'
                       ? appointments.filter(a => a.status === 'confirmed')
-                      : appointments.filter(a => a.status === 'waitlist')
+                    : inquiryTab === 'waitlist'
+                      ? appointments.filter(a => a.status === 'waitlist')
+                      : appointments.filter(a => a.status === 'completed')
                   ).map(apt => (
                     <div 
                       key={apt.id} 
@@ -3311,7 +3679,9 @@ export default function SchedulePage() {
                               <div className="flex flex-wrap gap-2">
                                 {(apt.service_type || 'Inquiry').split(', ').map((service, idx) => (
                                   <span key={idx} className={`px-2.5 py-1 text-[10px] font-black rounded-lg uppercase tracking-widest border whitespace-nowrap ${
-                                    apt.status === 'confirmed' 
+                                    apt.status === 'completed'
+                                      ? 'bg-green-500/10 text-green-400 border-green-500/20'
+                                    : apt.status === 'confirmed' 
                                       ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' 
                                       : 'bg-purple-500/10 text-purple-400 border-purple-500/20'
                                   }`}>
@@ -3325,6 +3695,42 @@ export default function SchedulePage() {
                                   {new Date(apt.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
                                 </span>
                               </div>
+                              {apt.status === 'completed' && (() => {
+                                const completedAt = new Date(apt.updated_at || apt.created_at).getTime();
+                                const sendAt = completedAt + 24 * 60 * 60 * 1000;
+                                const now = Date.now();
+                                const alreadySent = scheduledReviews.length === 0 && now > sendAt;
+                                const isPending = now < sendAt;
+                                
+                                if (!apt.customer_email) {
+                                  return (
+                                    <div className="flex items-center gap-2 px-2.5 py-1.5 bg-gray-500/10 rounded-lg border border-gray-500/10">
+                                      <span className="text-[9px] font-black uppercase tracking-widest text-gray-500">No email on file</span>
+                                    </div>
+                                  );
+                                }
+                                
+                                if (isPending) {
+                                  const timeLeft = sendAt - now;
+                                  const hoursLeft = Math.floor(timeLeft / (1000 * 60 * 60));
+                                  const minsLeft = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+                                  return (
+                                    <div className="flex items-center gap-2 px-2.5 py-1.5 bg-indigo-500/10 rounded-lg border border-indigo-500/20 animate-pulse">
+                                      <ClockIcon className="h-3 w-3 text-indigo-400" />
+                                      <span className="text-[9px] font-black uppercase tracking-widest text-indigo-400">
+                                        Auto-review in {hoursLeft}h {minsLeft}m
+                                      </span>
+                                    </div>
+                                  );
+                                }
+                                
+                                return (
+                                  <div className="flex items-center gap-2 px-2.5 py-1.5 bg-green-500/10 rounded-lg border border-green-500/20">
+                                    <CheckBadgeIcon className="h-3 w-3 text-green-400" />
+                                    <span className="text-[9px] font-black uppercase tracking-widest text-green-400">Review Sent ✓</span>
+                                  </div>
+                                );
+                              })()}
                             </div>
                           </div>
 
@@ -3347,6 +3753,15 @@ export default function SchedulePage() {
                             <button onClick={() => deleteAppointment(apt.id)} className="p-2 bg-red-500/10 text-red-400 rounded-xl hover:bg-red-500/20 transition-all border border-red-500/20" title="Delete">
                               <TrashIcon className="h-4 w-4" />
                             </button>
+                            {apt.status !== 'waitlist' && (
+                              <button 
+                                onClick={() => handleUpdateLeadStatus(apt.id, 'waitlist')} 
+                                className={`p-2 bg-amber-500/10 text-amber-500 rounded-xl hover:bg-amber-500/20 transition-all border border-amber-500/20 ${updatingLeadStatus === apt.id ? 'animate-pulse' : ''}`} 
+                                title="Move to Waitlist"
+                              >
+                                <CloudIcon className="h-4 w-4" />
+                              </button>
+                            )}
                           </div>
                         </div>
 
@@ -3368,7 +3783,54 @@ export default function SchedulePage() {
 
                         {/* Bottom Action Row */}
                         <div className="grid grid-cols-2 gap-2 mt-auto">
-                          {apt.status === 'pending' ? (
+                          {apt.status === 'completed' ? (
+                            <>
+                              <button 
+                                onClick={async () => {
+                                  if (!apt.customer_email) { alert('No email on file for this customer.'); return; }
+                                  try {
+                                    setSendingReviewFor(apt.id);
+                                    const res = await fetch('/api/customers/send-message', {
+                                      method: 'POST',
+                                      headers: { 'Content-Type': 'application/json' },
+                                      body: JSON.stringify({
+                                        customerData: { customer_email: apt.customer_email, customer_name: apt.customer_name },
+                                        sendEmail: true,
+                                        type: 'review',
+                                        subject: `Checking in on your property! 🌿 - Flora Lawn & Landscaping`,
+                                        message: 'It was a pleasure working on your property!'
+                                      })
+                                    });
+                                    if (res.ok) alert(`Review request sent to ${apt.customer_name}!`);
+                                    else alert('Failed to send review request.');
+                                  } catch (err) { console.error(err); alert('Error sending review.'); }
+                                  finally { setSendingReviewFor(null); }
+                                }}
+                                disabled={sendingReviewFor === apt.id}
+                                className={`py-3 col-span-2 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border flex items-center justify-center gap-2 ${
+                                  sendingReviewFor === apt.id
+                                    ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30 animate-pulse'
+                                    : 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white border-transparent shadow-lg shadow-indigo-500/20 hover:shadow-indigo-500/40'
+                                }`}
+                              >
+                                <SparklesIcon className="h-3.5 w-3.5" />
+                                {sendingReviewFor === apt.id ? 'Sending...' : 'Send Review Request'}
+                              </button>
+                              <button 
+                                onClick={() => handleUpdateLeadStatus(apt.id, 'pending')}
+                                className="py-3 bg-white/5 hover:bg-white/10 text-gray-400 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border border-white/5 flex items-center justify-center gap-2"
+                              >
+                                ↩ Back to Pending
+                              </button>
+                              <button 
+                                onClick={() => deleteAppointment(apt.id)}
+                                className="py-3 bg-red-500/5 hover:bg-red-500/10 text-red-400 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border border-red-500/10 flex items-center justify-center gap-2"
+                              >
+                                <TrashIcon className="h-3.5 w-3.5" />
+                                Archive
+                              </button>
+                            </>
+                          ) : apt.status === 'pending' ? (
                             <button 
                               onClick={() => confirmLead(apt)}
                               className="py-3 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border border-blue-500/20 flex items-center justify-center gap-2"
@@ -3385,18 +3847,37 @@ export default function SchedulePage() {
                               <span className="text-[11px] font-black">{formatLocalDate(apt.visit_date)}</span>
                             </button>
                           )}
-                          <button 
-                            onClick={() => handleConvertToCustomer(apt)}
-                            className={`py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border flex items-center justify-center gap-2 ${
-                              apt.status === 'confirmed'
-                                ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white border-transparent shadow-lg shadow-green-500/20'
-                                : 'bg-white/5 hover:bg-white/10 text-white border-white/10'
-                            }`}
-                          >
-                            <UserPlusIcon className="h-3.5 w-3.5 text-inherit" />
-                            Finalize
-                          </button>
-                        </div>
+                          {apt.status !== 'completed' && (
+                            <>
+                              <button 
+                                onClick={() => handleConvertToCustomer(apt)}
+                                className="py-3 px-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 text-white border-white/10"
+                              >
+                                <UserPlusIcon className="h-3.5 w-3.5" />
+                                Client
+                              </button>
+                              <button 
+                                onClick={() => {
+                                  setSelectedCustomerForDone({
+                                    ...apt,
+                                    name: apt.customer_name,
+                                    email: apt.customer_email,
+                                    phone: apt.customer_phone,
+                                    service_type: apt.service_type,
+                                    day: 'One-time Job'
+                                  });
+                                  setShowMarkDoneModal(true);
+                                  const serviceName = apt.service_type || 'service';
+                                  setCompletionMessage(`Hi ${apt.customer_name},\n\nGreat news! Your ${serviceName} has been successfully completed today. We took great care with your property and hope you're thrilled with how everything looks!\n\nThank you for choosing Flora Lawn & Landscaping!`);
+                                }}
+                                className="py-3 px-6 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border flex items-center justify-center gap-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white border-transparent shadow-lg shadow-green-500/20"
+                              >
+                                <CheckBadgeIcon className="h-3.5 w-3.5" />
+                                Done
+                              </button>
+                            </>
+                          )}
+                          </div>
                       </div>
                     </div>
                   ))}
@@ -3408,8 +3889,8 @@ export default function SchedulePage() {
 
         {/* === VISITS VIEW === */}
         {viewMode === 'visits' && (
-          <div className="mb-6 space-y-8">
-            <div className="bg-white/5 backdrop-blur-xl rounded-3xl border border-white/10 p-6 sm:p-10">
+          <div className="mb-6 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="bg-white/5 backdrop-blur-xl rounded-[2.5rem] border border-white/10 p-6 sm:p-10 shadow-2xl">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-10">
                 <div className="flex items-center gap-4">
                   <div className="p-3.5 bg-gradient-to-br from-orange-500 to-red-600 rounded-2xl shadow-xl shadow-orange-500/20">
@@ -3511,6 +3992,311 @@ export default function SchedulePage() {
                             </div>
                           </div>
                         ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* === EMAIL PREVIEW MODAL === */}
+        {showHistoryModal && selectedHistoryLog && (
+          <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 sm:p-6">
+            <div 
+              className="absolute inset-0 bg-[#0a0a0b]/80 backdrop-blur-md"
+              onClick={() => setShowHistoryModal(false)}
+            ></div>
+            
+            <div className="relative bg-[#161922] w-full max-w-4xl max-h-[90vh] rounded-[3rem] border border-white/10 shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-300">
+              {/* Modal Header */}
+              <div className="p-8 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
+                <div className="flex items-center gap-5">
+                  <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-2xl ${
+                    selectedHistoryLog.type === 'QUOTE' ? 'bg-green-500/10 text-green-500' :
+                    selectedHistoryLog.type === 'INVOICE' ? 'bg-blue-500/10 text-blue-500' :
+                    selectedHistoryLog.type === 'REMINDER' ? 'bg-orange-500/10 text-orange-500' : 
+                    selectedHistoryLog.type === 'CONFIRMATION' ? 'bg-purple-500/10 text-purple-500' : 'bg-pink-500/10 text-pink-500'
+                  }`}>
+                    <EnvelopeOpenIcon className="h-7 w-7" />
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-black text-white tracking-tight">{selectedHistoryLog.subject}</h3>
+                    <p className="text-xs text-gray-500 font-bold uppercase tracking-widest mt-1">
+                      {selectedHistoryLog.direction === 'INBOUND' ? 'From: ' : 'To: '} 
+                      <span className="text-white">{selectedHistoryLog.recipient_email}</span> • {new Date(selectedHistoryLog.created_at).toLocaleString()}
+                    </p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setShowHistoryModal(false)}
+                  className="p-4 bg-white/5 hover:bg-white/10 rounded-2xl text-gray-400 hover:text-white transition-all"
+                >
+                  <XMarkIcon className="h-6 w-6" />
+                </button>
+              </div>
+
+              {/* Modal Body */}
+              <div className="flex-1 overflow-y-auto p-4 sm:p-10 bg-white/[0.02]">
+                {isReplyMode ? (
+                  <div className="bg-[#161922] rounded-[3rem] p-10 border border-pink-500/30 shadow-[0_0_50px_-12px_rgba(236,72,153,0.3)] animate-in slide-in-from-bottom-10 duration-500">
+                    <div className="flex items-center gap-4 mb-8">
+                       <div className="w-12 h-12 rounded-2xl bg-pink-500/20 flex items-center justify-center text-pink-400">
+                          <PencilIcon className="h-6 w-6" />
+                       </div>
+                       <div>
+                          <h3 className="text-xl font-black text-white italic uppercase tracking-tight">Compose Reply</h3>
+                          <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Replying to: {selectedHistoryLog.recipient_email}</p>
+                       </div>
+                    </div>
+                    
+                    <textarea 
+                      value={replyText}
+                      onChange={(e) => setReplyText(e.target.value)}
+                      placeholder="Type your message here..."
+                      className="w-full h-64 bg-white/5 border border-white/10 rounded-[2rem] p-8 text-white placeholder-gray-600 focus:ring-4 focus:ring-pink-500/20 focus:border-pink-500/50 transition-all resize-none mb-8 outline-none"
+                    ></textarea>
+
+                    <div className="flex items-center justify-between">
+                       <button 
+                         onClick={() => setIsReplyMode(false)}
+                         className="px-8 py-4 bg-white/5 hover:bg-white/10 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all text-gray-400"
+                       >
+                         Cancel
+                       </button>
+                       <button 
+                         onClick={handleSendReply}
+                         disabled={isSendingReply || !replyText.trim()}
+                         className={`px-12 py-4 bg-gradient-to-r from-pink-500 to-rose-600 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-xl shadow-pink-500/20 flex items-center gap-3 ${isSendingReply ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105 active:scale-95'}`}
+                       >
+                         {isSendingReply ? (
+                           <>
+                             <ArrowPathIcon className="h-4 w-4 animate-spin" />
+                             Sending...
+                           </>
+                         ) : (
+                           <>
+                             <PaperAirplaneIcon className="h-4 w-4 -rotate-45" />
+                             Send Message
+                           </>
+                         )}
+                       </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-[#fcfcfd] rounded-[3rem] p-6 sm:p-12 shadow-2xl border border-white/10 min-h-[500px]">
+                     {selectedHistoryLog.body_html ? (
+                       <div 
+                         className="prose prose-slate prose-lg max-w-none text-slate-800 leading-relaxed font-medium"
+                         dangerouslySetInnerHTML={{ __html: selectedHistoryLog.body_html }} 
+                       />
+                     ) : (
+                       <div className="flex flex-col items-center justify-center h-[400px] text-gray-400">
+                          <ArrowPathIcon className="h-12 w-12 animate-spin mb-6 opacity-20" />
+                          <p className="font-black uppercase text-[12px] tracking-[0.3em]">Processing Content...</p>
+                       </div>
+                     )}
+                  </div>
+                )}
+              </div>
+
+              {/* Modal Footer */}
+              <div className="p-6 border-t border-white/5 bg-white/[0.02] flex justify-between items-center px-10">
+                <button 
+                  onClick={() => {
+                    setIsReplyMode(false);
+                    setShowHistoryModal(false);
+                  }}
+                  className="px-8 py-3 bg-white/5 hover:bg-white/10 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all"
+                >
+                  Close Preview
+                </button>
+
+                {!isReplyMode && (
+                  <button 
+                    onClick={() => setIsReplyMode(true)}
+                    className="px-10 py-3 bg-pink-500 hover:bg-pink-600 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg shadow-pink-500/20 flex items-center gap-2"
+                  >
+                    <ArrowUturnLeftIcon className="h-4 w-4" />
+                    Reply
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {viewMode === 'messages' && (
+          <div className="mb-6 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="bg-white/5 backdrop-blur-xl rounded-[2.5rem] border border-white/10 p-6 sm:p-10 shadow-2xl">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-10">
+                <div className="flex items-center gap-5">
+                  <div className="p-4 bg-gradient-to-br from-pink-500 to-rose-600 rounded-3xl shadow-2xl shadow-pink-500/30 ring-4 ring-pink-500/10">
+                    <EnvelopeOpenIcon className="h-7 w-7 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-3xl font-black text-white tracking-tighter italic uppercase">Message Hub</h2>
+                    <p className="text-[10px] text-pink-400 font-black uppercase tracking-[0.2em] flex items-center gap-2 mt-1">
+                      <div className="w-1.5 h-1.5 bg-pink-500 rounded-full animate-pulse"></div>
+                      Global Communications Engine
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-3">
+                   <button 
+                      onClick={fetchEmailLogs}
+                      className="px-5 py-2.5 bg-white/5 hover:bg-white/10 rounded-2xl border border-white/10 text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 flex items-center gap-2"
+                   >
+                      <ArrowPathIcon className={`h-3.5 w-3.5 ${loadingEmails ? 'animate-spin' : ''}`} />
+                      Refresh History
+                   </button>
+                </div>
+              </div>
+
+              {/* Scheduled Reviews Countdown Section */}
+              {scheduledReviews.length > 0 && (
+                <div className="mb-10 p-6 bg-indigo-500/5 border border-indigo-500/10 rounded-[2rem] overflow-hidden relative group">
+                  <div className="absolute -top-12 -right-12 w-32 h-32 bg-indigo-500/10 blur-3xl rounded-full group-hover:bg-indigo-500/20 transition-all"></div>
+                  <div className="flex items-center gap-4 mb-6">
+                    <div className="p-3 bg-indigo-500/20 rounded-2xl">
+                      <ClockIcon className="h-5 w-5 text-indigo-400 animate-pulse" />
+                    </div>
+                    <div>
+                      <h3 className="text-white font-black uppercase text-xs tracking-widest">Scheduled Reviews</h3>
+                      <p className="text-[10px] text-indigo-400/70 font-bold uppercase tracking-widest mt-0.5">Auto-sending 24h after completion</p>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {scheduledReviews.map((review) => {
+                      const timeLeft = Math.max(0, review.sendAt - Date.now());
+                      const hoursLeft = Math.floor(timeLeft / (1000 * 60 * 60));
+                      const minsLeft = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+                      
+                      return (
+                        <div key={review.id} className="bg-white/5 border border-white/5 rounded-2xl p-4 flex items-center justify-between">
+                          <div className="min-w-0">
+                            <p className="text-white font-black text-xs truncate">{review.customer_name}</p>
+                            <p className="text-[10px] text-gray-500 font-medium truncate">{review.service_type}</p>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <div className="text-indigo-400 font-black text-xs tabular-nums">
+                              {hoursLeft}h {minsLeft}m
+                            </div>
+                            <p className="text-[9px] text-gray-600 font-black uppercase tracking-tighter">Countdown</p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Message Filter Pills */}
+              <div className="flex flex-wrap gap-2 mb-10 p-2 bg-white/5 rounded-3xl border border-white/5">
+                {[
+                  { id: 'ALL', label: 'All Messages', color: 'bg-white/10 text-white' },
+                  { id: 'QUOTE', label: 'Quotes', color: 'bg-green-500/10 text-green-500' },
+                  { id: 'INVOICE', label: 'Invoices', color: 'bg-blue-500/10 text-blue-500' },
+                  { id: 'REMINDER', label: 'Reminders', color: 'bg-orange-500/10 text-orange-500' },
+                  { id: 'CONFIRMATION', label: 'Confirmations', color: 'bg-purple-500/10 text-purple-500' },
+                  { id: 'INBOUND', label: 'Received', color: 'bg-blue-500/10 text-blue-400' }
+                ].map((pill) => (
+                  <button
+                    key={pill.id}
+                    onClick={() => setMessageFilter(pill.id)}
+                    className={`px-5 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 ${
+                      messageFilter === pill.id 
+                        ? `${pill.color} ring-2 ring-current shadow-lg` 
+                        : 'text-gray-500 hover:text-gray-300'
+                    }`}
+                  >
+                    {pill.label}
+                    <span className="ml-2 opacity-50">
+                      ({pill.id === 'ALL' ? emailLogs.length : emailLogs.filter(l => l.type === pill.id).length})
+                    </span>
+                  </button>
+                ))}
+              </div>
+
+              {loadingEmails && emailLogs.length === 0 ? (
+                <div className="py-24 text-center">
+                   <div className="animate-spin rounded-full h-12 w-12 border-4 border-white/10 border-t-pink-500 mx-auto mb-4"></div>
+                   <p className="text-gray-500 font-bold uppercase text-[10px] tracking-widest">Scanning History...</p>
+                </div>
+              ) : emailLogs.length === 0 ? (
+                <div className="py-32 text-center bg-white/[0.01] rounded-[3rem] border-2 border-dashed border-white/5">
+                  <div className="w-24 h-24 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-8 ring-8 ring-white/[0.02]">
+                    <EnvelopeIcon className="h-12 w-12 text-gray-700" />
+                  </div>
+                  <h3 className="text-white font-black mb-3 text-2xl tracking-tight">No Communication History</h3>
+                  <p className="text-gray-500 text-sm max-w-sm mx-auto font-medium leading-relaxed">
+                    Once you start sending Quotes, Invoices, or Reminders via Resend, your full audit trail will appear here.
+                  </p>
+                  <div className="mt-8">
+                     <p className="text-[9px] text-gray-600 uppercase font-black tracking-widest">Requires email_logs table in Supabase</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-4">
+                  {emailLogs
+                    .filter(log => messageFilter === 'ALL' || log.type === messageFilter)
+                    .map((log) => (
+                    <div 
+                      key={log.id} 
+                      className="group bg-white/[0.02] hover:bg-white/[0.04] border border-white/5 rounded-[2rem] p-6 transition-all relative overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-6"
+                    >
+                      <div className="flex items-center gap-5">
+                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg transition-transform group-hover:scale-110 ${
+                          log.type === 'QUOTE' ? 'bg-green-500/10 text-green-500' :
+                          log.type === 'INVOICE' ? 'bg-blue-500/10 text-blue-500' :
+                          log.type === 'REMINDER' ? 'bg-orange-500/10 text-orange-500' : 
+                          log.type === 'CONFIRMATION' ? 'bg-purple-500/10 text-purple-500' : 
+                          log.type === 'INBOUND' ? 'bg-blue-500/10 text-blue-400' : 'bg-gray-500/10 text-gray-400'
+                        }`}>
+                          {log.type === 'QUOTE' ? <SparklesIcon className="h-6 w-6" /> :
+                           log.type === 'INVOICE' ? <BanknotesIcon className="h-6 w-6" /> :
+                           log.type === 'REMINDER' ? <ClockIcon className="h-6 w-6" /> : 
+                           log.type === 'CONFIRMATION' ? <CheckBadgeIcon className="h-6 w-6" /> : 
+                           log.type === 'INBOUND' ? <ChevronLeftIcon className="h-6 w-6" /> : <EnvelopeIcon className="h-6 w-6" />}
+                        </div>
+                        
+                        <div>
+                          <div className="flex items-center gap-3 mb-1">
+                            <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md border ${
+                              log.type === 'QUOTE' ? 'bg-green-500/10 text-green-500 border-green-500/20' :
+                              log.type === 'INVOICE' ? 'bg-blue-500/10 text-blue-500 border-blue-500/20' :
+                              log.type === 'REMINDER' ? 'bg-orange-500/10 text-orange-500 border-orange-500/20' : 
+                              log.type === 'CONFIRMATION' ? 'bg-purple-500/10 text-purple-500 border-purple-500/20' : 
+                              log.type === 'INBOUND' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' : 'bg-gray-500/10 text-gray-400 border-white/10'
+                            }`}>
+                              {log.type || 'MESSAGE'}
+                            </span>
+                            <span className="text-gray-600 text-[10px] font-bold">•</span>
+                            <span className="text-gray-500 text-[10px] font-black uppercase tracking-widest">
+                              {new Date(log.created_at).toLocaleString()}
+                            </span>
+                          </div>
+                          <h4 className="text-white font-black text-lg group-hover:text-pink-400 transition-colors">{log.subject}</h4>
+                          <p className="text-gray-400 text-sm font-medium mt-1">
+                            {log.direction === 'INBOUND' ? 'From: ' : 'To: '} 
+                            <span className="text-gray-300 font-bold">{log.recipient_email}</span>
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                         <button 
+                           onClick={() => {
+                             setSelectedHistoryLog(log);
+                             setShowHistoryModal(true);
+                           }}
+                           className="px-6 py-3 bg-pink-500/10 hover:bg-pink-500/20 border border-pink-500/20 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 text-pink-400"
+                         >
+                           Read Message
+                         </button>
                       </div>
                     </div>
                   ))}
@@ -4097,10 +4883,25 @@ export default function SchedulePage() {
 
               <div className="mb-4">
                 <label className="block text-xs font-semibold text-gray-400 mb-2 uppercase tracking-wider">Message to Customer</label>
+                <div className="flex flex-wrap gap-2 mb-3">
+                   {[
+                     { label: 'Standard', msg: (name, svc) => `Hi ${name},\n\nGreat news! Your ${svc} has been successfully completed today. We took great care with your property and hope you're thrilled with how everything looks!` },
+                     { label: 'Great Results', msg: (name, svc) => `Hi ${name},\n\nYour property is looking absolutely fantastic after the ${svc} today! Everything went perfectly.` },
+                     { label: 'Gate Status', msg: (name, svc) => `Hi ${name},\n\nJust finished the ${svc}! We made sure to close and lock the gate behind us. Have a great day!` },
+                   ].map((btn) => (
+                     <button
+                       key={btn.label}
+                       onClick={() => setCompletionMessage(btn.msg(selectedCustomerForDone.name, selectedCustomerForDone.service_type || 'service'))}
+                       className="px-3 py-1.5 bg-white/5 hover:bg-white/10 rounded-lg text-[9px] font-black uppercase tracking-widest text-gray-400 border border-white/5 transition-all"
+                     >
+                       {btn.label}
+                     </button>
+                   ))}
+                </div>
                 <textarea
                   value={completionMessage}
                   onChange={(e) => setCompletionMessage(e.target.value)}
-                  rows="3"
+                  rows="4"
                   className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-gray-200 outline-none focus:border-green-500/50 focus:ring-1 focus:ring-green-500/20 placeholder-gray-600 resize-none"
                   placeholder="Enter a message..."
                 />
@@ -4747,24 +5548,45 @@ export default function SchedulePage() {
 
         {/* Navigation & Tracking Modal */}
         {showNavigationModal && selectedCustomerForNavigation && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4">
             <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowNavigationModal(false)}></div>
-            <div className="bg-[#111] border border-white/10 rounded-3xl w-full max-w-md relative z-10 overflow-hidden shadow-2xl">
+            <div className="bg-[#111] border border-white/10 rounded-t-3xl sm:rounded-3xl w-full sm:max-w-md relative z-10 overflow-y-auto max-h-[90dvh] shadow-2xl">
+              {/* Drag handle for mobile */}
+              <div className="flex justify-center pt-3 sm:hidden">
+                <div className="w-10 h-1 bg-white/20 rounded-full"></div>
+              </div>
+              
               {/* Header */}
-              <div className="bg-gradient-to-r from-blue-600/20 to-blue-900/20 p-6 border-b border-white/5">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="w-10 h-10 bg-blue-500 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20">
+              <div className="bg-gradient-to-r from-blue-600/20 to-blue-900/20 p-5 sm:p-6 border-b border-white/5">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-blue-500 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20 shrink-0">
                     <MapPinIcon className="h-5 w-5 text-white" />
                   </div>
-                  <div>
-                    <h3 className="text-xl font-black text-white">Start Route</h3>
+                  <div className="min-w-0">
+                    <h3 className="text-lg font-black text-white truncate">{selectedCustomerForNavigation.name}</h3>
                     <p className="text-xs text-blue-400 font-bold uppercase tracking-widest">Navigation & Tracking</p>
                   </div>
                 </div>
               </div>
 
-              <div className="p-6">
-                <div className="bg-white/5 border border-white/10 rounded-2xl p-5 mb-6 text-center relative overflow-hidden">
+              <div className="p-5 sm:p-6 pb-8 sm:pb-6 space-y-4">
+                {/* Address with Copy */}
+                <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-gray-500 mb-2">Destination</p>
+                  <p className="text-sm text-white font-bold leading-relaxed">{selectedCustomerForNavigation.address || 'No address'}</p>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(selectedCustomerForNavigation.address || '');
+                      alert('Address copied!');
+                    }}
+                    className="mt-3 w-full py-2.5 min-h-[44px] bg-white/5 hover:bg-white/10 text-gray-400 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2 border border-white/5"
+                  >
+                    📋 Copy Address
+                  </button>
+                </div>
+
+                {/* Driving Time */}
+                <div className="bg-white/5 border border-white/10 rounded-2xl p-5 text-center relative overflow-hidden">
                   {isFetchingLocation && (
                     <div className="absolute inset-0 bg-[#111]/80 backdrop-blur-sm z-10 flex flex-col items-center justify-center">
                       <div className="w-8 h-8 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin mb-2"></div>
@@ -4785,16 +5607,17 @@ export default function SchedulePage() {
                   <p className="text-xs text-gray-500 italic mt-4">Job timer will start automatically after arrival.</p>
                 </div>
 
+                {/* Action Buttons */}
                 <div className="flex gap-3">
                   <button 
                     onClick={() => setShowNavigationModal(false)}
-                    className="flex-1 py-4 bg-white/5 text-gray-400 rounded-2xl text-xs font-black uppercase tracking-[0.2em] hover:bg-white/10 transition-all"
+                    className="flex-1 py-4 min-h-[52px] bg-white/5 text-gray-400 rounded-2xl text-xs font-black uppercase tracking-[0.2em] hover:bg-white/10 transition-all active:scale-95"
                   >
                     Cancel
                   </button>
                   <button 
                     onClick={() => startNavigationAndTracking(selectedCustomerForNavigation)}
-                    className="flex-[2] py-4 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-2xl text-xs font-black uppercase tracking-[0.2em] shadow-xl shadow-blue-500/20 hover:shadow-blue-500/40 active:scale-95 transition-all flex items-center justify-center gap-2"
+                    className="flex-[2] py-4 min-h-[52px] bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-2xl text-xs font-black uppercase tracking-[0.2em] shadow-xl shadow-blue-500/20 hover:shadow-blue-500/40 active:scale-95 transition-all flex items-center justify-center gap-2"
                   >
                     Start Driving <ChevronRightIcon className="w-4 h-4" />
                   </button>
@@ -4976,7 +5799,124 @@ export default function SchedulePage() {
             </div>
           </div>
         )}
+
+        {/* Quick BI Modal */}
+        {showQuickBIModal && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-[100] animate-in fade-in duration-300">
+            <div className="bg-[#1a1b23] rounded-[2.5rem] border border-white/10 max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl p-6 sm:p-10 relative no-scrollbar">
+              <button 
+                onClick={() => setShowQuickBIModal(false)}
+                className="absolute top-6 right-6 p-2 rounded-full bg-white/5 hover:bg-white/10 transition-colors"
+              >
+                <XMarkIcon className="h-6 w-6 text-gray-400" />
+              </button>
+
+              <div className="mb-10 text-center sm:text-left">
+                <div className="flex flex-col sm:flex-row items-center justify-center sm:justify-start gap-4 mb-4">
+                  <div className="inline-flex items-center gap-2 px-3 py-1 bg-green-500/10 border border-green-500/20 rounded-full">
+                    <SparklesIcon className="h-4 w-4 text-green-500" />
+                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-green-400">Quick Config</span>
+                  </div>
+                  <button 
+                    onClick={fetchPricing}
+                    className="flex items-center gap-1.5 px-3 py-1 bg-white/5 border border-white/10 rounded-full text-[9px] font-bold text-gray-400 hover:text-white hover:bg-white/10 transition-all"
+                  >
+                    <ArrowPathIcon className="h-3 w-3" />
+                    Refresh Live
+                  </button>
+                </div>
+                <h2 className="text-3xl font-black tracking-tight text-white">Business Intelligence <span className="text-green-500">v2.0</span></h2>
+                <div className="flex flex-col sm:flex-row items-center justify-center sm:justify-start gap-3 mt-2">
+                  <p className="text-sm text-gray-400">Adjust your master pricing logic instantly from the schedule.</p>
+                  {lastSyncedBI && (
+                    <>
+                      <span className="hidden sm:inline text-gray-700">•</span>
+                      <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Last Synced: <span className="text-green-500">{lastSyncedBI}</span></p>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                {/* Mowing Section */}
+                <div className="space-y-6">
+                  <h3 className="text-xs font-black uppercase tracking-widest text-gray-500 border-b border-white/5 pb-2">Lawn & Mowing</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <BIField label="Base ($)" value={pricing.lawn_mowing.base_house} onChange={v => setPricing({...pricing, lawn_mowing: {...pricing.lawn_mowing, base_house: parseFloat(v)}})} />
+                    <BIField label="SQFT Limit" value={pricing.lawn_mowing.base_sqft_limit} onChange={v => setPricing({...pricing, lawn_mowing: {...pricing.lawn_mowing, base_sqft_limit: parseFloat(v)}})} />
+                    <BIField label="+1k Rate" value={pricing.lawn_mowing.price_per_1k_sqft} onChange={v => setPricing({...pricing, lawn_mowing: {...pricing.lawn_mowing, price_per_1k_sqft: parseFloat(v)}})} />
+                    <BIField label="Bi-Weekly" value={pricing.lawn_mowing.bi_weekly_surcharge} onChange={v => setPricing({...pricing, lawn_mowing: {...pricing.lawn_mowing, bi_weekly_surcharge: parseFloat(v)}})} step="0.1" />
+                  </div>
+
+                  <h3 className="text-xs font-black uppercase tracking-widest text-gray-500 border-b border-white/5 pb-2 pt-4">Seasonal Bases</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <BIField label="Spring Base" value={pricing.seasonal.spring_cleanup_base} onChange={v => setPricing({...pricing, seasonal: {...pricing.seasonal, spring_cleanup_base: parseFloat(v)}})} />
+                    <BIField label="Fall Base" value={pricing.seasonal.fall_cleanup_base} onChange={v => setPricing({...pricing, seasonal: {...pricing.seasonal, fall_cleanup_base: parseFloat(v)}})} />
+                    <BIField label="Med Mult" value={pricing.seasonal.med_scale_mult_1_4k} onChange={v => setPricing({...pricing, seasonal: {...pricing.seasonal, med_scale_mult_1_4k: parseFloat(v)}})} step="0.1" />
+                    <BIField label="Lrg Mult" value={pricing.seasonal.lrg_scale_mult_5k_plus} onChange={v => setPricing({...pricing, seasonal: {...pricing.seasonal, lrg_scale_mult_5k_plus: parseFloat(v)}})} step="0.1" />
+                  </div>
+                </div>
+
+                {/* Operations Section */}
+                <div className="space-y-6">
+                  <h3 className="text-xs font-black uppercase tracking-widest text-gray-500 border-b border-white/5 pb-2">Operations & Materials</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <BIField label="Mulch / YD" value={pricing.materials.mulch_per_yd} onChange={v => setPricing({...pricing, materials: {...pricing.materials, mulch_per_yd: parseFloat(v)}})} />
+                    <BIField label="Edging / FT" value={pricing.materials.edging_per_ft} onChange={v => setPricing({...pricing, materials: {...pricing.materials, edging_per_ft: parseFloat(v)}})} step="0.01" />
+                    <BIField label="Fertilizer" value={pricing.operations.fertilizer_base} onChange={v => setPricing({...pricing, operations: {...pricing.operations, fertilizer_base: parseFloat(v)}})} />
+                    <BIField label="Disposal" value={pricing.operations.disposal_fee} onChange={v => setPricing({...pricing, operations: {...pricing.operations, disposal_fee: parseFloat(v)}})} />
+                  </div>
+
+                  <h3 className="text-xs font-black uppercase tracking-widest text-gray-500 border-b border-white/5 pb-2 pt-4">Shrub Rates</h3>
+                  <div className="grid grid-cols-3 gap-4">
+                    <BIField label="Small" value={pricing.operations.shrub_rates.small} onChange={v => setPricing({...pricing, operations: {...pricing.operations, shrub_rates: {...pricing.operations.shrub_rates, small: parseFloat(v)}}})} />
+                    <BIField label="Med" value={pricing.operations.shrub_rates.medium} onChange={v => setPricing({...pricing, operations: {...pricing.operations, shrub_rates: {...pricing.operations.shrub_rates, medium: parseFloat(v)}}})} />
+                    <BIField label="Large" value={pricing.operations.shrub_rates.large} onChange={v => setPricing({...pricing, operations: {...pricing.operations, shrub_rates: {...pricing.operations.shrub_rates, large: parseFloat(v)}}})} />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-4 mt-12">
+                <button 
+                  onClick={() => setShowQuickBIModal(false)}
+                  className="flex-1 py-5 bg-white/5 text-gray-400 rounded-2xl text-xs font-black uppercase tracking-[0.2em] hover:bg-white/10 transition-all"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={saveQuickBI}
+                  disabled={savingBI}
+                  className="flex-[2] py-5 bg-green-600 text-black rounded-2xl text-xs font-black uppercase tracking-[0.2em] shadow-xl shadow-green-500/20 hover:bg-green-500 active:scale-95 transition-all flex items-center justify-center gap-2"
+                >
+                  {savingBI ? (
+                    <ArrowPathIcon className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <CloudIcon className="h-4 w-4" />
+                  )}
+                  {savingBI ? 'Syncing...' : 'Sync Master Workspace'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
+    </div>
+  );
+}
+
+function BIField({ label, value, onChange, step = "1" }) {
+  return (
+    <div className="group">
+      <label className="block text-[9px] font-black text-gray-500 uppercase tracking-widest mb-1.5 ml-1 transition-colors group-focus-within:text-green-500">
+        {label}
+      </label>
+      <input
+        type="number"
+        step={step}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm font-bold text-white focus:border-green-500 outline-none transition-all"
+      />
     </div>
   );
 }
@@ -5389,12 +6329,45 @@ function CustomerCard({
                 ↩ Undo Complete
               </button>
             )}
+            {day && isCompleted && customer.email && (
+              <button
+                onClick={async (e) => {
+                  e.stopPropagation();
+                  try {
+                    setSendingReviewFor(customer.id);
+                    const res = await fetch('/api/customers/send-message', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        customerData: { customer_email: customer.email, customer_name: customer.name },
+                        sendEmail: true,
+                        type: 'review',
+                        subject: `Checking in on your property! 🌿 - Flora Lawn & Landscaping`,
+                        message: 'It was a pleasure working on your property!'
+                      })
+                    });
+                    if (res.ok) alert(`Review request sent to ${customer.name}!`);
+                    else alert('Failed to send review.');
+                  } catch (err) { console.error(err); }
+                  finally { setSendingReviewFor(null); }
+                }}
+                disabled={sendingReviewFor === customer.id}
+                className={`px-3 py-1.5 text-[11px] font-medium rounded-lg border transition-all flex items-center gap-1 ${
+                  sendingReviewFor === customer.id
+                    ? 'text-indigo-300 bg-indigo-500/20 border-indigo-500/30 animate-pulse'
+                    : 'text-indigo-400 bg-indigo-500/10 border-indigo-500/20 hover:bg-indigo-500/20'
+                }`}
+              >
+                <SparklesIcon className="h-3.5 w-3.5" />
+                {sendingReviewFor === customer.id ? 'Sending...' : '⭐ Send Review'}
+              </button>
+            )}
             {day && !isCompleted && (
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   setSelectedCustomerForDone({ ...customer, day });
-                  setCompletionMessage(`Your ${customer.service_type?.replace('_', ' ') || 'service'} has been completed successfully! Thank you for choosing Flora Lawn and Landscaping.`);
+                  setCompletionMessage(`Hi ${customer.name},\n\nYour ${customer.service_type?.replace('_', ' ') || 'service'} has been successfully completed today. Your property is looking great!\n\nThank you for choosing Flora Lawn & Landscaping!`);
                   setShowMarkDoneModal(true);
                 }}
                 className="px-3 py-1.5 text-[11px] font-medium text-blue-400 bg-blue-500/10 rounded-lg border border-blue-500/20 hover:bg-blue-500/20 transition-all flex items-center gap-1"

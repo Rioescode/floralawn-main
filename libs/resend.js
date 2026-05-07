@@ -129,6 +129,29 @@ export const sendEmail = async ({ to, subject, text, html, replyTo }) => {
       to: Array.isArray(to) ? to.join(', ') : to,
       subject
     });
+
+    // ASYNC LOGGING TO SUPABASE (Don't await to avoid delaying the response)
+    try {
+      const { supabaseAdmin } = await import('@/lib/supabase');
+      if (supabaseAdmin) {
+        supabaseAdmin.from('email_logs').insert([{
+          recipient_email: Array.isArray(to) ? to.join(', ') : to,
+          recipient_name: '', // We could pass this as a param if needed
+          subject,
+          body_html: html,
+          type: subject.toUpperCase().includes('QUOTE') ? 'QUOTE' : 
+                subject.toUpperCase().includes('INVOICE') ? 'INVOICE' : 
+                subject.toUpperCase().includes('REMINDER') ? 'REMINDER' : 'GENERAL',
+          direction: 'OUTBOUND',
+          created_at: new Date().toISOString()
+        }]).then(({ error }) => {
+          if (error) console.error('Error logging email to Supabase:', error.message);
+        });
+      }
+    } catch (logError) {
+      console.error('Email logging failed:', logError);
+    }
+
     return data;
   } catch (error) {
     console.error("❌ Error sending email via Resend:", {

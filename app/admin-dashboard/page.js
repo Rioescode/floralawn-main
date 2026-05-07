@@ -143,12 +143,12 @@ export default function AdminDashboardRedirect() {
             </Link>
             
             <Link
-              href="/admin/referrals"
-              className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow"
+              href="/admin/pricing"
+              className="bg-[#1a1b23] border border-green-500/30 rounded-lg shadow p-6 hover:border-green-500 transition-all group"
             >
-              <GiftIcon className="h-12 w-12 text-pink-600 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Referrals</h3>
-              <p className="text-sm text-gray-600">Manage referral program</p>
+              <ChartBarIcon className="h-12 w-12 text-green-500 mx-auto mb-4 group-hover:scale-110 transition-transform" />
+              <h3 className="text-lg font-black text-white mb-2">BI v2.0 Pricing</h3>
+              <p className="text-sm text-gray-400">Master config for AI quote logic and base rates</p>
             </Link>
           </div>
         </div>

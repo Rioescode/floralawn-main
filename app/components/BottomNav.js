@@ -47,6 +47,9 @@ export default function BottomNav() {
     }
   ];
 
+  // Hide on schedule page — it has its own nav
+  if (pathname === '/schedule') return null;
+
   return (
     <AnimatePresence>
       {isVisible && (

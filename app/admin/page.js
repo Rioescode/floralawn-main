@@ -616,6 +616,10 @@ export default function AdminDashboard() {
                   {pendingLeadsCount} New
                 </Link>
               )}
+              <Link href="/admin/pricing" className="flex items-center gap-1.5 px-3 py-1.5 bg-green-500 text-black rounded-full text-sm font-black hover:bg-green-400 transition-colors shadow-lg shadow-green-500/20">
+                <ChartBarIcon className="w-4 h-4" />
+                BI v2.0
+              </Link>
               <Link href="/admin/signups-leads" className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-100 text-orange-700 rounded-full text-sm font-medium hover:bg-orange-200 transition-colors">
                 <UserPlusIcon className="w-4 h-4" />
                 <span className="hidden sm:inline">Sign Ups &</span> Leads

@@ -120,11 +120,42 @@ export default function InstantQuoteMap({ onQuoteComplete, selectedPlace, setSel
         setUser(session?.user ?? null);
       });
 
-      const { data } = await supabase.from('pricing_config').select('config').eq('id', 'default').single();
-      if (data?.config) {
-        const mergedConfig = { ...defaultPricing, ...data.config };
-        setPricingConfig(mergedConfig);
-        localStorage.setItem('floralawn_pricing', JSON.stringify(mergedConfig));
+      // Fetch from the new Business Intelligence Master Workspace
+      const { data, error } = await supabase
+        .from('business_config')
+        .select('data')
+        .eq('category', 'master_pricing')
+        .single();
+
+      if (!error && data?.data) {
+        // Map the new flat structure to the component's expected structure
+        const d = data.data;
+        const mappedConfig = {
+          ...defaultPricing,
+          mowingBase: d.lawn_mowing.base_house,
+          mowingBaseLimit: d.lawn_mowing.base_sqft_limit,
+          mowingPer1k: d.lawn_mowing.price_per_1k_sqft,
+          mowingBiWeeklySurcharge: d.lawn_mowing.bi_weekly_surcharge,
+          mulchPrices: { Black: d.materials.mulch_per_yd, Brown: d.materials.mulch_per_yd, Red: d.materials.mulch_per_yd + 10 },
+          mulchEdgingPrice: d.materials.edging_per_ft,
+          mulchDepth: d.materials.mulch_depth_inches,
+          springBase: d.seasonal.spring_cleanup_base,
+          fallBase: d.seasonal.fall_cleanup_base,
+          springFactors: { md: d.seasonal.med_scale_mult_1_4k, lg: d.seasonal.lrg_scale_mult_5k_plus },
+          fallFactors: { md: d.seasonal.med_scale_mult_1_4k + 0.03, lg: d.seasonal.lrg_scale_mult_5k_plus + 0.23 },
+          aerationBase: d.advanced_care.aeration_base,
+          aerationPer1k: d.advanced_care.aeration_price_per_1k,
+          dethatchBase: d.advanced_care.dethatch_base,
+          overseedSeedPer1k: d.advanced_care.seed_price_per_1k,
+          snowBase: d.advanced_care.snow_base,
+          fertBase: d.operations.fertilizer_base,
+          gutterBase: d.operations.gutter_base,
+          shrubPrices: d.operations.shrub_rates,
+          disposalHaulFee: d.operations.disposal_fee,
+          treeTrimPrice: d.materials.tree_trim_flat
+        };
+        setPricingConfig(mappedConfig);
+        localStorage.setItem('floralawn_pricing', JSON.stringify(mappedConfig));
       } else {
         const saved = localStorage.getItem('floralawn_pricing');
         if (saved) {

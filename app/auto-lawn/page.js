@@ -12,7 +12,9 @@ import {
   CheckBadgeIcon, 
   MapIcon, 
   ArrowRightIcon,
-  ClockIcon
+  ClockIcon,
+  CircleStackIcon,
+  XMarkIcon
 } from '@heroicons/react/24/outline';
 import InstantQuote from '@/components/InstantQuote';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -116,6 +118,29 @@ export default function AutoLawnPage() {
   };
 
   const [quoteData, setQuoteData] = useState({ area: 0, price: 0, breakdown: [] });
+  const [pricingConfig, setPricingConfig] = useState(null);
+  const [showFullPricingModal, setShowFullPricingModal] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    const getPricing = async () => {
+      const { supabase: sb } = await import('@/lib/supabase');
+      
+      // Check Admin Status
+      const { data: { user } } = await sb.auth.getUser();
+      if (user?.email?.toLowerCase() === 'esckoofficial@gmail.com') {
+        setIsAdmin(true);
+      }
+
+      const { data } = await sb
+        .from('business_config')
+        .select('data')
+        .eq('category', 'master_pricing')
+        .single();
+      if (data?.data) setPricingConfig(data.data);
+    };
+    getPricing();
+  }, []);
 
   const handleBookingSubmit = async (e) => {
     e.preventDefault();
@@ -187,6 +212,37 @@ export default function AutoLawnPage() {
                <p className="text-xl text-slate-500 max-w-2xl mx-auto font-medium mb-12">
                   Precision property measurement via satellite intelligence. Get your 100% transparent quote in under 60 seconds.
                </p>
+
+               {/* PRICING LOGIC PREVIEW */}
+               {pricingConfig && (
+                 <div className="max-w-2xl mx-auto mb-10 flex flex-wrap justify-center gap-3">
+                   <div className="flex items-center gap-2 px-4 py-2 bg-slate-900 rounded-2xl border border-white/10 shadow-xl group hover:border-green-500/50 transition-all">
+                      <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                      <p className="text-[10px] font-black text-white uppercase tracking-widest">Pricing Logic Active</p>
+                      <div className="h-4 w-[1px] bg-white/10 mx-1" />
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                         Mowing Base: <span className="text-white">${pricingConfig.lawn_mowing.base_house}</span>
+                      </p>
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-2">
+                         Limit: <span className="text-white">{pricingConfig.lawn_mowing.base_sqft_limit/1000}k SQFT</span>
+                      </p>
+                   </div>
+                   <div className="flex items-center gap-2 px-4 py-2 bg-slate-900 rounded-2xl border border-white/10 shadow-xl group hover:border-blue-500/50 transition-all">
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                         Cleanups: <span className="text-white">${pricingConfig.seasonal.spring_cleanup_base} Base</span>
+                      </p>
+                   </div>
+                   {isAdmin && (
+                     <button 
+                        onClick={() => setShowFullPricingModal(true)}
+                        className="px-4 py-2 bg-white border border-slate-200 rounded-2xl shadow-lg text-[10px] font-black uppercase tracking-widest hover:bg-green-50 transition-all text-slate-950 flex items-center gap-2"
+                     >
+                        <CircleStackIcon className="h-3 w-3 text-green-600" />
+                        View Full Logic
+                     </button>
+                   )}
+                 </div>
+               )}
 
                {/* BETA DISCLAIMER */}
                <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 max-w-2xl mx-auto text-center relative overflow-hidden mb-12">
@@ -434,6 +490,131 @@ export default function AutoLawnPage() {
                   )}
                 </button>
               </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* FULL PRICING MODAL OVERLAY */}
+      <AnimatePresence>
+        {showFullPricingModal && pricingConfig && (
+          <div className="fixed inset-0 z-[120] flex items-center justify-center px-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowFullPricingModal(false)}
+              className="absolute inset-0 bg-slate-950/80 backdrop-blur-md"
+            />
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="relative w-full max-w-4xl bg-white rounded-[3rem] overflow-hidden shadow-6xl border border-slate-200"
+            >
+              <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                 <div>
+                    <h3 className="text-2xl font-black italic tracking-tighter uppercase text-slate-950">Master Logic Audit</h3>
+                    <p className="text-[10px] text-green-600 font-black uppercase tracking-widest flex items-center gap-2">
+                       <CircleStackIcon className="h-3 w-3" /> Business Intelligence v2.0 Live Sync
+                    </p>
+                 </div>
+                 <button onClick={() => setShowFullPricingModal(false)} className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm hover:bg-slate-50 transition-all border border-slate-200">
+                    <XMarkIcon className="h-6 w-6 text-slate-400" />
+                 </button>
+              </div>
+
+              <div className="p-8 max-h-[70vh] overflow-y-auto no-scrollbar grid grid-cols-1 md:grid-cols-2 gap-8">
+                 {/* Lawn & Mowing */}
+                 <div className="space-y-4">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-l-4 border-green-500 pl-3">Lawn & Mowing</p>
+                    <div className="grid grid-cols-2 gap-4">
+                       <div className="p-4 bg-slate-50 rounded-2xl">
+                          <p className="text-[9px] font-bold text-slate-500 uppercase">Base House</p>
+                          <p className="text-lg font-black text-slate-950">${pricingConfig.lawn_mowing.base_house}</p>
+                       </div>
+                       <div className="p-4 bg-slate-50 rounded-2xl">
+                          <p className="text-[9px] font-bold text-slate-500 uppercase">SQFT Limit</p>
+                          <p className="text-lg font-black text-slate-950">{pricingConfig.lawn_mowing.base_sqft_limit.toLocaleString()}</p>
+                       </div>
+                    </div>
+                 </div>
+
+                 {/* Materials */}
+                 <div className="space-y-4">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-l-4 border-amber-500 pl-3">Materials Master</p>
+                    <div className="grid grid-cols-2 gap-4">
+                       <div className="p-4 bg-slate-50 rounded-2xl">
+                          <p className="text-[9px] font-bold text-slate-500 uppercase">Mulch / YD</p>
+                          <p className="text-lg font-black text-slate-950">${pricingConfig.materials.mulch_per_yd}</p>
+                       </div>
+                       <div className="p-4 bg-slate-50 rounded-2xl">
+                          <p className="text-[9px] font-bold text-slate-500 uppercase">Tree Trim</p>
+                          <p className="text-lg font-black text-slate-950">${pricingConfig.materials.tree_trim_flat}</p>
+                       </div>
+                    </div>
+                 </div>
+
+                 {/* Seasonal */}
+                 <div className="space-y-4">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-l-4 border-orange-500 pl-3">Seasonal Bases</p>
+                    <div className="grid grid-cols-2 gap-4">
+                       <div className="p-4 bg-slate-50 rounded-2xl">
+                          <p className="text-[9px] font-bold text-slate-500 uppercase">Spring Base</p>
+                          <p className="text-lg font-black text-slate-950">${pricingConfig.seasonal.spring_cleanup_base}</p>
+                       </div>
+                       <div className="p-4 bg-slate-50 rounded-2xl">
+                          <p className="text-[9px] font-bold text-slate-500 uppercase">Fall Base</p>
+                          <p className="text-lg font-black text-slate-950">${pricingConfig.seasonal.fall_cleanup_base}</p>
+                       </div>
+                    </div>
+                 </div>
+
+                 {/* Advanced Care */}
+                 <div className="space-y-4">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-l-4 border-emerald-500 pl-3">Advanced Care</p>
+                    <div className="grid grid-cols-2 gap-4">
+                       <div className="p-4 bg-slate-50 rounded-2xl">
+                          <p className="text-[9px] font-bold text-slate-500 uppercase">Aeration Base</p>
+                          <p className="text-lg font-black text-slate-950">${pricingConfig.advanced_care.aeration_base}</p>
+                       </div>
+                       <div className="p-4 bg-slate-50 rounded-2xl">
+                          <p className="text-[9px] font-bold text-slate-500 uppercase">Snow Base</p>
+                          <p className="text-lg font-black text-slate-950">${pricingConfig.advanced_care.snow_base}</p>
+                       </div>
+                    </div>
+                 </div>
+
+                 {/* Operations */}
+                 <div className="md:col-span-2 space-y-4">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-l-4 border-blue-500 pl-3">Operations & Shrubbery</p>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                       <div className="p-4 bg-slate-50 rounded-2xl">
+                          <p className="text-[9px] font-bold text-slate-500 uppercase">Fert Base</p>
+                          <p className="text-lg font-black text-slate-950">${pricingConfig.operations.fertilizer_base}</p>
+                       </div>
+                       <div className="p-4 bg-slate-50 rounded-2xl">
+                          <p className="text-[9px] font-bold text-slate-500 uppercase">Shrub Small</p>
+                          <p className="text-lg font-black text-slate-950">${pricingConfig.operations.shrub_rates.small}</p>
+                       </div>
+                       <div className="p-4 bg-slate-50 rounded-2xl">
+                          <p className="text-[9px] font-bold text-slate-500 uppercase">Shrub Med</p>
+                          <p className="text-lg font-black text-slate-950">${pricingConfig.operations.shrub_rates.medium}</p>
+                       </div>
+                       <div className="p-4 bg-slate-50 rounded-2xl">
+                          <p className="text-[9px] font-bold text-slate-500 uppercase">Shrub Large</p>
+                          <p className="text-lg font-black text-slate-950">${pricingConfig.operations.shrub_rates.large}</p>
+                       </div>
+                    </div>
+                 </div>
+              </div>
+
+              <div className="p-8 bg-slate-50 border-t border-slate-100 flex justify-center italic">
+                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">
+                    Values are synced directly from the Supabase Master Workspace. 
+                    Changes must be made in the <Link href="/admin/pricing" className="text-green-600 underline">Business Intelligence Dashboard</Link>.
+                 </p>
+              </div>
             </motion.div>
           </div>
         )}
