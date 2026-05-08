@@ -605,7 +605,8 @@ export default function CustomersPage() {
             appointmentId: selectedAppointment.id,
             message: completionMessage,
             sendEmail: sendEmail,
-            sendSMS: sendSMS
+            sendSMS: sendSMS,
+            recipientName: selectedAppointment.customer_name // Pass for smarter logging
           })
         });
 

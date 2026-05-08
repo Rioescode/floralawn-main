@@ -66,7 +66,7 @@ export async function autoMeasureLawn({ lat, lng, address }) {
         'anthropic-version': '2023-06-01'
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-6",
+        model: "claude-3-5-sonnet-latest",
         max_tokens: 1000,
         temperature: 0,
         system: "You are a professional lawn care assessor. Your task is to analyze satellite imagery and precisely estimate the square footage of lawn (grass) for the property MARKED WITH A RED PIN at the image center. Focus ONLY on the marked property grounds. Exclude: neighbor properties, driveways, sidewalks, buildings, pools, and non-grass areas. BE EXTREMELY STINGY. Identify exactly what grass you see and explain based on the RED MARKER position.",

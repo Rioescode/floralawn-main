@@ -50,9 +50,12 @@ function getResendClient() {
  * @param {string} params.text - The plain text content of the email.
  * @param {string} params.html - The HTML content of the email.
  * @param {string} [params.replyTo] - The email address to set as the "Reply-To" address.
+ * @param {string} [params.type] - The type of email for logging (e.g., 'REVIEW', 'COMPLETED').
+ * @param {string} [params.recipientName] - The name of the recipient for logging.
+ * @param {boolean} [params.skipLogging] - Whether to skip logging to Supabase.
  * @returns {Promise<Object>} A Promise that resolves with the email sending result data.
  */
-export const sendEmail = async ({ to, subject, text, html, replyTo }) => {
+export const sendEmail = async ({ to, subject, text, html, replyTo, type, recipientName, skipLogging = false }) => {
   // During build time, skip silently
   if (process.env.NEXT_PHASE === 'phase-production-build') {
     console.warn("⚠️ Skipping email send during build - RESEND_API_KEY not available");
@@ -131,25 +134,33 @@ export const sendEmail = async ({ to, subject, text, html, replyTo }) => {
     });
 
     // ASYNC LOGGING TO SUPABASE (Don't await to avoid delaying the response)
-    try {
-      const { supabaseAdmin } = await import('@/lib/supabase');
-      if (supabaseAdmin) {
-        supabaseAdmin.from('email_logs').insert([{
-          recipient_email: Array.isArray(to) ? to.join(', ') : to,
-          recipient_name: '', // We could pass this as a param if needed
-          subject,
-          body_html: html,
-          type: subject.toUpperCase().includes('QUOTE') ? 'QUOTE' : 
-                subject.toUpperCase().includes('INVOICE') ? 'INVOICE' : 
-                subject.toUpperCase().includes('REMINDER') ? 'REMINDER' : 'GENERAL',
-          direction: 'OUTBOUND',
-          created_at: new Date().toISOString()
-        }]).then(({ error }) => {
-          if (error) console.error('Error logging email to Supabase:', error.message);
-        });
+    if (!skipLogging) {
+      try {
+        const { supabaseAdmin } = await import('@/lib/supabase');
+        if (supabaseAdmin) {
+          const logType = type ? type.toUpperCase() : 
+                  subject.toUpperCase().includes('QUOTE') ? 'QUOTE' : 
+                  subject.toUpperCase().includes('INVOICE') ? 'INVOICE' : 
+                  subject.toUpperCase().includes('REMINDER') ? 'REMINDER' : 
+                  subject.toUpperCase().includes('CONFIRM') ? 'CONFIRMATION' : 
+                  subject.toUpperCase().includes('COMPLETED') ? 'COMPLETED' : 
+                  subject.toUpperCase().includes('REVIEW') ? 'REVIEW' : 'GENERAL';
+
+          supabaseAdmin.from('email_logs').insert([{
+            recipient_email: Array.isArray(to) ? to.join(', ') : to,
+            recipient_name: recipientName || '', 
+            subject,
+            body_html: html,
+            type: logType,
+            direction: 'OUTBOUND',
+            created_at: new Date().toISOString()
+          }]).then(({ error }) => {
+            if (error) console.error('Error logging email to Supabase:', error.message);
+          });
+        }
+      } catch (logError) {
+        console.error('Email logging failed:', logError);
       }
-    } catch (logError) {
-      console.error('Email logging failed:', logError);
     }
 
     return data;

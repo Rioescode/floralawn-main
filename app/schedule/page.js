@@ -110,6 +110,8 @@ export default function SchedulePage() {
   const [emailSubject, setEmailSubject] = useState('');
   const [emailBody, setEmailBody] = useState('');
   const [sendingEmail, setSendingEmail] = useState(false);
+  const [isRewritingEmail, setIsRewritingEmail] = useState(false);
+  const [aiInstructions, setAiInstructions] = useState('');
 
   const EMAIL_TEMPLATES = {
     fully_booked: {
@@ -129,8 +131,23 @@ export default function SchedulePage() {
     },
     mowing: {
       name: 'Weekly Mowing Quote',
-      subject: (name) => `Lawn Mowing Quote Request - Flora Lawn`,
-      body: (name) => `Hi ${name || 'there'},\n\nThanks for the request for weekly mowing! \n\nI'll be in your area this week and can stop by to take a look at the lawn. I'll provide you with a weekly price and let you know which day of the week we'd be able to service your property.\n\nLooking forward to helping you with your lawn!\n\nBest,\nFlora Lawn & Landscaping`
+      subject: (name) => `Weekly Mowing Quote Request - Flora Lawn`,
+      body: (name) => `Hi ${name || 'there'},\n\nThanks for the request for weekly mowing! \n\nI'll be in your area tomorrow and will stop by to take a look at the lawn. I'll provide you with a weekly price and let you know which day of the week we'd be able to service your property.\n\nLooking forward to helping you with your lawn!\n\nBest,\nFlora Lawn & Landscaping`
+    },
+    mowing_biweekly: {
+      name: 'Bi-Weekly Mowing Quote',
+      subject: (name) => `Bi-Weekly Mowing Quote Request - Flora Lawn`,
+      body: (name) => `Hi ${name || 'there'},\n\nThanks for reaching out about bi-weekly mowing! \n\nI'll stop by your property tomorrow to take a look and give you an exact price. I'll also let you know which day we can get you on the schedule.\n\nLooking forward to helping you!\n\nBest,\nFlora Lawn & Landscaping`
+    },
+    cleanup_tomorrow: {
+      name: 'Cleanup Answer Tomorrow',
+      subject: (name) => `Yard Cleanup Estimate - Flora Lawn`,
+      body: (name) => `Hi ${name || 'there'},\n\nThanks for your interest in a yard cleanup! I'm looking at your request now.\n\nI'll stop by tomorrow to take a quick look at the property and give you an exact price for the cleanup. You don't need to be home!\n\nOnce I give you the price, we can get you on the schedule for next week.\n\nTalk soon,\nFlora Lawn & Landscaping`
+    },
+    stop_by_tomorrow: {
+      name: 'Stop By Tomorrow (Update)',
+      subject: (name) => `Quick update regarding your estimate - Flora Lawn`,
+      body: (name) => `Hi ${name || 'there'},\n\nJust a quick update—I'll be stopping by your property tomorrow to take a look and get that estimate ready for you!\n\nYou don't need to be home. I'll send the quote via email as soon as I'm done.\n\nThanks for your patience!\n\nBest,\nFlora Lawn & Landscaping`
     },
     tomorrow_behind: {
       name: 'Tomorrow Visit (Running Behind)',
@@ -325,6 +342,7 @@ export default function SchedulePage() {
             },
             sendEmail: true,
             type: 'review',
+            recipientName: job.customer_name, // Pass for smarter logging
             subject: `Checking in on your property! 🌿 - Flora Lawn & Landscaping`,
             message: `It was a pleasure working on your property! We hope you're loving the results.`
           })
@@ -368,6 +386,7 @@ export default function SchedulePage() {
             customer_name: displayName
           },
           sendEmail: true,
+          recipientName: displayName, // Pass for smarter logging
           subject: `Re: ${selectedHistoryLog.subject}`,
           message: replyText
         })
@@ -533,6 +552,12 @@ export default function SchedulePage() {
     if (!year || !month || !day) return dateStr;
     const date = new Date(year, month - 1, day);
     return date.toLocaleDateString();
+  };
+
+  const formatShortDate = (dateStr) => {
+    if (!dateStr) return '';
+    const date = dateStr.includes('T') ? new Date(dateStr) : new Date(dateStr + 'T12:00:00');
+    return `${date.getMonth() + 1}/${date.getDate()}`;
   };
 
   const formatLongLocalDate = (dateStr) => {
@@ -1660,6 +1685,7 @@ export default function SchedulePage() {
             sendEmail: sendEmail,
             sendSMS: sendSMS,
             type: 'completed',
+            recipientName: customer.name, // Pass for smarter logging
             customerData: appointmentData // Pass customer data directly
           })
         });
@@ -1838,7 +1864,8 @@ export default function SchedulePage() {
             customer_email: customer.email,
             customer_phone: customer.phone,
             service_type: customer.service_type || 'service'
-          }
+          },
+          recipientName: customer.name // Pass for smarter logging
         })
       });
 
@@ -2278,6 +2305,42 @@ export default function SchedulePage() {
       alert('Error: ' + error.message);
     } finally {
       setSendingEmail(false);
+    }
+  };
+
+  const handleAiRewriteEmail = async () => {
+    console.log('handleAiRewriteEmail triggered', { selectedEmailLead, emailSubject, emailBody });
+    if (!selectedEmailLead || isRewritingEmail) return;
+    
+    try {
+      setIsRewritingEmail(true);
+      const response = await fetch('/api/ai/rewrite-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          currentSubject: emailSubject,
+          currentBody: emailBody,
+          instructions: aiInstructions,
+          leadData: {
+            customer_name: selectedEmailLead.customer_name,
+            service_type: selectedEmailLead.service_type,
+            city: selectedEmailLead.city,
+            address: selectedEmailLead.address,
+            notes: selectedEmailLead.notes
+          }
+        })
+      });
+      
+      const data = await response.json();
+      console.log('AI Rewrite Result:', data);
+      if (data.subject) setEmailSubject(data.subject);
+      if (data.body) setEmailBody(data.body);
+      setAiInstructions(''); // Clear instructions after successful rewrite
+    } catch (error) {
+      console.error('Error rewriting email:', error);
+      alert('Failed to rewrite email with AI: ' + error.message);
+    } finally {
+      setIsRewritingEmail(false);
     }
   };
 
@@ -3797,6 +3860,7 @@ export default function SchedulePage() {
                                         customerData: { customer_email: apt.customer_email, customer_name: apt.customer_name },
                                         sendEmail: true,
                                         type: 'review',
+                                        recipientName: apt.customer_name, // Pass for smarter logging
                                         subject: `Checking in on your property! 🌿 - Flora Lawn & Landscaping`,
                                         message: 'It was a pleasure working on your property!'
                                       })
@@ -4501,6 +4565,7 @@ export default function SchedulePage() {
                     setSelectedCustomerForDelay={setSelectedCustomerForDelay}
                     setDelayMessage={setDelayMessage}
                     DELAY_TEMPLATES={DELAY_TEMPLATES}
+                    formatShortDate={formatShortDate}
                   />
                 ))}
               </div>
@@ -4736,6 +4801,7 @@ export default function SchedulePage() {
                             setSelectedCustomerForDelay={setSelectedCustomerForDelay}
                             setDelayMessage={setDelayMessage}
                             DELAY_TEMPLATES={DELAY_TEMPLATES}
+                            formatShortDate={formatShortDate}
                           />
                         ))}
                       </div>
@@ -5687,6 +5753,40 @@ export default function SchedulePage() {
                   className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-4 text-sm text-white focus:border-purple-500/50 outline-none transition-all resize-none leading-relaxed"
                 />
               </div>
+
+              {/* AI Instructions Input */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 px-1">
+                  <div className="h-1.5 w-1.5 rounded-full bg-purple-500 shadow-[0_0_8px_rgba(168,85,247,0.5)]"></div>
+                  <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest">AI Instructions (Optional)</span>
+                </div>
+                <input
+                  type="text"
+                  value={aiInstructions}
+                  onChange={(e) => setAiInstructions(e.target.value)}
+                  placeholder="e.g. Tell him I only have mornings available..."
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs text-white placeholder:text-white/20 focus:border-purple-500/50 outline-none transition-all shadow-inner"
+                  onKeyDown={(e) => e.key === 'Enter' && handleAiRewriteEmail()}
+                />
+              </div>
+
+              {/* AI Rewrite Suggestion */}
+              <button
+                onClick={handleAiRewriteEmail}
+                disabled={isRewritingEmail}
+                className={`w-full py-3 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 border shadow-lg ${
+                  isRewritingEmail 
+                    ? 'bg-purple-500/20 text-purple-300 border-purple-500/30 animate-pulse' 
+                    : 'bg-white/5 text-purple-400 border-purple-500/30 hover:bg-purple-500/10'
+                }`}
+              >
+                {isRewritingEmail ? (
+                  <div className="h-3 w-3 border-2 border-purple-400/30 border-t-purple-400 rounded-full animate-spin"></div>
+                ) : (
+                  <SparklesIcon className="h-4 w-4" />
+                )}
+                {isRewritingEmail ? 'Claude is thinking...' : '✨ Rewrite with Claude AI'}
+              </button>
             </div>
 
             {/* Footer */}
@@ -5981,7 +6081,8 @@ function CustomerCard({
   setShowDelayModal,
   setSelectedCustomerForDelay,
   setDelayMessage,
-  DELAY_TEMPLATES
+  DELAY_TEMPLATES,
+  formatShortDate
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -6088,6 +6189,11 @@ function CustomerCard({
         <div className="px-1.5 py-0.5 bg-blue-500/20 backdrop-blur-md border border-blue-500/30 text-blue-400 text-[9px] font-black rounded-lg">
           V: {customer.service_count || 0}
         </div>
+        {customer.last_service && (
+          <div className="px-1.5 py-0.5 bg-green-500/20 backdrop-blur-md border border-green-500/30 text-green-400 text-[9px] font-black rounded-lg">
+            LD: {formatShortDate(customer.last_service)}
+          </div>
+        )}
       </div>
       
       {/* Main Content Area */}
@@ -6157,6 +6263,12 @@ function CustomerCard({
                       {travelTimeDisplay}
                     </span>
                   )}
+                </div>
+              )}
+
+              {customer.last_service && (
+                <div className="px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider bg-orange-500/5 text-orange-400 border border-orange-500/20">
+                  Last Done: {formatShortDate(customer.last_service)}
                 </div>
               )}
             </div>
@@ -6342,6 +6454,7 @@ function CustomerCard({
                         customerData: { customer_email: customer.email, customer_name: customer.name },
                         sendEmail: true,
                         type: 'review',
+                        recipientName: customer.name, // Pass for smarter logging
                         subject: `Checking in on your property! 🌿 - Flora Lawn & Landscaping`,
                         message: 'It was a pleasure working on your property!'
                       })

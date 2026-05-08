@@ -162,6 +162,7 @@ export default function LeadsPage() {
           sendSMS: false,
           type: 'review',
           subject: 'Help us grow! 🌿 - Flora Lawn & Landscaping',
+          recipientName: selectedLeadForReview.customer_name, // Pass for smarter logging
           customerData: {
             customer_name: selectedLeadForReview.customer_name,
             customer_email: selectedLeadForReview.customer_email,

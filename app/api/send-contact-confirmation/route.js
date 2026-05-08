@@ -46,7 +46,7 @@ export async function POST(request) {
       );
     }
     
-    const { email, name, service, message, phone, address, city, sendSMS, hasMedia, mediaUrls, discountApplied, cleanupData, promoCode } = body;
+    const { email, name, service, message, phone, address, city, state, zipCode, sendSMS, hasMedia, mediaUrls, discountApplied, cleanupData, promoCode } = body;
 
     // Input validation
     if (!email || !name) {
@@ -65,7 +65,9 @@ export async function POST(request) {
     const sanitizedService = sanitizeText(service || '', 100);
     const sanitizedMessage = sanitizeText(message || '', 2000);
     const sanitizedAddress = sanitizeText(address || 'Not Provided', 200);
-    const sanitizedCity = sanitizeText(city || 'RI', 100);
+    const sanitizedCity = sanitizeText(city || '', 100);
+    const sanitizedState = sanitizeText(state || 'RI', 50);
+    const sanitizedZip = sanitizeText(zipCode || '', 20);
 
     // Additional validation
     if (sanitizedName.length < 2) {
@@ -194,7 +196,7 @@ export async function POST(request) {
         customer_phone: phone,
         service_type: sanitizedService,
         city: sanitizedCity,
-        address: address ? `${address}, ${city}, RI` : null,
+        address: address ? `${address}${sanitizedState ? `, ${sanitizedState}` : ''}${sanitizedZip ? ` ${sanitizedZip}` : ''}` : null,
         status: 'pending',
         notes: message,
         estimate_preference: body.estimatePreference || 'walk_around',
@@ -304,7 +306,7 @@ export async function POST(request) {
             <img src="https://floralawn-and-landscaping.com/flora-logo-final.png" alt="Flora Lawn" style="width: 120px; height: auto; margin-bottom: 16px; display: block; margin-left: auto; margin-right: auto;">
             <div style="display: inline-block; background: #22c55e; color: #fff; font-size: 9px; font-weight: 900; letter-spacing: 0.25em; text-transform: uppercase; padding: 5px 14px; border-radius: 99px; margin-bottom: 10px;">🔥 New Lead Alert</div>
             <h1 style="margin: 0; color: #ffffff; font-size: 22px; font-weight: 900; font-style: italic; letter-spacing: -0.02em;">${sanitizedName}</h1>
-            <p style="margin: 6px 0 0 0; color: #94a3b8; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em;">${sanitizedService} &bull; ${sanitizedCity}, RI</p>
+            <p style="margin: 6px 0 0 0; color: #94a3b8; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em;">${sanitizedService} &bull; ${sanitizedCity}, ${sanitizedState}</p>
           </div>
 
           <!-- STAT CHIPS -->

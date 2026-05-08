@@ -39,7 +39,8 @@ export async function POST(request) {
       to: customer_email,
       subject,
       text,
-      html
+      html,
+      recipientName: customer_name
     });
 
     // Optionally update the lead to note the email was sent

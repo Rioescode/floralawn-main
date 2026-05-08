@@ -52,3 +52,9 @@ env
 /public/test-*.html
 /public/*-test.html
 /public/server-api-test.html
+# local scratch files
+scratch/
+
+# scripts with potential keys
+scripts/*.js
+scripts/*.sql

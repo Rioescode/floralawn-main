@@ -129,24 +129,9 @@ export async function POST(request) {
             subject: emailSubject,
             text: message || 'Your service has been completed successfully!',
             html: emailHtml,
-            replyTo: 'floralawncareri@gmail.com' // Add reply-to for better deliverability
-          });
-
-          // Log to email_logs for history hub
-          const logType = type ? type.toUpperCase() : 
-                  emailSubject.toUpperCase().includes('QUOTE') ? 'QUOTE' : 
-                  emailSubject.toUpperCase().includes('INVOICE') ? 'INVOICE' : 
-                  emailSubject.toUpperCase().includes('REMINDER') ? 'REMINDER' : 
-                  emailSubject.toUpperCase().includes('CONFIRM') ? 'CONFIRMATION' : 
-                  emailSubject.toUpperCase().includes('COMPLETED') ? 'COMPLETED' : 'GENERAL';
-          
-          await supabase.from('email_logs').insert({
-            recipient_email: appointment.customer_email,
-            recipient_name: appointment.customer_name || 'Customer',
-            subject: emailSubject,
-            body_html: emailHtml,
-            type: logType,
-            direction: 'OUTBOUND'
+            replyTo: 'floralawncareri@gmail.com', // Add reply-to for better deliverability
+            type: type, // Pass specific type for logging
+            recipientName: appointment.customer_name // Pass recipient name for logging
           });
 
           results.emailSent = true;

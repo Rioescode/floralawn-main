@@ -30,8 +30,10 @@ import { StarIcon as StarIconSolid, CheckBadgeIcon } from '@heroicons/react/24/s
 
 function ContactForm() {
   const [formData, setFormData] = useState({
-    name: '', email: '', phone: '', address: '', city: '', service: '', message: '', promoCode: ''
+    name: '', email: '', phone: '', address: '', city: '', state: '', zipCode: '', service: '', message: '', promoCode: '', preferredMeetingDate: ''
   });
+  const [submissionStep, setSubmissionStep] = useState('');
+  const [isGeneratingAI, setIsGeneratingAI] = useState(false);
   const [cleanupAssessment, setCleanupAssessment] = useState({
     lastCleaned: '',
     conditionLevel: 3
@@ -50,7 +52,7 @@ function ContactForm() {
   const [smsPreferences, setSmsPreferences] = useState({ subscribe: false });
   const [status, setStatus] = useState({ type: '', message: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showMessageHelper, setShowMessageHelper] = useState(false);
+  const [showMessageHelper, setShowMessageHelper] = useState(true);
   const [referralCode, setReferralCode] = useState('');
   
   // Media Upload State
@@ -95,8 +97,16 @@ function ContactForm() {
         const { Autocomplete } = await window.google.maps.importLibrary("places");
         autocomplete = new Autocomplete(addressRef.current, {
           componentRestrictions: { country: "us" },
-          fields: ["address_components", "formatted_address"],
+          fields: ["address_components", "formatted_address", "geometry"],
+          types: ["address"]
         });
+
+        // Rhode Island & Southern MA Bias
+        const bounds = new window.google.maps.LatLngBounds(
+          new window.google.maps.LatLng(41.1444, -71.8906),
+          new window.google.maps.LatLng(42.0188, -71.1205)
+        );
+        autocomplete.setBounds(bounds);
 
         autocomplete.addListener("place_changed", () => {
           const place = autocomplete.getPlace();
@@ -106,6 +116,8 @@ function ContactForm() {
           let streetNumber = "";
           let route = "";
           let city = "";
+          let state = "";
+          let zip = "";
 
           for (const component of place.address_components) {
             const componentType = component.types[0];
@@ -119,13 +131,21 @@ function ContactForm() {
               case "locality":
                 city = component.long_name;
                 break;
+              case "administrative_area_level_1":
+                state = component.short_name;
+                break;
+              case "postal_code":
+                zip = component.long_name;
+                break;
             }
           }
 
           setFormData(prev => ({
             ...prev,
-            address: `${streetNumber} ${route}`.trim(),
-            city: city || prev.city
+            address: place.formatted_address || `${streetNumber} ${route}`.trim(),
+            city: city || prev.city,
+            state: state || 'RI',
+            zipCode: zip || prev.zipCode
           }));
         });
       } catch (err) {
@@ -170,6 +190,44 @@ function ContactForm() {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const generateAIDraft = async () => {
+    if (!formData.service) {
+      setStatus({ type: 'error', message: 'Please select a service first to use AI drafting.' });
+      return;
+    }
+
+    setIsGeneratingAI(true);
+    try {
+      const response = await fetch('/api/draft-ai-message', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: formData.name,
+          service: formData.service,
+          address: formData.address,
+          city: formData.city,
+          state: formData.state,
+          estimatePreference: estimatePreference,
+          assessmentData: isCleanupService ? cleanupAssessment : (isMulchService ? mulchAssessment : null)
+        })
+      });
+
+      const data = await response.json();
+      if (data.draft) {
+        setFormData(prev => ({ ...prev, message: data.draft }));
+        setShowMessageHelper(false);
+      } else {
+        throw new Error(data.error || 'Failed to generate draft');
+      }
+    } catch (err) {
+      console.error('AI Draft Error:', err);
+      // Fallback to template if AI fails
+      insertTemplate();
+    } finally {
+      setIsGeneratingAI(false);
+    }
   };
 
   const insertTemplate = () => {
@@ -225,7 +283,11 @@ function ContactForm() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setSubmissionStep('Verifying Data...');
     try {
+      // Small delay for perceived reliability
+      await new Promise(r => setTimeout(r, 500));
+
       // Build assessment context
       let cleanupContext = '';
       if (isCleanupService) {
@@ -245,7 +307,7 @@ function ContactForm() {
         user_name: formData.name,
         user_email: formData.email,
         user_phone: formData.phone,
-        user_address: `${formData.address}, ${formData.city}, RI`,
+        user_address: `${formData.address}${formData.state ? `, ${formData.state}` : ''}${formData.zipCode ? ` ${formData.zipCode}` : ''}`,
         service_type: formData.service.toLowerCase().replace(/\s+/g, '_'),
         message: `[PREFERS: ${estimatePreference === 'meet_person' ? 'Meet In Person' : 'Walk Around & Email Pricing'}]\n\n` + cleanupContext + mulchContext + formData.message,
         to_name: process.env.NEXT_PUBLIC_APP_NAME,
@@ -256,11 +318,13 @@ function ContactForm() {
         media_count: mediaFiles.length,
         discount_status: (showMediaSection && (mediaFiles.length > 0 || (isMulchService && mulchAssessment.edgingMeasurement))) ? '10% CONCIERGE CREDIT APPLIED' : 'NONE'
       };
+      setSubmissionStep('Sending Secure Inquiry...');
       await emailjs.send(process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID, process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID, templateParams);
       
       // --- ELITE MEDIA UPLOAD ---
       let uploadedUrls = [];
       if (mediaFiles.length > 0) {
+        setSubmissionStep('Uploading Property Visuals...');
         console.log('🚀 Initiating Elite Media Upload to Supabase...');
         for (const file of mediaFiles) {
           const fileExt = file.name.split('.').pop();
@@ -286,6 +350,8 @@ function ContactForm() {
       
       await sendNotification(`📬 New Elite Quote Inquiry from ${formData.name} in ${formData.city}!`);
       
+      setSubmissionStep('Finalizing Lead Dossier...');
+      
       // Send professional confirmation to customer + Save to DB via internal API
       try {
         const response = await fetch('/api/send-contact-confirmation', {
@@ -297,6 +363,8 @@ function ContactForm() {
             phone: formData.phone,
             address: formData.address,
             city: formData.city,
+            state: formData.state,
+            zipCode: formData.zipCode,
             service: formData.service,
             message: formData.message,
             sendSMS: smsPreferences.subscribe,
@@ -328,8 +396,9 @@ function ContactForm() {
           message: "Your inquiry has been sent! You'll receive a quote by email within 1–2 business days. Check your email for a confirmation." 
         });
         
+        setSubmissionStep('Success!');
         // Clear form
-        setFormData({ name: '', email: '', phone: '', address: '', city: '', service: '', message: '' });
+        setFormData({ name: '', email: '', phone: '', address: '', city: '', state: '', zipCode: '', service: '', message: '', promoCode: '', preferredMeetingDate: '' });
         
         // Smooth scroll to success message
         setTimeout(() => {
@@ -499,9 +568,12 @@ function ContactForm() {
                         </div>
 
                         {/* LOCATION INFO */}
-                        <div className="grid md:grid-cols-2 gap-8">
-                           <div>
-                              <label className="text-[10px] font-black italic text-slate-500 uppercase tracking-widest mb-3 block">Street Address *</label>
+                        <div className="md:col-span-2">
+                           <label className="text-[10px] font-black italic text-slate-500 uppercase tracking-widest mb-3 block">Property Address Search *</label>
+                           <div className="relative group">
+                              <div className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-green-600 transition-colors">
+                                 <MapPinIcon className="w-6 h-6" />
+                              </div>
                               <input 
                                 ref={addressRef}
                                 required 
@@ -509,21 +581,30 @@ function ContactForm() {
                                 name="address" 
                                 value={formData.address} 
                                 onChange={handleChange} 
-                                className="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl px-8 py-5 text-slate-900 focus:outline-none focus:border-green-500 transition-all font-bold placeholder-slate-300" 
-                                placeholder="Enter your address..." 
+                                className="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl pl-16 pr-32 py-6 text-slate-900 focus:outline-none focus:border-green-500 transition-all font-bold placeholder-slate-300 shadow-sm" 
+                                placeholder="Search Your Address..." 
                               />
+                              {formData.zipCode && (
+                                <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2 bg-green-100 text-green-700 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest animate-in fade-in zoom-in duration-300">
+                                   <CheckBadgeIcon className="w-4 h-4" /> Verified
+                                </div>
+                              )}
                            </div>
-                           <div>
-                              <label className="text-[10px] font-black italic text-slate-500 uppercase tracking-widest mb-3 block">City *</label>
-                              <input 
-                                readOnly 
-                                required 
-                                name="city" 
-                                 value={formData.city} 
-                                 className="w-full bg-slate-50/70 border-2 border-slate-50 rounded-2xl px-8 py-5 text-slate-500 transition-all font-bold placeholder-slate-400" 
-                                 placeholder="Auto-filled from address..." 
-                              />
+                           <div className="flex flex-wrap gap-4 mt-3">
+                              <p className="text-[10px] text-slate-400 font-bold italic">Start typing to find your property. We use satellite data for accuracy.</p>
+                              {formData.city && (
+                                <div className="flex gap-2">
+                                  <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md font-bold uppercase">{formData.city}, {formData.state}</span>
+                                  <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md font-bold uppercase">{formData.zipCode}</span>
+                                </div>
+                              )}
                            </div>
+                        </div>
+
+                        <div className="hidden">
+                           <input type="hidden" name="city" value={formData.city} />
+                           <input type="hidden" name="state" value={formData.state} />
+                           <input type="hidden" name="zipCode" value={formData.zipCode} />
                         </div>
 
                         {/* SERVICE SELECTION */}
@@ -855,17 +936,59 @@ function ContactForm() {
                                  <p className="text-[10px] text-slate-500 font-bold leading-tight">I'd like to be home to meet the team.</p>
                               </button>
                            </div>
+                           
+                           {estimatePreference === 'meet_person' && (
+                              <div className="mt-6 p-6 bg-slate-50 border-2 border-slate-100 rounded-3xl animate-in zoom-in-95 duration-300">
+                                <label className="text-[10px] font-black italic text-slate-500 uppercase tracking-widest mb-3 block">Preferred Appointment Date *</label>
+                                <div className="relative">
+                                  <CalendarIcon className="absolute left-6 top-1/2 -translate-y-1/2 w-6 h-6 text-green-600 pointer-events-none" />
+                                  <input 
+                                    required 
+                                    type="date" 
+                                    name="preferredMeetingDate" 
+                                    value={formData.preferredMeetingDate} 
+                                    onChange={handleChange} 
+                                    className="w-full bg-white border-2 border-slate-100 rounded-2xl pl-16 pr-8 py-5 text-slate-900 focus:outline-none focus:border-green-500 transition-all font-bold [color-scheme:light]" 
+                                  />
+                                </div>
+                                <p className="mt-3 text-[10px] text-slate-400 font-bold italic">Note: Our team will contact you to confirm the exact arrival window.</p>
+                              </div>
+                            )}
                         </div>
 
                         {/* MESSAGE AREA */}
                         <div>
                            <label className="text-[10px] font-black italic text-slate-500 uppercase tracking-widest mb-3 block">Message Details *</label>
-                           {showMessageHelper && (
-                             <div className="mb-4 flex items-center justify-between p-4 bg-green-50 border border-green-100 rounded-xl">
-                                <span className="text-xs font-bold text-green-700">Need help writing?</span>
-                                <button type="button" onClick={insertTemplate} className="text-xs font-black text-green-600 underline">Insert Template</button>
-                             </div>
-                           )}
+                            {showMessageHelper && (
+                              <div className="mb-6 flex flex-col md:flex-row items-center justify-between p-6 bg-green-50 border border-green-100 rounded-[2rem] gap-4">
+                                 <div className="flex items-center gap-3">
+                                   <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center text-xl">✨</div>
+                                   <div>
+                                     <p className="text-[10px] font-black uppercase tracking-widest text-green-700">Writing Assistant</p>
+                                     <p className="text-xs font-bold text-slate-600 italic">Let AI summarize your project details.</p>
+                                   </div>
+                                 </div>
+                                 <div className="flex gap-3 w-full md:w-auto">
+                                   <button 
+                                     type="button" 
+                                     disabled={isGeneratingAI}
+                                     onClick={generateAIDraft} 
+                                     className="flex-1 md:flex-none px-6 py-3 bg-green-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-green-700 transition-all shadow-lg shadow-green-600/20 disabled:opacity-50 flex items-center justify-center gap-2"
+                                   >
+                                      {isGeneratingAI ? (
+                                        <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                      ) : '✨ AI Draft Project'}
+                                   </button>
+                                   <button 
+                                     type="button" 
+                                     onClick={insertTemplate} 
+                                     className="flex-1 md:flex-none px-6 py-3 bg-white text-slate-600 text-[10px] font-black uppercase tracking-widest rounded-xl border-2 border-slate-100 hover:bg-slate-50 transition-all"
+                                   >
+                                      Use Template
+                                   </button>
+                                 </div>
+                              </div>
+                            )}
                            <textarea required name="message" value={formData.message} onChange={handleChange} className="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl px-8 py-6 text-slate-900 focus:outline-none focus:border-green-500 transition-all font-bold h-40 resize-none placeholder-slate-300" placeholder="Describe your property needs..." />
                         </div>
 
@@ -1010,8 +1133,16 @@ function ContactForm() {
                           disabled={isSubmitting}
                           className="w-full bg-green-600 hover:bg-green-500 text-white font-black p-8 rounded-[2rem] text-2xl shadow-2xl transition-all disabled:opacity-50 italic group flex items-center justify-center gap-6"
                         >
-                           {isSubmitting ? 'ESTABLISHING CONNECTION...' : (
-                              <>Request My Free Estimate <ArrowRightIcon className="w-8 h-8 group-hover:translate-x-3 transition-all" /></>
+                           {isSubmitting ? (
+                             <div className="flex items-center justify-center gap-4">
+                                <div className="w-5 h-5 border-4 border-white/30 border-t-white rounded-full animate-spin" />
+                                <span className="tracking-widest">{submissionStep.toUpperCase()}</span>
+                             </div>
+                           ) : (
+                             <span className="flex items-center justify-center gap-4">
+                                {estimatePreference === 'meet_person' ? 'REQUEST IN-PERSON APPOINTMENT' : 'REQUEST MY FREE ESTIMATE'}
+                                <ArrowRightIcon className="w-8 h-8 group-hover:translate-x-3 transition-all" />
+                             </span>
                            )}
                         </button>
 
