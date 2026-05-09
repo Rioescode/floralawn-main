@@ -54,8 +54,9 @@ ENV TWILIO_API_KEY_SECRET=${TWILIO_API_KEY_SECRET}
 ENV TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN}
 ENV TWILIO_PHONE_NUMBER=${TWILIO_PHONE_NUMBER}
 
-# Set memory limit for Node.js build
+# Set memory and CPU limits for Node.js build
 ENV NODE_OPTIONS="--max-old-space-size=4096"
+ENV NEXT_CPU_COUNT=1
 
 # Run next build
 RUN npm run build --verbose

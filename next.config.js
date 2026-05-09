@@ -156,7 +156,7 @@ const nextConfig = {
   // Experimental features for security and performance
   experimental: {
     serverComponentsExternalPackages: ['@anthropic-ai/sdk', 'twilio'],
-    webpackMemoryOptimized: true
+    webpackBuildWorker: false
   }
 }
 
