@@ -40,14 +40,7 @@ const nextConfig = {
     
     // Production optimizations
     if (!dev && !isServer) {
-      config.optimization.splitChunks.cacheGroups = {
-        ...config.optimization.splitChunks.cacheGroups,
-        vendor: {
-          test: /[\\/]node_modules[\\/]/,
-          name: 'vendors',
-          chunks: 'all',
-        }
-      }
+      config.cache = false;
     }
     return config;
   },
