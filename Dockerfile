@@ -1,9 +1,9 @@
 # Stage 1: Dependencies
-FROM node:18-alpine AS base
+FROM node:18-slim AS base
 
 # Install dependencies only when needed
 FROM base AS deps
-RUN apk add --no-cache libc6-compat
+RUN apt-get update && apt-get install -y libc6-dev --no-install-recommends && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 
 # Install dependencies
@@ -57,6 +57,8 @@ ENV TWILIO_PHONE_NUMBER=${TWILIO_PHONE_NUMBER}
 # Set memory and CPU limits for Node.js build
 ENV NODE_OPTIONS="--max-old-space-size=4096"
 ENV NEXT_CPU_COUNT=1
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV NODE_ENV=production
 
 # Run next build
 RUN npm run build --verbose
