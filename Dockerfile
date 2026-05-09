@@ -37,7 +37,6 @@ ARG TWILIO_AUTH_TOKEN
 ARG TWILIO_PHONE_NUMBER
 
 # Set environment variables from build arguments (only for build process)
-# Runtime secrets should be passed via environment variables at container startup
 ENV NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
 ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
 ENV SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
@@ -55,11 +54,11 @@ ENV TWILIO_API_KEY_SECRET=${TWILIO_API_KEY_SECRET}
 ENV TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN}
 ENV TWILIO_PHONE_NUMBER=${TWILIO_PHONE_NUMBER}
 
-# First run next build with verbose output
-RUN npm run build --verbose || (echo "Next.js build failed, retrying..." && npm run build --verbose)
+# Set memory limit for Node.js build
+ENV NODE_OPTIONS="--max-old-space-size=4096"
 
-# Then run sitemap generation if needed (postbuild script handles this)
-# Note: next-sitemap runs automatically via postbuild script
+# Run next build
+RUN npm run build --verbose
 
 # Remove .env file after build (if it exists)
 RUN rm -f .env || true

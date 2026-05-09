@@ -153,9 +153,10 @@ const nextConfig = {
       }
     ]
   },
-  // Experimental features for security
+  // Experimental features for security and performance
   experimental: {
-    serverComponentsExternalPackages: ['@anthropic-ai/sdk', 'twilio']
+    serverComponentsExternalPackages: ['@anthropic-ai/sdk', 'twilio'],
+    webpackMemoryOptimized: true
   }
 }
 
