@@ -174,9 +174,18 @@ export default function SchedulePage() {
     totalWeekly: 0,
     totalBiWeekly: 0,
     grandTotal: 0,
+    weeklyCustomers: 0,
+    biWeeklyCustomers: 0,
     week1: 0,
     week2: 0
   });
+  const [paymentStats, setPaymentStats] = useState({
+    week1: { paid: 0, unpaid: 0 },
+    week2: { paid: 0, unpaid: 0 }
+  });
+  const [jobPayments, setJobPayments] = useState({}); // customerName_date -> status
+  const [showUnpaidModal, setShowUnpaidModal] = useState(false);
+  const [unpaidJobs, setUnpaidJobs] = useState([]);
   const [appointments, setAppointments] = useState([]);
   const [loadingAppointments, setLoadingAppointments] = useState(false);
   const [showVisitModal, setShowVisitModal] = useState(false);
@@ -796,6 +805,7 @@ export default function SchedulePage() {
       fetchCustomers();
       fetchAppointments();
       loadHomeBaseAddress();
+      fetchPaymentStats();
     }
   }, [user]);
 
@@ -1077,6 +1087,101 @@ export default function SchedulePage() {
     });
   };
 
+  const fetchPaymentStats = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('completed_jobs')
+        .select('*')
+        .order('job_date', { ascending: false });
+
+      if (error) throw error;
+
+      const stats = {
+        'Week 1': { paid: 0, unpaid: 0 },
+        'Week 2': { paid: 0, unpaid: 0 }
+      };
+      
+      const unpaid = [];
+      const paymentsMap = {};
+
+      data.forEach(job => {
+        const dateObj = new Date(job.job_date);
+        const weekNumber = Math.ceil(dateObj.getDate() / 7);
+        const week = weekNumber % 2 === 0 ? 'Week 1' : 'Week 2';
+        
+        const amountPaid = parseFloat(job.amount_paid || 0);
+        const amountDue = parseFloat(job.amount_due || 0);
+        const balance = amountDue - amountPaid;
+
+        // Store status by customer name (simplified for quick lookup on card)
+        paymentsMap[job.customer_name] = job.payment_status;
+
+        if (job.payment_status === 'paid') {
+          stats[week].paid += amountPaid;
+        } else {
+          stats[week].unpaid += balance;
+          unpaid.push(job);
+        }
+      });
+
+      setPaymentStats({
+        week1: stats['Week 1'],
+        week2: stats['Week 2']
+      });
+      setUnpaidJobs(unpaid);
+      setJobPayments(paymentsMap);
+    } catch (err) {
+      console.error('Error fetching payment stats:', err);
+    }
+  };
+
+  const togglePaymentStatus = async (jobId, currentStatus, amountDue) => {
+    try {
+      const newStatus = currentStatus === 'paid' ? 'unpaid' : 'paid';
+      const amountPaid = newStatus === 'paid' ? amountDue : 0;
+      
+      const { error } = await supabase
+        .from('completed_jobs')
+        .update({ 
+          payment_status: newStatus,
+          amount_paid: amountPaid,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', jobId);
+
+      if (error) throw error;
+      
+      await fetchPaymentStats();
+      setSuccessMessage(`Payment marked as ${newStatus}!`);
+      setShowSuccessModal(true);
+    } catch (err) {
+      console.error('Error toggling payment status:', err);
+      alert('Failed to update payment status');
+    }
+  };
+
+  const togglePaymentByCustomerName = async (customerName) => {
+    try {
+      // Find the latest completed job for this customer
+      const { data: jobs, error: fetchError } = await supabase
+        .from('completed_jobs')
+        .select('id, payment_status, amount_due')
+        .eq('customer_name', customerName)
+        .order('job_date', { ascending: false })
+        .limit(1);
+
+      if (fetchError) throw fetchError;
+      
+      if (jobs && jobs.length > 0) {
+        await togglePaymentStatus(jobs[0].id, jobs[0].payment_status, jobs[0].amount_due);
+      } else {
+        alert(`Could not find a completed job record for ${customerName} to update payment status.`);
+      }
+    } catch (err) {
+      console.error('Error toggling payment:', err);
+    }
+  };
+
   const assignCustomerToDay = async (customerId, day) => {
     try {
       const { error } = await supabase
@@ -1339,7 +1444,7 @@ export default function SchedulePage() {
   const startJob = async (customerId) => {
     try {
       const now = new Date().toISOString();
-      const { error } = await supabase
+      const { error } = await supabaseAdmin
         .from('customers')
         .update({ job_started_at: now })
         .eq('id', customerId);
@@ -1359,9 +1464,7 @@ export default function SchedulePage() {
     if (!customer) return;
     
     const travelMins = manualTravelMins;
-    const jobStartTime = new Date();
-    jobStartTime.setMinutes(jobStartTime.getMinutes() + travelMins);
-    const nowISO = jobStartTime.toISOString();
+    const nowISO = new Date().toISOString();
     
     try {
       const { error } = await supabase
@@ -1442,9 +1545,8 @@ export default function SchedulePage() {
   };
 
   const cancelJobTimer = async (customerId) => {
-    if (!confirm('Are you sure you want to cancel this timer? The record will be lost.')) return;
     try {
-      const { error } = await supabase
+      const { error } = await supabaseAdmin
         .from('customers')
         .update({ job_started_at: null })
         .eq('id', customerId);
@@ -1456,6 +1558,7 @@ export default function SchedulePage() {
       ));
     } catch (error) {
       console.error('Error cancelling job:', error);
+      alert('Failed to cancel timer');
     }
   };
 
@@ -3356,19 +3459,34 @@ export default function SchedulePage() {
                   </div>
                 </div>
                 {/* Inline breakdown */}
-                <div className="flex gap-4 mt-2">
-                  <div className="flex items-center gap-1.5">
+                <div className="flex flex-wrap gap-x-6 gap-y-2 mt-3 pt-3 border-t border-white/5">
+                  <div className="flex items-center gap-2">
                     <div className="w-2 h-2 rounded-full bg-green-500"></div>
                     <span className="text-[11px] text-gray-400">
-                      Weekly <span className="text-white font-semibold">${DAYS_OF_WEEK.filter(d => d.includes(selectedWeek)).reduce((t, d) => t + (schedule[d] || []).filter(c => c.frequency === 'weekly').reduce((s, c) => s + parseFloat(c.price || 0), 0), 0).toFixed(0)}</span>
+                      Weekly <span className="text-white font-bold">${DAYS_OF_WEEK.filter(d => d.includes(selectedWeek)).reduce((t, d) => t + (schedule[d] || []).filter(c => c.frequency === 'weekly').reduce((s, c) => s + parseFloat(c.price || 0), 0), 0).toFixed(0)}</span>
                       <span className="text-gray-600 ml-1">({DAYS_OF_WEEK.filter(d => d.includes(selectedWeek)).reduce((t, d) => t + (schedule[d] || []).filter(c => c.frequency === 'weekly').length, 0)})</span>
                     </span>
                   </div>
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-2">
                     <div className="w-2 h-2 rounded-full bg-blue-500"></div>
                     <span className="text-[11px] text-gray-400">
-                      Bi-Weekly <span className="text-white font-semibold">${DAYS_OF_WEEK.filter(d => d.includes(selectedWeek)).reduce((t, d) => t + (schedule[d] || []).filter(c => c.frequency === 'bi_weekly').reduce((s, c) => s + parseFloat(c.price || 0), 0), 0).toFixed(0)}</span>
+                      Bi-Weekly <span className="text-white font-bold">${DAYS_OF_WEEK.filter(d => d.includes(selectedWeek)).reduce((t, d) => t + (schedule[d] || []).filter(c => c.frequency === 'bi_weekly').reduce((s, c) => s + parseFloat(c.price || 0), 0), 0).toFixed(0)}</span>
                       <span className="text-gray-600 ml-1">({DAYS_OF_WEEK.filter(d => d.includes(selectedWeek)).reduce((t, d) => t + (schedule[d] || []).filter(c => c.frequency === 'bi_weekly').length, 0)})</span>
+                    </span>
+                  </div>
+                  <button 
+                    onClick={() => setShowUnpaidModal(true)}
+                    className="flex items-center gap-2 hover:bg-white/5 px-2 py-0.5 rounded-lg transition-all group"
+                  >
+                    <div className="w-2 h-2 rounded-full bg-red-500 group-hover:scale-125 transition-transform"></div>
+                    <span className="text-[11px] text-gray-400">
+                      Unpaid <span className="text-red-400 font-black group-hover:text-red-300 transition-colors">${(selectedWeek === 'Week 1' ? paymentStats.week1.unpaid : paymentStats.week2.unpaid).toFixed(0)}</span>
+                    </span>
+                  </button>
+                  <div className="flex items-center gap-2 px-2 py-0.5">
+                    <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
+                    <span className="text-[11px] text-gray-400">
+                      Paid <span className="text-emerald-400 font-black">${(selectedWeek === 'Week 1' ? paymentStats.week1.paid : paymentStats.week2.paid).toFixed(0)}</span>
                     </span>
                   </div>
                 </div>
@@ -4566,6 +4684,10 @@ export default function SchedulePage() {
                     setDelayMessage={setDelayMessage}
                     DELAY_TEMPLATES={DELAY_TEMPLATES}
                     formatShortDate={formatShortDate}
+                    sendingReviewFor={sendingReviewFor}
+                    setSendingReviewFor={setSendingReviewFor}
+                    jobPayments={jobPayments}
+                    togglePaymentByCustomerName={togglePaymentByCustomerName}
                   />
                 ))}
               </div>
@@ -4802,6 +4924,10 @@ export default function SchedulePage() {
                             setDelayMessage={setDelayMessage}
                             DELAY_TEMPLATES={DELAY_TEMPLATES}
                             formatShortDate={formatShortDate}
+                            sendingReviewFor={sendingReviewFor}
+                            setSendingReviewFor={setSendingReviewFor}
+                            jobPayments={jobPayments}
+                            togglePaymentByCustomerName={togglePaymentByCustomerName}
                           />
                         ))}
                       </div>
@@ -4824,6 +4950,131 @@ export default function SchedulePage() {
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {/* === MODALS === */}
+
+        {/* Unpaid Jobs Modal */}
+        {showUnpaidModal && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-[100]">
+            <div className="bg-[#0f1117] rounded-[2.5rem] border border-white/10 max-w-2xl w-full max-h-[85vh] overflow-hidden flex flex-col shadow-2xl">
+              <div className="p-8 border-b border-white/5 flex items-center justify-between">
+                <div>
+                  <h3 className="text-2xl font-black text-white">Unpaid Balances</h3>
+                  <p className="text-sm text-gray-500 mt-1">Found {unpaidJobs.length} jobs waiting for payment</p>
+                </div>
+                <button 
+                  onClick={() => setShowUnpaidModal(false)}
+                  className="p-3 bg-white/5 hover:bg-white/10 rounded-2xl transition-all"
+                >
+                  <XMarkIcon className="h-6 w-6 text-gray-400" />
+                </button>
+              </div>
+              
+              <div className="p-6 overflow-y-auto flex-1 space-y-3">
+                {unpaidJobs.length === 0 ? (
+                  <div className="text-center py-12">
+                    <CheckBadgeIcon className="h-12 w-12 text-emerald-500/30 mx-auto mb-4" />
+                    <p className="text-gray-500 font-bold">All caught up! No unpaid jobs.</p>
+                  </div>
+                ) : (
+                  unpaidJobs.map((job) => (
+                    <div key={job.id} className="bg-white/[0.02] border border-white/5 p-4 rounded-2xl flex items-center justify-between hover:bg-white/[0.04] transition-all group">
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center">
+                          <BanknotesIcon className="h-5 w-5 text-red-500" />
+                        </div>
+                        <div>
+                          <p className="font-bold text-white group-hover:text-red-400 transition-colors">{job.customer_name}</p>
+                          <p className="text-[10px] text-gray-500 uppercase font-black tracking-widest mt-0.5">
+                            {formatShortDate(job.job_date)} &bull; {job.service_type?.replace('_', ' ')}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="text-right">
+                          <p className="text-lg font-black text-red-400">${(parseFloat(job.amount_due) - parseFloat(job.amount_paid)).toFixed(0)}</p>
+                          <p className="text-[10px] text-gray-600 font-bold uppercase">Balance Due</p>
+                        </div>
+                        <button 
+                          onClick={() => togglePaymentStatus(job.id, job.payment_status, job.amount_due)}
+                          className="px-4 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border border-emerald-500/20"
+                        >
+                          Mark Paid
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+              
+              <div className="p-8 border-t border-white/5 bg-black/20 flex justify-between items-center">
+                <div className="flex gap-6">
+                  <div>
+                    <p className="text-[10px] text-gray-500 uppercase font-black tracking-widest mb-1">Week 1 Total</p>
+                    <p className="text-xl font-black text-white">${paymentStats.week1.unpaid.toFixed(0)}</p>
+                  </div>
+                  <div className="w-px h-10 bg-white/10"></div>
+                  <div>
+                    <p className="text-[10px] text-gray-500 uppercase font-black tracking-widest mb-1">Week 2 Total</p>
+                    <p className="text-xl font-black text-white">${paymentStats.week2.unpaid.toFixed(0)}</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setShowUnpaidModal(false)}
+                  className="px-8 py-3 bg-white/5 hover:bg-white/10 rounded-2xl text-sm font-bold text-white transition-all"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Floating Bottom Summary Bar */}
+        {viewMode === 'schedule' && (
+          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-black/60 backdrop-blur-2xl border border-white/10 rounded-full px-6 py-4 flex items-center gap-8 shadow-2xl z-[80] animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="flex items-center gap-3 border-r border-white/10 pr-8">
+              <div className={`p-2 rounded-xl transition-all ${selectedWeek === 'Week 1' ? 'bg-green-500/20' : 'bg-white/5'}`}>
+                <CalendarDaysIcon className={`h-5 w-5 ${selectedWeek === 'Week 1' ? 'text-green-400' : 'text-gray-500'}`} />
+              </div>
+              <div>
+                <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest mb-0.5">Week 1</p>
+                <div className="flex items-center gap-3">
+                  <span className="text-xs font-black text-white">${paymentStats.week1.paid.toFixed(0)} <span className="text-emerald-500/60 text-[10px]">Paid</span></span>
+                  <span className="text-xs font-black text-red-400">${paymentStats.week1.unpaid.toFixed(0)} <span className="text-red-500/60 text-[10px]">Due</span></span>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-3">
+              <div className={`p-2 rounded-xl transition-all ${selectedWeek === 'Week 2' ? 'bg-blue-500/20' : 'bg-white/5'}`}>
+                <CalendarDaysIcon className={`h-5 w-5 ${selectedWeek === 'Week 2' ? 'text-blue-400' : 'text-gray-500'}`} />
+              </div>
+              <div>
+                <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest mb-0.5">Week 2</p>
+                <div className="flex items-center gap-3">
+                  <span className="text-xs font-black text-white">${paymentStats.week2.paid.toFixed(0)} <span className="text-emerald-500/60 text-[10px]">Paid</span></span>
+                  <span className="text-xs font-black text-red-400">${paymentStats.week2.unpaid.toFixed(0)} <span className="text-red-500/60 text-[10px]">Due</span></span>
+                </div>
+              </div>
+            </div>
+            
+            <div className="w-px h-6 bg-white/10"></div>
+            
+            <div className="flex items-center gap-2">
+              <div className="text-right">
+                <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest mb-0.5">Grand Total Due</p>
+                <p className="text-sm font-black text-red-500">${(paymentStats.week1.unpaid + paymentStats.week2.unpaid).toFixed(0)}</p>
+              </div>
+              <button 
+                onClick={() => setShowUnpaidModal(true)}
+                className="ml-2 p-2.5 bg-red-500/20 hover:bg-red-500/30 rounded-xl transition-all text-red-400"
+              >
+                <BanknotesIcon className="h-5 w-5" />
+              </button>
+            </div>
           </div>
         )}
 
@@ -5670,7 +5921,7 @@ export default function SchedulePage() {
                     />
                     <span className="text-xl text-gray-400 font-bold">mins</span>
                   </div>
-                  <p className="text-xs text-gray-500 italic mt-4">Job timer will start automatically after arrival.</p>
+                  <p className="text-xs text-blue-400 font-black uppercase tracking-widest mt-4 animate-pulse">Job timer starts now (including driving time)</p>
                 </div>
 
                 {/* Action Buttons */}
@@ -6082,7 +6333,11 @@ function CustomerCard({
   setSelectedCustomerForDelay,
   setDelayMessage,
   DELAY_TEMPLATES,
-  formatShortDate
+  formatShortDate,
+  sendingReviewFor,
+  setSendingReviewFor,
+  jobPayments,
+  togglePaymentByCustomerName
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -6162,16 +6417,35 @@ function CustomerCard({
         {newlyAddedIds.has(customer.id) && (
           <span className="px-2 py-0.5 bg-gradient-to-r from-violet-600 to-indigo-600 text-white text-[9px] font-black rounded-lg tracking-wider uppercase animate-bounce shadow-lg shadow-indigo-500/40">✦ New</span>
         )}
+        
         {isCompleted && (
-          <div className="flex items-center gap-1 px-2 py-0.5 bg-green-500 text-white text-[9px] font-black rounded-lg tracking-wider uppercase shadow-lg shadow-green-500/30">
-            <CheckBadgeIcon className="h-3 w-3" />
-            <span>Done</span>
-          </div>
-        )}
+           <button 
+             onClick={(e) => { e.stopPropagation(); togglePaymentByCustomerName(customer.name); }}
+             className={`flex items-center gap-1 px-2 py-0.5 text-[9px] font-black rounded-lg tracking-wider uppercase shadow-lg transition-all active:scale-95 ${
+               jobPayments[customer.name] === 'paid' 
+                 ? 'bg-emerald-500 text-white shadow-emerald-500/30 hover:bg-emerald-600' 
+                 : 'bg-red-500 text-white shadow-red-500/30 hover:bg-red-600'
+             }`}
+           >
+             {jobPayments[customer.name] === 'paid' ? (
+               <><CheckBadgeIcon className="h-3 w-3" /> Paid</>
+             ) : (
+               <><BanknotesIcon className="h-3 w-3" /> Unpaid</>
+             )}
+           </button>
+         )}
+
+         {isCompleted && jobPayments[customer.name] !== 'paid' && (
+           <div className="flex items-center gap-1 px-2 py-0.5 bg-green-500 text-white text-[9px] font-black rounded-lg tracking-wider uppercase shadow-lg shadow-green-500/30">
+             <CheckBadgeIcon className="h-3 w-3" />
+             <span>Done</span>
+           </div>
+         )}
+        
         {isMoved && (
           <span className="px-2 py-0.5 bg-orange-500 text-white text-[9px] font-black rounded-lg uppercase tracking-wider shadow-lg shadow-orange-500/30">→ Moved</span>
         )}
-        {customer.job_started_at && activeJobTimers[customer.id] && (
+        {customer.job_started_at && activeJobTimers[customer.id] && !isCompleted && (
           <div className="flex items-center gap-1 px-2 py-0.5 bg-gradient-to-r from-purple-600 to-blue-600 text-white text-[9px] font-black rounded-lg shadow-lg shadow-purple-500/40 animate-pulse">
             <ClockIcon className="h-3 w-3" />
             <span>{activeJobTimers[customer.id]}</span>
@@ -6339,6 +6613,40 @@ function CustomerCard({
               </div>
             )}
           </div>
+
+          {/* Payment Section for completed customers */}
+          {isCompleted && (
+            <div className="flex items-center justify-between p-3 bg-white/[0.03] border border-white/5 rounded-2xl">
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                  jobPayments[customer.name] === 'paid' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'
+                }`}>
+                  <BanknotesIcon className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-0.5">Payment Status</p>
+                  <p className={`text-xs font-black uppercase tracking-wider ${
+                    jobPayments[customer.name] === 'paid' ? 'text-emerald-400' : 'text-red-400'
+                  }`}>
+                    {jobPayments[customer.name] === 'paid' ? 'Paid' : 'Unpaid'}
+                  </p>
+                </div>
+              </div>
+              <button 
+                onClick={(e) => { 
+                  e.stopPropagation(); 
+                  togglePaymentByCustomerName(customer.name); 
+                }}
+                className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border ${
+                  jobPayments[customer.name] === 'paid' 
+                    ? 'bg-red-500/5 text-red-400 border-red-500/20 hover:bg-red-500/10' 
+                    : 'bg-emerald-500/5 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/10'
+                }`}
+              >
+                Mark {jobPayments[customer.name] === 'paid' ? 'Unpaid' : 'Paid'}
+              </button>
+            </div>
+          )}
 
           {/* Safety Alert Section */}
           {editingSafetyNotes[customer.id] !== undefined ? (

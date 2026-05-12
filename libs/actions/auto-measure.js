@@ -1,20 +1,15 @@
 'use server';
 
-import Anthropic from '@anthropic-ai/sdk';
-
 /**
- * AUTO-MEASURE LAWN — AI VISION POWERED
- * Uses Claude 3.5 Sonnet to analyze satellite imagery and estimate lawn area.
+ * AUTO-MEASURE LAWN — API DATA POWERED
+ * Uses public property records (Lot Size - Building Size) to estimate lawn area.
  */
 export async function autoMeasureLawn({ lat, lng, address }) {
   console.log(`[SERVICE] Starting AI auto-measure for: ${address} (${lat}, ${lng})`);
   
   try {
     const googleApiKey = process.env.GOOGLE_MAPS_API_KEY || process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
-    const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
-    
     if (!googleApiKey) throw new Error('Google Maps API Key missing.');
-    if (!anthropicApiKey) throw new Error('Anthropic API Key missing.');
 
     // 1. Fetch Static Map (Zoom 20 for full property context + Marker for clarity)
     const staticMapUrl = `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lng}&zoom=20&size=640x640&scale=2&maptype=satellite&markers=color:red%7C${lat},${lng}&key=${googleApiKey}`;
@@ -58,81 +53,21 @@ export async function autoMeasureLawn({ lat, lng, address }) {
     // 2. Calculate scale (Meters per pixel - Adjusted for Zoom 20)
     const metersPerPixel = (156543.03392 * Math.cos(lat * Math.PI / 180)) / Math.pow(2, 20);
 
-    const anthropicResponse = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-API-Key': anthropicApiKey,
-        'anthropic-version': '2023-06-01'
-      },
-      body: JSON.stringify({
-        model: "claude-3-5-sonnet-latest",
-        max_tokens: 1000,
-        temperature: 0,
-        system: "You are a professional lawn care assessor. Your task is to analyze satellite imagery and precisely estimate the square footage of lawn (grass) for the property MARKED WITH A RED PIN at the image center. Focus ONLY on the marked property grounds. Exclude: neighbor properties, driveways, sidewalks, buildings, pools, and non-grass areas. BE EXTREMELY STINGY. Identify exactly what grass you see and explain based on the RED MARKER position.",
-        messages: [
-          {
-            role: "user",
-            content: [
-              {
-                type: "image",
-                source: {
-                  type: "base64",
-                  media_type: "image/png",
-                  data: base64Image,
-                },
-              },
-              {
-                type: "text",
-                text: `This satellite image shows a residential property at ${address}. 
-                **TARGET PROPERTY**: Analysis must focus exclusively on the property marked with the **RED MARKER PIN** at the center of this image.
-                
-                The scale is approximately ${metersPerPixel.toFixed(4)} meters per pixel.
-                
-                OFFICIAL PROPERTY DATA (Source: RentCast / Ground Truth):
-                - Total Lot Area: ${parcelData.lotSize ? parcelData.lotSize + ' sqft' : 'Unknown'}
-                - Primary Building Size (Total Living Area): ${parcelData.buildingSize ? parcelData.buildingSize + ' sqft' : 'Unknown'}
-                
-                Note: In some cases, 'Primary Building Size' includes multiple floors (Total Living Area) and may exceed 'Total Lot Area'. Do not assume the building footprint covers the entire lot; instead, use this info as a general scale and prioritize the VISIBLE satellite footprint to estimate the remaining lawn/grass area. 
-                
-                Task: Estimate the total square footage of the lawn/grass area that needs mowing on this property ONLY.
-                Use the OFFICIAL PROPERTY DATA to guide your mental model (e.g., if the lot is 5,000 sqft and the house is 2,000 sqft, the grass cannot be 4,000 sqft unless the yard is very optimized).
-                
-                Output your response as a JSON object with these fields:
-                - 'areaSqFt': (number) The TOTAL estimated lawn area in square feet.
-                - 'confidence': (number 0-1)
-                - 'reasoning': (string) A detailed literal explanation of what you see. Mention specific landmarks (e.g., 'front patch between driveway and sidewalk').
-                - 'estimatedTotalLotSize': (number) Total property size estimate for context.
-                - 'sections': (array of {label: string, areaSqFt: number}) ONLY include sections that are visibly grass. DO NOT use placeholders. If there is no rear yard, do not include it.
-                - 'lawnPolygons': (array of arrays of {x, y}) EXACT boundaries...`
-              }
-            ],
-          },
-        ],
-      })
-    });
-
-    if (!anthropicResponse.ok) {
-      const errorData = await anthropicResponse.json().catch(() => ({}));
-      throw new Error(`Anthropic AI Error: ${anthropicResponse.status} ${JSON.stringify(errorData)}`);
+    const estimatedLawn = Math.max(0, (parcelData.lotSize || 0) - (parcelData.buildingSize || 0));
+    
+    if (estimatedLawn <= 0) {
+       throw new Error('Property records could not be found to calculate sqft automatically. Please use the map to draw the lawn manually.');
     }
 
-    const data = await anthropicResponse.json();
-    const responseText = data.content[0].text;
-    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error('AI failed to return valid data segment.');
-    
-    const aiData = JSON.parse(jsonMatch[0]);
-
-    console.log(`[SERVICE] AI Result: ${aiData.areaSqFt} SQFT (${aiData.confidence * 100}% confidence)`);
+    console.log(`[SERVICE] API Math Result: ${estimatedLawn} SQFT (Lot: ${parcelData.lotSize} - Bldg: ${parcelData.buildingSize})`);
 
     return {
       success: true,
-      areaSqFt: aiData.areaSqFt,
-      confidence: aiData.confidence,
-      reasoning: aiData.reasoning,
-      sections: aiData.sections || [],
-      lawnPolygons: aiData.lawnPolygons || [],
+      areaSqFt: estimatedLawn,
+      confidence: 1.0,
+      reasoning: `Mathematical calculation derived from official property records: Lot Size (${parcelData.lotSize || 0} sqft) minus the Building Footprint (${parcelData.buildingSize || 0} sqft) equals ${estimatedLawn} sqft.`,
+      sections: [],
+      lawnPolygons: [],
       base64Image,
       metersPerPixel,
       lat,

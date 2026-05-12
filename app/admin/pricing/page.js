@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import Navigation from '@/components/Navigation';
@@ -13,7 +13,8 @@ import {
   CloudIcon,
   CheckCircleIcon,
   ArrowPathIcon,
-  ClockIcon
+  ClockIcon,
+  XMarkIcon
 } from '@heroicons/react/24/outline';
 import toast, { Toaster } from 'react-hot-toast';
 
@@ -57,6 +58,327 @@ export default function BusinessIntelligencePage() {
       disposal_fee: 125
     }
   });
+
+  // Dynamic jobs list fetched from database
+  const [trackedJobs, setTrackedJobs] = useState([]);
+  const [isLoadingJobs, setIsLoadingJobs] = useState(false);
+  const [hiddenJobIds, setHiddenJobIds] = useState([]);
+
+  const fetchHiddenJobs = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('business_config')
+        .select('data')
+        .eq('category', 'calibration_hidden_jobs')
+        .single();
+      if (!error && data?.data?.ids) {
+        setHiddenJobIds(data.data.ids);
+      }
+    } catch (err) {}
+  };
+
+  const hideJob = async (e, jobId) => {
+    e.stopPropagation();
+    const newHidden = [...hiddenJobIds, jobId];
+    setHiddenJobIds(newHidden);
+    try {
+      await supabase
+        .from('business_config')
+        .upsert({
+          category: 'calibration_hidden_jobs',
+          data: { ids: newHidden },
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'category' });
+      toast.success('Removed from calibration view');
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const fetchTrackedJobs = async () => {
+    try {
+      setIsLoadingJobs(true);
+      const { data, error } = await supabase
+        .from('customers')
+        .select('id, name, address, last_job_duration_minutes, price, notes')
+        .not('last_job_duration_minutes', 'is', null)
+        .order('updated_at', { ascending: false });
+      
+      if (!error && data) {
+        setTrackedJobs(data);
+      }
+    } catch (err) {
+      console.error('Error fetching tracked jobs:', err);
+    } finally {
+      setIsLoadingJobs(false);
+    }
+  };
+
+  // Calibration State
+  const [calibration, setCalibration] = useState({
+    address: '',
+    actual_time: 45, // minutes
+    crew_size: 1, // number of people
+    actual_sqft: 5000,
+    target_hourly: 80,
+    suggested_base: 0,
+    suggested_per_1k: 0,
+    isLoadingInfo: false
+  });
+
+  const fetchCalibrationPrefs = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('business_config')
+        .select('data')
+        .eq('category', 'calibration_preferences')
+        .single();
+      if (!error && data?.data) {
+        setCalibration(prev => ({
+          ...prev,
+          target_hourly: data.data.target_hourly || prev.target_hourly,
+          crew_size: data.data.crew_size || prev.crew_size
+        }));
+      }
+    } catch (err) {}
+  };
+
+  const saveCalibrationPrefs = async (field, value) => {
+    try {
+      const { data } = await supabase
+        .from('business_config')
+        .select('data')
+        .eq('category', 'calibration_preferences')
+        .single();
+      const current = data?.data || { target_hourly: 80, crew_size: 1 };
+      await supabase
+        .from('business_config')
+        .upsert({
+          category: 'calibration_preferences',
+          data: { ...current, [field]: value },
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'category' });
+    } catch (err) {}
+  };
+
+  const getPropertyInfo = async () => {
+    if (!calibration.address) {
+      toast.error('Please enter an address first');
+      return;
+    }
+
+    try {
+      setCalibration(prev => ({ ...prev, isLoadingInfo: true }));
+      const res = await fetch(`/api/rentcast?address=${encodeURIComponent(calibration.address)}`);
+      const data = await res.json();
+
+      if (data.error) throw new Error(data.error);
+
+      // Simple math: Lot Size - House Footprint
+      const estimatedLawn = Math.max(0, (data.lotSize || 0) - (data.squareFootage || 0));
+      
+      setCalibration(prev => ({
+        ...prev,
+        actual_sqft: estimatedLawn || prev.actual_sqft
+      }));
+
+      // SAVE TO DATABASE: Find customer by address and update their notes
+      const { data: customerData } = await supabase
+        .from('customers')
+        .select('id, name, notes')
+        .ilike('address', `%${calibration.address}%`)
+        .limit(1)
+        .single();
+
+      if (customerData) {
+        const verifiedTag = `[VERIFIED: Lot ${data.lotSize} | House ${data.squareFootage} | Lawn ${estimatedLawn}]`;
+        const updatedNotes = customerData.notes 
+          ? `${verifiedTag}\n${customerData.notes.replace(/\[VERIFIED:.*?\]\n?/, '')}`
+          : verifiedTag;
+
+        await supabase
+          .from('customers')
+          .update({ notes: updatedNotes })
+          .eq('id', customerData.id);
+        
+        toast.success(`Saved to ${customerData.name}'s notes!`);
+      }
+
+      toast.success(`Verified: ${estimatedLawn} sqft mowable area`);
+      return estimatedLawn; // Return for individual button usage
+    } catch (error) {
+      console.error(error);
+      toast.error('Could not verify property info.');
+      return null;
+    } finally {
+      setCalibration(prev => ({ ...prev, isLoadingInfo: false }));
+    }
+  };
+
+  useEffect(() => {
+    fetchPricing();
+    fetchVerifiedProperties();
+    fetchTrackedJobs();
+    fetchHiddenJobs();
+    fetchCalibrationPrefs();
+  }, []);
+
+  const [verifiedJobs, setVerifiedJobs] = useState({}); // { address: sqft }
+  const [correctedAddresses, setCorrectedAddresses] = useState({}); // { originalAddress: fullAddress }
+
+  const fetchVerifiedProperties = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('business_config')
+        .select('data')
+        .eq('category', 'verified_properties')
+        .single();
+      
+      if (!error && data?.data) {
+        setVerifiedJobs(data.data);
+      }
+    } catch (err) {
+      console.error('Error fetching verified properties:', err);
+    }
+  };
+
+  const saveVerifiedPropertyToDB = async (address, sqft) => {
+    try {
+      // 1. Get current list
+      const { data: current } = await supabase
+        .from('business_config')
+        .select('data')
+        .eq('category', 'verified_properties')
+        .single();
+      
+      const newList = { ...(current?.data || {}), [address]: sqft };
+
+      // 2. Upsert back to Supabase
+      await supabase
+        .from('business_config')
+        .upsert({
+          category: 'verified_properties',
+          data: newList,
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'category' });
+      
+      setVerifiedJobs(newList);
+    } catch (err) {
+      console.error('Error saving verified property:', err);
+    }
+  };
+  const addressRef = useRef(null);
+
+  // Initialize Autocomplete
+  useEffect(() => {
+    if (typeof google !== 'undefined' && addressRef.current) {
+      const autocomplete = new google.maps.places.Autocomplete(addressRef.current, {
+        types: ['address'],
+        componentRestrictions: { country: 'us' }
+      });
+
+      autocomplete.addListener('place_changed', () => {
+        const place = autocomplete.getPlace();
+        if (place.formatted_address) {
+          setCalibration(prev => ({ ...prev, address: place.formatted_address }));
+        }
+      });
+    }
+  }, [loading]);
+
+  const verifyIndividualJob = async (e, job) => {
+    e.stopPropagation(); // Don't trigger the selectFridayJob
+    const addressToScan = correctedAddresses[job.address] || job.address;
+    
+    if (verifiedJobs[addressToScan]) return;
+
+    try {
+      setCalibration(prev => ({ ...prev, address: addressToScan, isLoadingInfo: true }));
+      const res = await fetch(`/api/rentcast?address=${encodeURIComponent(addressToScan)}`);
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+
+      const estimatedLawn = Math.max(0, (data.lotSize || 0) - (data.squareFootage || 0));
+      
+      // Update Verified State and Save to Database
+      await saveVerifiedPropertyToDB(addressToScan, estimatedLawn);
+      
+      // Save to Notes (logic mirrored from getPropertyInfo)
+      const { data: customerData } = await supabase
+        .from('customers')
+        .select('id, name, notes')
+        .ilike('address', `%${job.address}%`)
+        .limit(1)
+        .single();
+
+      if (customerData) {
+        const verifiedTag = `[VERIFIED: Lot ${data.lotSize} | House ${data.squareFootage} | Lawn ${estimatedLawn}]`;
+        const updatedNotes = customerData.notes 
+          ? `${verifiedTag}\n${customerData.notes.replace(/\[VERIFIED:.*?\]\n?/, '')}`
+          : verifiedTag;
+
+        await supabase.from('customers').update({ notes: updatedNotes }).eq('id', customerData.id);
+        toast.success(`Saved to ${customerData.name}`);
+      }
+    } catch (err) {
+      toast.error('Scan failed');
+    } finally {
+      setCalibration(prev => ({ ...prev, isLoadingInfo: false }));
+    }
+  };
+
+  const selectFridayJob = (job) => {
+    setCalibration(prev => ({
+      ...prev,
+      address: job.address,
+      actual_time: job.time,
+      actual_sqft: job.sqft
+    }));
+    toast.success('Loaded Friday tracked job!');
+  };
+
+  useEffect(() => {
+    calculateSuggestions();
+  }, [calibration.actual_time, calibration.actual_sqft, calibration.target_hourly, calibration.crew_size]);
+
+  const calculateSuggestions = () => {
+    const hours = (calibration.actual_time / 60) * calibration.crew_size;
+    const targetPrice = hours * calibration.target_hourly;
+    
+    // We assume the target price should be achieved at the given sqft
+    // We can solve for base + (extra_sqft/1000 * per_1k) = targetPrice
+    // To simplify, let's keep the ratio of base to per_1k consistent with current settings
+    const currentBase = pricing.lawn_mowing.base_house;
+    const currentLimit = pricing.lawn_mowing.base_sqft_limit;
+    const currentPer1k = pricing.lawn_mowing.price_per_1k_sqft;
+    
+    const extraSqft = Math.max(0, calibration.actual_sqft - currentLimit);
+    const extraUnits = Math.ceil(extraSqft / 1000);
+    
+    // Current price for this sqft
+    const currentPrice = currentBase + (extraUnits * currentPer1k);
+    
+    // Ratio to scale everything by
+    const scaleFactor = currentPrice > 0 ? targetPrice / currentPrice : 1;
+    
+    setCalibration(prev => ({
+      ...prev,
+      suggested_base: Math.round(currentBase * scaleFactor),
+      suggested_per_1k: Math.round(currentPer1k * scaleFactor)
+    }));
+  };
+
+  const applySuggestions = () => {
+    setPricing(prev => ({
+      ...prev,
+      lawn_mowing: {
+        ...prev.lawn_mowing,
+        base_house: calibration.suggested_base,
+        price_per_1k_sqft: calibration.suggested_per_1k
+      }
+    }));
+    toast.success('Suggested rates applied to Lawn & Mowing!');
+  };
 
   useEffect(() => {
     fetchPricing();
@@ -222,6 +544,195 @@ export default function BusinessIntelligencePage() {
             <PriceField label="Medium" value={pricing.operations.shrub_rates.medium} onChange={v => updateShrubField('medium', v)} />
             <PriceField label="Large" value={pricing.operations.shrub_rates.large} onChange={v => updateShrubField('large', v)} />
           </PricingSection>
+        </div>
+
+        {/* Profitability Calibration Tool */}
+        <div className="mt-12 bg-gradient-to-br from-green-600/10 to-blue-600/10 border border-green-500/30 rounded-[2.5rem] p-8 backdrop-blur-xl">
+          <div className="flex items-center gap-4 mb-8">
+            <div className="p-3 bg-green-500 rounded-2xl shadow-lg shadow-green-500/20">
+              <ClockIcon className="h-6 w-6 text-black" />
+            </div>
+            <div>
+              <h2 className="text-2xl font-black uppercase tracking-tighter">Profitability Calibration <span className="text-green-500">BETA</span></h2>
+              <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Adjust pricing based on actual Friday field data (Driving to Completion)</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="space-y-6">
+              <h4 className="text-[10px] font-black text-green-500 uppercase tracking-[0.2em]">Step 1: Field Data</h4>
+              
+              {/* Friday Job Quick Select */}
+              <div className="space-y-2">
+                <p className="text-[10px] text-gray-500 font-bold uppercase">Quick Load Tracked Jobs (W1 & W2)</p>
+                <div className="flex flex-col gap-2 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                  {trackedJobs.filter(job => !hiddenJobIds.includes(job.id)).length === 0 && !isLoadingJobs && (
+                    <p className="text-[10px] text-gray-600 italic p-4 text-center border border-dashed border-white/10 rounded-2xl">No tracked jobs found yet. Start tracking on your schedule!</p>
+                  )}
+                  {trackedJobs.filter(job => !hiddenJobIds.includes(job.id)).map((job, i) => (
+                    <div key={i} className="flex flex-col gap-2 p-3 bg-white/5 border border-white/10 rounded-2xl group hover:border-green-500/30 transition-all relative">
+                      <button 
+                        onClick={(e) => hideJob(e, job.id)}
+                        className="absolute -top-2 -right-2 bg-red-500/20 hover:bg-red-500 border border-red-500/50 text-red-500 hover:text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-all shadow-lg shadow-black z-10"
+                        title="Remove from this view"
+                      >
+                        <XMarkIcon className="h-3 w-3" />
+                      </button>
+                      <div className="flex items-center justify-between mb-2">
+                        <div>
+                          <p className="text-[11px] font-black text-white">{job.name}</p>
+                          <p className="text-[9px] text-gray-500 font-bold uppercase truncate max-w-[200px]">{correctedAddresses[job.address] || job.address}</p>
+                        </div>
+                        <div className="flex flex-col items-end">
+                          <span className="text-[10px] font-black text-green-500 bg-green-500/10 px-2 py-0.5 rounded-md">{job.last_job_duration_minutes}m</span>
+                          <span className="text-[8px] text-gray-500 font-bold mt-1">${job.price}</span>
+                        </div>
+                      </div>
+                      
+                      <div className="flex gap-2">
+                        <button 
+                          onClick={() => {
+                            setCalibration(prev => ({ 
+                              ...prev, 
+                              address: job.address,
+                              actual_time: job.last_job_duration_minutes,
+                              actual_sqft: (verifiedJobs[job.address] || 5000)
+                            }));
+                            addressRef.current.focus();
+                            // Listener logic for corrections
+                            const checker = setInterval(() => {
+                              if (calibration.address !== job.address) {
+                                setCorrectedAddresses(prev => ({ ...prev, [job.address]: calibration.address }));
+                                clearInterval(checker);
+                              }
+                            }, 500);
+                            setTimeout(() => clearInterval(checker), 5000);
+                          }}
+                          className="flex-1 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-[9px] font-black uppercase text-gray-400 transition-all"
+                        >
+                          Select & Correct
+                        </button>
+                        
+                        <button 
+                          onClick={(e) => verifyIndividualJob(e, job)}
+                          disabled={calibration.isLoadingInfo}
+                          className={`flex-1 py-1.5 border rounded-lg text-[9px] font-black uppercase transition-all ${
+                            (verifiedJobs[job.address] || verifiedJobs[correctedAddresses[job.address]])
+                              ? 'bg-green-500/20 border-green-500/50 text-green-500' 
+                              : 'bg-blue-600/10 border-blue-500/30 text-blue-400 hover:bg-blue-600/30'
+                          }`}
+                        >
+                          {(verifiedJobs[job.address] || verifiedJobs[correctedAddresses[job.address]])
+                            ? `${verifiedJobs[job.address] || verifiedJobs[correctedAddresses[job.address]]} SQFT` 
+                            : (calibration.isLoadingInfo && (calibration.address === job.address || calibration.address === correctedAddresses[job.address]) ? '...' : 'Scan API')}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <div className="group">
+                  <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-1.5 ml-1 transition-colors group-focus-within:text-green-500">
+                    Address Search
+                  </label>
+                  <input
+                    ref={addressRef}
+                    type="text"
+                    value={calibration.address}
+                    onChange={e => setCalibration(prev => ({...prev, address: e.target.value}))}
+                    placeholder="Search for corrected address..."
+                    className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 text-sm font-bold focus:border-green-500 outline-none transition-all placeholder:text-gray-600"
+                  />
+                </div>
+                <button 
+                  onClick={getPropertyInfo}
+                  disabled={calibration.isLoadingInfo}
+                  className="w-full py-2 bg-blue-600/20 hover:bg-blue-600/40 border border-blue-500/30 text-blue-400 text-[10px] font-black uppercase rounded-xl transition-all disabled:opacity-50"
+                >
+                  {calibration.isLoadingInfo ? 'Scanning...' : 'Get API Property Info'}
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Crew Size</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {[1, 2].map(size => (
+                    <button
+                      key={size}
+                      onClick={() => {
+                        setCalibration(prev => ({ ...prev, crew_size: size }));
+                        saveCalibrationPrefs('crew_size', size);
+                      }}
+                      className={`py-2 rounded-xl text-[10px] font-black uppercase transition-all border ${
+                        calibration.crew_size === size 
+                          ? 'bg-green-500 text-black border-green-500 shadow-lg shadow-green-500/20' 
+                          : 'bg-white/5 text-gray-400 border-white/10 hover:bg-white/10'
+                      }`}
+                    >
+                      {size} {size === 1 ? 'Person' : 'People'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <PriceField 
+                label="Actual Time (Minutes)" 
+                value={calibration.actual_time} 
+                onChange={v => setCalibration(prev => ({...prev, actual_time: parseFloat(v) || 0}))} 
+              />
+              <PriceField 
+                label="Property SQFT" 
+                value={calibration.actual_sqft} 
+                onChange={v => setCalibration(prev => ({...prev, actual_sqft: parseFloat(v) || 0}))} 
+              />
+            </div>
+
+            <div className="space-y-6">
+              <h4 className="text-[10px] font-black text-blue-500 uppercase tracking-[0.2em]">Step 2: Business Goals</h4>
+              <PriceField 
+                label="Target Rate per Man-Hour ($)" 
+                value={calibration.target_hourly} 
+                onChange={v => {
+                  const val = parseFloat(v) || 0;
+                  setCalibration(prev => ({...prev, target_hourly: val}));
+                  saveCalibrationPrefs('target_hourly', val);
+                }} 
+              />
+              <div className="p-4 bg-black/40 rounded-2xl border border-white/5">
+                <p className="text-[10px] font-bold text-gray-500 uppercase mb-2">Target Price for Job</p>
+                <div className="flex items-end gap-2">
+                  <p className="text-3xl font-black text-white italic tracking-tighter">
+                    ${Math.round((calibration.actual_time / 60) * calibration.crew_size * calibration.target_hourly)}
+                  </p>
+                  <p className="text-[10px] text-green-500 font-bold uppercase mb-1.5 tracking-widest">
+                    ({calibration.crew_size} {calibration.crew_size === 1 ? 'person' : 'people'} x {calibration.actual_time}m)
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-6 bg-white/5 p-6 rounded-[2rem] border border-white/10">
+              <h4 className="text-[10px] font-black text-yellow-500 uppercase tracking-[0.2em]">Step 3: AI Recommendations</h4>
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-[10px] text-gray-400 font-bold uppercase">New Base House</span>
+                  <span className="text-xl font-black text-green-500 italic">${calibration.suggested_base}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-[10px] text-gray-400 font-bold uppercase">New Price Per 1k</span>
+                  <span className="text-xl font-black text-green-500 italic">${calibration.suggested_per_1k}</span>
+                </div>
+                <button 
+                  onClick={applySuggestions}
+                  className="w-full py-4 bg-green-500 hover:bg-green-400 text-black font-black uppercase text-[10px] tracking-widest rounded-xl transition-all active:scale-95 shadow-lg shadow-green-500/20"
+                >
+                  Apply To Engine
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Master Registry - The Real Numbers from Supabase */}

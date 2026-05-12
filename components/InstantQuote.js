@@ -72,6 +72,13 @@ export default function InstantQuoteMap({ onQuoteComplete, selectedPlace, setSel
   const [manualAreaInput, setManualAreaInput] = useState('');
   const [isDrawingMode, setIsDrawingMode] = useState(false);
 
+  // New Workflow States
+  const [isPriceUnlocked, setIsPriceUnlocked] = useState(false);
+  const [mapImageUrl, setMapImageUrl] = useState('');
+  const [leadForm, setLeadForm] = useState({ name: '', phone: '', email: '' });
+  const [isSubmittingLead, setIsSubmittingLead] = useState(false);
+  const [leadStatus, setLeadStatus] = useState(null);
+
   const drawingTargetRef = useRef('lawn');
   const isDrawingModeRef = useRef(false);
 
@@ -108,6 +115,12 @@ export default function InstantQuoteMap({ onQuoteComplete, selectedPlace, setSel
   };
 
   const [pricingConfig, setPricingConfig] = useState(defaultPricing);
+  const [calibratedData, setCalibratedData] = useState({
+    targetHourly: 80,
+    crewSize: 1,
+    globalAvgMinsPer1k: 0,
+    isCalibrated: false
+  });
 
   useEffect(() => {
     const fetchConfig = async () => {
@@ -165,6 +178,52 @@ export default function InstantQuoteMap({ onQuoteComplete, selectedPlace, setSel
           } catch (e) { console.error("Load failed"); }
         }
       }
+
+      // Fetch Calibration Data
+      const fetchCalibration = async () => {
+        try {
+          const { data: prefData } = await supabase.from('business_config').select('data').eq('category', 'calibration_preferences').single();
+          const targetHourly = prefData?.data?.target_hourly || 80;
+          const crewSize = prefData?.data?.crew_size || 1;
+
+          const { data: verProps } = await supabase.from('business_config').select('data').eq('category', 'verified_properties').single();
+          const verified = verProps?.data || {};
+
+          const { data: custData } = await supabase.from('customers').select('address, last_job_duration_minutes').not('last_job_duration_minutes', 'is', null);
+          
+          let totalMins = 0;
+          let totalSqft = 0;
+
+          if (custData && custData.length > 0) {
+            custData.forEach(c => {
+               const matchedKey = Object.keys(verified).find(k => k.includes(c.address) || c.address.includes(k));
+               if (matchedKey && verified[matchedKey] > 0) {
+                 totalMins += c.last_job_duration_minutes;
+                 totalSqft += verified[matchedKey];
+               }
+            });
+          }
+          
+          let globalAvgMinsPer1k = 0;
+          if (totalSqft > 0) {
+             globalAvgMinsPer1k = totalMins / (totalSqft / 1000);
+          } else {
+             globalAvgMinsPer1k = 15; // Default fallback
+          }
+
+          setCalibratedData({
+            targetHourly,
+            crewSize,
+            globalAvgMinsPer1k,
+            isCalibrated: totalSqft > 0
+          });
+
+        } catch (e) {
+          console.error("Calibration fetch failed", e);
+        }
+      };
+      
+      fetchCalibration();
 
       return () => subscription.unsubscribe();
     };
@@ -225,7 +284,20 @@ export default function InstantQuoteMap({ onQuoteComplete, selectedPlace, setSel
 
     if (id === 'mowing') {
        const mult = mowingFrequency === 'bi-weekly' ? (mowingBiWeeklySurcharge || 1.3) : 1;
-       let bp = area <= mowingBaseLimit ? mowingBase : (mowingBase + (Math.ceil(Math.max(0, area - mowingBaseLimit) / 1000) * mowingPer1k));
+       let bp = 0;
+       
+       if (calibratedData.isCalibrated && calibratedData.globalAvgMinsPer1k > 0 && area > 0) {
+         // DYNAMIC HISTORICAL PRICING (Option B)
+         const estimatedMins = (area / 1000) * calibratedData.globalAvgMinsPer1k;
+         bp = (estimatedMins / 60) * calibratedData.crewSize * calibratedData.targetHourly;
+         
+         // Safety check: ensure it doesn't dip below the minimum base house price
+         if (bp < mowingBase) bp = mowingBase;
+       } else {
+         // FALLBACK STATIC PRICING
+         bp = area <= mowingBaseLimit ? mowingBase : (mowingBase + (Math.ceil(Math.max(0, area - mowingBaseLimit) / 1000) * mowingPer1k));
+       }
+       
        return Math.round(bp * mult);
     }
     if (id === 'mulch') {
@@ -358,6 +430,13 @@ export default function InstantQuoteMap({ onQuoteComplete, selectedPlace, setSel
       const aSqFt = Math.round(google.maps.geometry.spherical.computeArea(p.getPath()) * 10.7639);
       const target = drawingTargetRef.current;
       if (target === 'lawn') { 
+         // Capture Static Map Image
+         try {
+           const encodedPath = google.maps.geometry.encoding.encodePath(p.getPath());
+           const staticUrl = `https://maps.googleapis.com/maps/api/staticmap?center=${location.lat()},${location.lng()}&zoom=20&size=600x600&maptype=satellite&path=color:0x22C55E|fillcolor:0x22C55E80|weight:3|enc:${encodedPath}&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`;
+           setMapImageUrl(staticUrl);
+         } catch(e) { console.error("Could not encode path for image"); }
+
          if (isPrimalDrawRef.current) {
             setCalculatedArea(aSqFt); 
             setAiReasoning("Manual calibration (First Zone)."); 
@@ -366,10 +445,12 @@ export default function InstantQuoteMap({ onQuoteComplete, selectedPlace, setSel
             setCalculatedArea(prev => prev + aSqFt);
             setAiReasoning("Manual calibration (Accumulating Multiple Zones).");
          }
+         setIsPriceUnlocked(true);
       }
       else if (target === 'mulch') { setMulchSqFt(prev => prev + aSqFt); if (!selectedServices.includes('mulch')) setSelectedServices(prev => [...prev, 'mulch']); }
       else if (target === 'overseed') { setOverseedSqFt(prev => prev + aSqFt); if (!selectedServices.includes('overseeding')) setSelectedServices(prev => [...prev, 'overseeding']); }
-      setIsManualAreaMode(false); setIsDrawingMode(false); dm.setDrawingMode(null);
+      setIsManualAreaMode(false);
+      // NOTE: We DO NOT set isDrawingMode(false) here, allowing them to keep drawing multiple shapes.
     });
 
     window.startAiScan = async () => {
@@ -381,6 +462,8 @@ export default function InstantQuoteMap({ onQuoteComplete, selectedPlace, setSel
          setAiReasoning(res.reasoning); 
          setAiImage(res.base64Image); 
          isPrimalDrawRef.current = true;
+      } else {
+         alert("AI Scan Failed: " + (res?.error || "Unknown error occurred"));
       }
       setIsAiScanning(false);
     };
@@ -499,81 +582,150 @@ export default function InstantQuoteMap({ onQuoteComplete, selectedPlace, setSel
     img.onerror = () => finishPdf();
   };
 
+  const handleLeadSubmit = async () => {
+    setIsSubmittingLead(true);
+    setLeadStatus(null);
+    try {
+      // 1. Save to Supabase using the correct schema for 'leads'
+      const dbPayload = {
+        name: leadForm.name,
+        phone: leadForm.phone,
+        email: leadForm.email,
+        address: selectedPlace?.name || '',
+        area: currentArea,
+        price: totalQuote,
+        breakdown: JSON.stringify(getFullBreakdown()),
+        custom_details: mapImageUrl ? `[LAWN_SNAPSHOT_URL]: ${mapImageUrl}` : '',
+        status: 'NEW QUOTE',
+        created_at: new Date().toISOString()
+      };
+
+      const { error } = await supabase.from('leads').insert([dbPayload]);
+      if (error) throw error;
+      
+      // 2. Send email notification to owner via Resend API
+      try {
+        const emailPayload = {
+          name: leadForm.name,
+          phone: leadForm.phone,
+          email: leadForm.email,
+          address: selectedPlace?.name || '',
+          sqft: currentArea,
+          price: totalQuote,
+          services: getFullBreakdown(),
+          map_image_url: mapImageUrl || null
+        };
+        await fetch('/api/lead', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(emailPayload)
+        });
+      } catch (emailErr) {
+        console.error("Non-fatal: Failed to send email notification", emailErr);
+      }
+      
+      setLeadStatus({ type: 'success', message: 'Sent successfully! We will review and confirm.' });
+      setLeadForm({ name: '', phone: '', email: '' });
+      setTimeout(() => setLeadStatus(null), 5000);
+    } catch (err) {
+      console.error(err);
+      setLeadStatus({ type: 'error', message: 'Failed to send lead.' });
+    } finally {
+      setIsSubmittingLead(false);
+    }
+  };
+
   return (
     <div className="w-full">
       {selectedPlace && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col lg:flex-row gap-4 lg:gap-8 lg:min-h-[900px]">
           <AnimatePresence>
             {selectedPlace && !isAiScanning && (
-              <motion.div initial={{ opacity: 0, x: -50 }} animate={{ opacity: 1, x: 0 }} className="w-full lg:w-[500px] bg-slate-900 border border-white/10 rounded-[2rem] lg:rounded-[3.5rem] p-5 lg:p-8 flex flex-col shadow-6xl lg:max-h-[900px] overflow-hidden text-left font-bold">
-                <div className="mb-4 pb-4 border-b border-white/10 flex flex-col gap-4 flex-shrink-0">
+              <motion.div initial={{ opacity: 0, x: -50 }} animate={{ opacity: 1, x: 0 }} className="w-full lg:w-[500px] bg-white border border-slate-200 rounded-[2rem] lg:rounded-[3.5rem] p-5 lg:p-8 flex flex-col shadow-2xl lg:max-h-[900px] overflow-hidden text-left font-bold relative">
+                <div className="mb-4 pb-4 border-b border-slate-100 flex flex-col gap-4 flex-shrink-0">
                   <div className="flex justify-between items-start font-bold">
                     <div className="max-w-[280px]">
-                      <p className="text-[10px] font-black text-green-400 uppercase tracking-widest mb-1 flex items-center gap-2"><CheckBadgeIcon className="w-4 h-4" /> Property Identified</p>
-                      <h2 className={`text-xl font-black text-white italic uppercase tracking-tighter leading-none ${hideAddress ? 'blur-md' : ''}`}>{selectedPlace.name}</h2>
-                      <button onClick={() => setSelectedPlace(null)} className="text-[10px] font-black text-green-500 uppercase mt-2 hover:underline">Change Address</button>
+                      <p className="text-[10px] font-black text-green-500 uppercase tracking-widest mb-1 flex items-center gap-2"><CheckBadgeIcon className="w-4 h-4" /> Property Identified</p>
+                      <h2 className={`text-xl font-black text-slate-900 italic uppercase tracking-tighter leading-none ${hideAddress ? 'blur-md' : ''}`}>{selectedPlace.name}</h2>
+                      <button onClick={() => setSelectedPlace(null)} className="text-[10px] font-black text-green-600 uppercase mt-2 hover:underline">Change Address</button>
                     </div>
                     {user?.email?.toLowerCase() === 'esckoofficial@gmail.com' && (
-                      <button onClick={() => setShowSettings(true)} className="w-10 h-10 bg-white/5 hover:bg-white/10 rounded-xl flex items-center justify-center transition-all text-slate-500 group"><Cog6ToothIcon className="w-5 h-5 group-hover:rotate-90 group-hover:text-white transition-all duration-500" /></button>
+                      <button onClick={() => setShowSettings(true)} className="w-10 h-10 bg-slate-50 hover:bg-slate-100 rounded-xl flex items-center justify-center transition-all text-slate-400 group"><Cog6ToothIcon className="w-5 h-5 group-hover:rotate-90 group-hover:text-slate-600 transition-all duration-500" /></button>
                     )}
                   </div>
 
                   {/* MOBILE BETA WARNING */}
-                  <div className="block lg:hidden bg-amber-500/20 border border-amber-500/40 rounded-2xl p-4 text-center mt-2 shadow-inner">
-                     <p className="text-[11px] font-black uppercase tracking-widest text-amber-500 mb-1">Beta / Testing Mode</p>
-                     <p className="text-[10px] text-amber-200 font-bold mb-3">Prices may vary during testing. For accurate quoting right now, use the main form.</p>
-                     <button onClick={() => window.location.href = '/contact'} className="w-full bg-amber-500 text-slate-900 font-black uppercase text-[11px] py-2.5 rounded-xl shadow-lg active:scale-95 transition-transform flex justify-center items-center gap-2">
+                  <div className="block lg:hidden bg-amber-50 border border-amber-200 rounded-2xl p-4 text-center mt-2 shadow-inner">
+                     <p className="text-[11px] font-black uppercase tracking-widest text-amber-600 mb-1">Beta / Testing Mode</p>
+                     <p className="text-[10px] text-amber-700 font-bold mb-3">Prices may vary during testing. For accurate quoting right now, use the main form.</p>
+                     <button onClick={() => window.location.href = '/contact'} className="w-full bg-amber-500 text-white font-black uppercase text-[11px] py-2.5 rounded-xl shadow-lg active:scale-95 transition-transform flex justify-center items-center gap-2">
                         Open Contact Form
                      </button>
                   </div>
 
-                  <div className="bg-green-500/10 border border-green-500/20 rounded-2xl lg:rounded-3xl p-4 lg:p-6 text-center">
-                    <p className="text-[8px] font-black text-green-500 uppercase tracking-widest mb-1 opacity-60">Property Scale</p>
-                    <div className="flex items-baseline justify-center gap-2 font-bold"><p className="text-4xl lg:text-5xl font-black text-white italic tracking-tighter leading-none">{currentArea.toLocaleString()}</p><span className="text-sm lg:text-base font-black text-green-500 italic">SQFT</span></div>
+                  <div className="bg-slate-50 border border-slate-100 rounded-2xl lg:rounded-3xl p-4 lg:p-6 text-center">
+                    <p className="text-[8px] font-black text-green-600 uppercase tracking-widest mb-1 opacity-60">Estimated Lot Scale</p>
+                    <div className="flex items-baseline justify-center gap-2 font-bold"><p className="text-4xl lg:text-5xl font-black text-slate-900 italic tracking-tighter leading-none">{currentArea.toLocaleString()}</p><span className="text-sm lg:text-base font-black text-green-500 italic">SQFT</span></div>
                     <div className="flex gap-4 mt-4 font-bold">
-                       <button onClick={() => window.startAiScan()} className="flex-1 py-3 bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 font-black uppercase text-[8px] rounded-xl hover:bg-emerald-600/40 tracking-widest flex items-center justify-center gap-2 transition-all"><SparklesIcon className="w-3 h-3" /> AI Re-Scan</button>
-                       <button onClick={() => startDrawing('lawn')} className="flex-1 py-3 bg-white/5 border border-white/10 text-slate-400 font-black uppercase text-[8px] rounded-xl hover:bg-white/10 tracking-widest flex items-center justify-center gap-2 transition-all"><MapPinIcon className="w-3 h-3" /> Calibration</button>
+                       <button onClick={() => window.startAiScan()} className="flex-1 py-3 bg-emerald-50 border border-emerald-100 text-emerald-600 font-black uppercase text-[8px] rounded-xl hover:bg-emerald-100 tracking-widest flex items-center justify-center gap-2 transition-all"><SparklesIcon className="w-3 h-3" /> API Re-Scan</button>
+                       <button onClick={() => startDrawing('lawn')} className="flex-1 py-3 bg-white border border-slate-200 text-slate-500 font-black uppercase text-[8px] rounded-xl hover:bg-slate-50 tracking-widest flex items-center justify-center gap-2 transition-all shadow-sm"><MapPinIcon className="w-3 h-3" /> Draw Calibration</button>
                     </div>
                   </div>
                 </div>
 
-                <div className="flex-grow overflow-y-auto pr-4 custom-scrollbar space-y-4 mb-6 relative">
-                  <div className="flex justify-between items-center px-4 py-2">
-                     <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest italic">Quoting Details</p>
-                     <button onClick={() => expandedServices.length === services.length ? setExpandedServices([]) : setExpandedServices(services.map(s => s.id))} className="text-[10px] font-black uppercase text-green-500 flex items-center gap-2 bg-white/5 px-4 py-2 rounded-full font-bold">{expandedServices.length === services.length ? <><ArrowsPointingInIcon className="w-3 h-3" /> Hide All</> : <><ArrowsPointingOutIcon className="w-3 h-3" /> See All Details</>}</button>
+                {!isPriceUnlocked ? (
+                  <div className="flex-grow flex flex-col items-center justify-center text-center p-6 bg-green-50/50 rounded-3xl border border-green-100 my-4">
+                     <SparklesIcon className="w-16 h-16 text-green-500 mb-4 animate-pulse" />
+                     <h3 className="text-2xl font-black text-slate-900 italic tracking-tighter uppercase leading-tight mb-3">Unlock Your Exact Price</h3>
+                     <p className="text-xs text-slate-500 font-bold mb-6">To ensure 100% accuracy, please use the map tool to quickly trace the shape of your grass. <br/><br/><span className="text-green-600">Tip: You can trace multiple separate parts of your lawn and the total SQFT will automatically add together!</span></p>
+                     <button onClick={() => startDrawing('lawn')} className="w-full py-4 bg-green-500 hover:bg-green-400 text-white font-black uppercase text-sm rounded-2xl shadow-xl flex items-center justify-center gap-2 transition-all active:scale-95 mb-4">
+                        <MapPinIcon className="w-5 h-5" /> Start Drawing
+                     </button>
+                     <button onClick={() => setIsPriceUnlocked(true)} className="text-[10px] font-black text-slate-400 hover:text-slate-600 uppercase tracking-widest underline decoration-slate-300 underline-offset-4">Skip & Use API Estimate</button>
                   </div>
-                  <div className="space-y-3 font-bold">
-                    {services.map(s => {
-                      const active = selectedServices.includes(s.id);
-                      const expanded = expandedServices.includes(s.id);
-                      return (
-                        <div key={s.id} className={`w-full rounded-[2rem] border transition-all overflow-hidden ${active ? 'bg-green-600/10 border-green-500/30' : 'bg-white/5 border-white/5'}`}>
-                           <button onClick={() => toggleService(s.id)} className="w-full p-5 flex justify-between items-center text-left">
-                              <div className="flex items-center gap-4">
-                                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg bg-slate-800 transition-all ${active ? 'bg-green-600 shadow-lg' : ''}`}>{s.icon}</div>
-                                 <div className="max-w-[150px]">
-                                    <p className={`text-[11px] font-black uppercase tracking-widest ${active ? 'text-green-400' : 'text-white'}`}>{s.name}</p>
-                                    <p className="text-[8px] text-slate-500 uppercase font-black opacity-60 truncate">{s.description}</p>
-                                 </div>
-                              </div>
-                              <div className="flex items-center gap-3">
-                                 <p className={`text-base font-black italic tracking-tighter ${active ? 'text-green-400' : 'text-slate-400'}`}>${getServicePrice(s.id, currentArea)}</p>
-                                 <div onClick={(e) => toggleExpand(e, s.id)} className={`p-1.5 rounded-lg hover:bg-white/10 ${expanded ? 'bg-white/10 rotate-180' : ''}`}><ChevronDownIcon className="w-3 h-3 text-slate-500" /></div>
-                              </div>
-                           </button>
-                           <AnimatePresence>
-                              {expanded && (
-                                 <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="px-6 pb-6 pt-2 border-t border-white/5 space-y-6">
+                ) : (
+                  <div className="flex-grow overflow-y-auto pr-4 custom-scrollbar space-y-4 mb-6 relative">
+                    <div className="flex justify-between items-center px-4 py-2">
+                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest italic">Quoting Details</p>
+                       <button onClick={() => expandedServices.length === services.length ? setExpandedServices([]) : setExpandedServices(services.map(s => s.id))} className="text-[10px] font-black uppercase text-green-600 flex items-center gap-2 bg-slate-50 px-4 py-2 rounded-full font-bold">{expandedServices.length === services.length ? <><ArrowsPointingInIcon className="w-3 h-3" /> Hide All</> : <><ArrowsPointingOutIcon className="w-3 h-3" /> See All Details</>}</button>
+                    </div>
+                    <div className="space-y-3 font-bold">
+                      {services.map(s => {
+                        const active = selectedServices.includes(s.id);
+                        const expanded = expandedServices.includes(s.id);
+                        return (
+                          <div key={s.id} className={`w-full rounded-[2rem] border transition-all overflow-hidden ${active ? 'bg-green-50 border-green-200 shadow-sm' : 'bg-slate-50 border-slate-100 hover:border-slate-200'}`}>
+                             <button onClick={() => toggleService(s.id)} className="w-full p-5 flex justify-between items-center text-left">
+                                <div className="flex items-center gap-4">
+                                   <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg transition-all shadow-sm ${active ? 'bg-green-500 text-white' : 'bg-white text-slate-600'}`}>{s.icon}</div>
+                                   <div className="max-w-[150px]">
+                                      <div className="flex flex-col gap-0.5">
+                                        <p className={`text-[11px] font-black uppercase tracking-widest leading-none ${active ? 'text-green-700' : 'text-slate-700'}`}>{s.name}</p>
+                                        {s.id === 'mowing' && calibratedData.isCalibrated && (
+                                          <span className="text-[7px] bg-green-100 text-green-700 px-1 py-0.5 rounded uppercase max-w-fit font-black mb-1 mt-0.5">AI Calibrated Price</span>
+                                        )}
+                                      </div>
+                                      <p className="text-[8px] text-slate-400 uppercase font-black opacity-80 truncate leading-none">{s.description}</p>
+                                   </div>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                   <p className={`text-base font-black italic tracking-tighter ${active ? 'text-green-600' : 'text-slate-400'}`}>${getServicePrice(s.id, currentArea)}</p>
+                                   <div onClick={(e) => toggleExpand(e, s.id)} className={`p-1.5 rounded-lg hover:bg-slate-200 ${expanded ? 'bg-slate-200 rotate-180' : ''}`}><ChevronDownIcon className="w-3 h-3 text-slate-500" /></div>
+                                </div>
+                             </button>
+                             <AnimatePresence>
+                               {expanded && (
+                                 <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="px-6 pb-6 pt-2 border-t border-slate-100 space-y-6">
                                     {s.id === 'mowing' && (
-                                       <div className="flex bg-slate-950/50 p-1 rounded-xl gap-2 border border-white/5 font-bold">
+                                       <div className="flex bg-slate-100 p-1 rounded-xl gap-2 border border-slate-200 font-bold">
                                           {['weekly', 'bi-weekly'].map(f => (
-                                             <button key={f} onClick={() => setMowingFrequency(f)} className={`flex-1 py-3 rounded-lg text-[9px] font-black uppercase transition-all ${mowingFrequency === f ? 'bg-green-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}>{f}</button>
+                                             <button key={f} onClick={() => setMowingFrequency(f)} className={`flex-1 py-3 rounded-lg text-[9px] font-black uppercase transition-all ${mowingFrequency === f ? 'bg-green-500 text-white shadow-lg' : 'text-slate-500 hover:text-slate-700'}`}>{f}</button>
                                           ))}
                                        </div>
                                     )}
                                     {s.id === 'mulch' && (
                                        <div className="space-y-6 font-bold">
-                                          <div className="flex justify-between items-center text-[10px] font-black text-amber-500 uppercase px-2 font-bold">
+                                          <div className="flex justify-between items-center text-[10px] font-black text-amber-600 uppercase px-2 font-bold">
                                              <p>Mulch Bed Total</p>
                                              <div className="text-right">
                                                 <p className="text-sm italic font-bold leading-none">{mulchSqFt.toLocaleString()} SQFT</p>
@@ -581,39 +733,39 @@ export default function InstantQuoteMap({ onQuoteComplete, selectedPlace, setSel
                                              </div>
                                           </div>
                                           <div className="space-y-4">
-                                             <div className="flex bg-slate-950/50 p-1 rounded-xl gap-2 border border-white/5">
+                                             <div className="flex bg-slate-100 p-1 rounded-xl gap-2 border border-slate-200">
                                                 <input 
                                                    type="number" 
                                                    placeholder="Manual SQFT Override..." 
                                                    value={mulchSqFt || ''} 
                                                    onChange={(e) => setMulchSqFt(Number(e.target.value))}
-                                                   className="w-full bg-transparent border-none focus:ring-0 text-white font-black p-3 text-xs placeholder-slate-600 uppercase tracking-widest"
+                                                   className="w-full bg-transparent border-none focus:ring-0 text-slate-900 font-black p-3 text-xs placeholder-slate-400 uppercase tracking-widest"
                                                 />
                                              </div>
                                              <div className="flex gap-2">
                                                 {['Black', 'Brown', 'Red'].map(c => (
-                                                   <button key={c} onClick={() => setMulchColor(c)} className={`flex-1 py-4 rounded-xl border text-[9px] font-black uppercase transition-all ${mulchColor === c ? 'bg-amber-600 border-amber-500 text-white shadow-xl' : 'bg-white/5 border-white/5 text-slate-400'}`}><span>{c}</span></button>
+                                                   <button key={c} onClick={() => setMulchColor(c)} className={`flex-1 py-4 rounded-xl border text-[9px] font-black uppercase transition-all ${mulchColor === c ? 'bg-amber-500 border-amber-600 text-white shadow-xl' : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100'}`}><span>{c}</span></button>
                                                 ))}
                                              </div>
                                           </div>
-                                          <button onClick={(e) => { e.stopPropagation(); startDrawing('mulch'); }} className="w-full py-5 bg-amber-600 hover:bg-amber-500 text-white font-black uppercase rounded-2xl text-[10px] shadow-xl flex items-center justify-center gap-3 transition-all font-bold">
+                                          <button onClick={(e) => { e.stopPropagation(); startDrawing('mulch'); }} className="w-full py-5 bg-amber-500 hover:bg-amber-400 text-white font-black uppercase rounded-2xl text-[10px] shadow-xl flex items-center justify-center gap-3 transition-all font-bold">
                                              {mulchSqFt > 0 ? <><PlusIcon className="w-4 h-4" /> Add Another Bed</> : <><MapPinIcon className="w-4 h-4" /> Precision Draw Beds</>}
                                           </button>
                                        </div>
                                     )}
                                     {s.id === 'overseeding' && (
-                                       <div className="space-y-6 p-4 rounded-3xl bg-emerald-500/5 border border-emerald-500/10 font-bold">
-                                          <div className="flex justify-between items-center mb-1"><p className="text-[10px] font-black text-emerald-400 uppercase">Isolated Seeding Total</p><p className="text-sm font-black text-emerald-300 italic">{(overseedSqFt || 0).toLocaleString()} SQFT</p></div>
-                                          <div className="flex bg-slate-950/50 p-1 rounded-xl gap-2 border border-white/5">
+                                       <div className="space-y-6 p-4 rounded-3xl bg-emerald-50 border border-emerald-100 font-bold">
+                                          <div className="flex justify-between items-center mb-1"><p className="text-[10px] font-black text-emerald-600 uppercase">Isolated Seeding Total</p><p className="text-sm font-black text-emerald-700 italic">{(overseedSqFt || 0).toLocaleString()} SQFT</p></div>
+                                          <div className="flex bg-white p-1 rounded-xl gap-2 border border-emerald-200 shadow-sm">
                                                 <input 
                                                    type="number" 
                                                    placeholder="Manual SQFT..." 
                                                    value={overseedSqFt || ''} 
                                                    onChange={(e) => setOverseedSqFt(Number(e.target.value))}
-                                                   className="w-full bg-transparent border-none focus:ring-0 text-white font-black p-3 text-xs placeholder-slate-600 uppercase tracking-widest"
+                                                   className="w-full bg-transparent border-none focus:ring-0 text-slate-900 font-black p-3 text-xs placeholder-slate-400 uppercase tracking-widest"
                                                 />
                                           </div>
-                                          <button onClick={(e) => { e.stopPropagation(); startDrawing('overseed'); }} className="w-full py-5 bg-emerald-600 hover:bg-emerald-500 text-white font-black uppercase rounded-2xl text-[10px] shadow-xl flex items-center justify-center gap-3 transition-all font-bold">
+                                          <button onClick={(e) => { e.stopPropagation(); startDrawing('overseed'); }} className="w-full py-5 bg-emerald-500 hover:bg-emerald-400 text-white font-black uppercase rounded-2xl text-[10px] shadow-xl flex items-center justify-center gap-3 transition-all font-bold">
                                              {overseedSqFt > 0 ? <><PlusIcon className="w-4 h-4" /> Add Seed Spot</> : <><SparklesIcon className="w-4 h-4" /> Focus Measure Spots</>}
                                           </button>
                                        </div>
@@ -621,18 +773,18 @@ export default function InstantQuoteMap({ onQuoteComplete, selectedPlace, setSel
                                     {(s.id === 'spring' || s.id === 'fall') && (
                                        <div className="space-y-6 font-bold">
                                           <div className="space-y-3">
-                                             <p className="text-[9px] font-black text-orange-400 uppercase tracking-widest px-2">Disposal Strategy</p>
-                                             <div className="flex bg-slate-950/50 p-1 rounded-xl gap-2 border border-white/5">
+                                             <p className="text-[9px] font-black text-orange-500 uppercase tracking-widest px-2">Disposal Strategy</p>
+                                             <div className="flex bg-slate-100 p-1 rounded-xl gap-2 border border-slate-200">
                                                 {['woods', 'haul'].map(opt => (
-                                                   <button key={opt} onClick={() => setDebrisDisposal(opt)} className={`flex-1 py-3 rounded-lg text-[9px] font-black uppercase transition-all ${debrisDisposal === opt ? 'bg-orange-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}>{opt === 'woods' ? 'To The Woods' : 'Haul Away (Fee)'}</button>
+                                                   <button key={opt} onClick={() => setDebrisDisposal(opt)} className={`flex-1 py-3 rounded-lg text-[9px] font-black uppercase transition-all ${debrisDisposal === opt ? 'bg-orange-500 text-white shadow-lg' : 'text-slate-500 hover:text-slate-700'}`}>{opt === 'woods' ? 'To The Woods' : 'Haul Away (Fee)'}</button>
                                                 ))}
                                              </div>
                                           </div>
                                           <div className="space-y-3">
-                                             <p className="text-[9px] font-black text-orange-400 uppercase tracking-widest px-2">Debris Intensity</p>
-                                             <div className="flex bg-slate-950/50 p-1 rounded-xl gap-2 border border-white/5">
+                                             <p className="text-[9px] font-black text-orange-500 uppercase tracking-widest px-2">Debris Intensity</p>
+                                             <div className="flex bg-slate-100 p-1 rounded-xl gap-2 border border-slate-200">
                                                 {[1, 2, 3].map(v => (
-                                                   <button key={v} onClick={() => s.id === 'spring' ? setSpringIntensity(v) : setFallIntensity(v)} className={`flex-1 py-3 rounded-lg text-[9px] font-black uppercase transition-all ${(s.id === 'spring' ? springIntensity : fallIntensity) === v ? 'bg-orange-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}>{v === 1 ? 'Light' : v === 2 ? 'Medium' : 'Heavy'}</button>
+                                                   <button key={v} onClick={() => s.id === 'spring' ? setSpringIntensity(v) : setFallIntensity(v)} className={`flex-1 py-3 rounded-lg text-[9px] font-black uppercase transition-all ${(s.id === 'spring' ? springIntensity : fallIntensity) === v ? 'bg-orange-500 text-white shadow-lg' : 'text-slate-500 hover:text-slate-700'}`}>{v === 1 ? 'Light' : v === 2 ? 'Medium' : 'Heavy'}</button>
                                                 ))}
                                              </div>
                                           </div>
@@ -640,14 +792,14 @@ export default function InstantQuoteMap({ onQuoteComplete, selectedPlace, setSel
                                     )}
                                     {s.id === 'shrub_pruning' && (
                                        <div className="space-y-6 font-bold">
-                                          <p className="text-[9px] font-black text-green-400 uppercase tracking-widest px-2 leading-none mb-1">Plant Count by Size</p>
+                                          <p className="text-[9px] font-black text-green-600 uppercase tracking-widest px-2 leading-none mb-1">Plant Count by Size</p>
                                           {['small', 'medium', 'large'].map(size => (
-                                             <div key={size} className="flex justify-between items-center bg-slate-950/50 p-5 rounded-2xl border border-white/5">
-                                                <p className="text-[11px] font-black uppercase text-white">{size} Plants</p>
+                                             <div key={size} className="flex justify-between items-center bg-slate-50 p-5 rounded-2xl border border-slate-200">
+                                                <p className="text-[11px] font-black uppercase text-slate-800">{size} Plants</p>
                                                 <div className="flex items-center gap-6">
-                                                   <button onClick={() => setShrubCounts({...shrubCounts, [size]: Math.max(0, shrubCounts[size] - 1)})} className="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center text-white text-xl">-</button>
-                                                   <span className="text-2xl font-black text-white italic min-w-[30px] text-center">{shrubCounts[size]}</span>
-                                                   <button onClick={() => setShrubCounts({...shrubCounts, [size]: shrubCounts[size] + 1})} className="w-12 h-12 rounded-xl bg-green-600 flex items-center justify-center text-white text-xl">+</button>
+                                                   <button onClick={() => setShrubCounts({...shrubCounts, [size]: Math.max(0, shrubCounts[size] - 1)})} className="w-12 h-12 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-500 text-xl hover:bg-slate-100">-</button>
+                                                   <span className="text-2xl font-black text-slate-900 italic min-w-[30px] text-center">{shrubCounts[size]}</span>
+                                                   <button onClick={() => setShrubCounts({...shrubCounts, [size]: shrubCounts[size] + 1})} className="w-12 h-12 rounded-xl bg-green-500 flex items-center justify-center text-white text-xl hover:bg-green-400">+</button>
                                                 </div>
                                              </div>
                                           ))}
@@ -655,13 +807,13 @@ export default function InstantQuoteMap({ onQuoteComplete, selectedPlace, setSel
                                     )}
                                     {s.id === 'custom_job' && (
                                        <div className="space-y-4 font-bold">
-                                          <div className="flex justify-between items-center px-2 font-bold font-bold"><p className="text-[10px] font-black text-green-500 uppercase font-bold">Task List</p><button onClick={addCustomJob} className="text-[8px] font-black text-white uppercase bg-green-600 px-4 py-2 rounded-full shadow-lg">+ Add Job</button></div>
+                                          <div className="flex justify-between items-center px-2 font-bold font-bold"><p className="text-[10px] font-black text-green-600 uppercase font-bold">Task List</p><button onClick={addCustomJob} className="text-[8px] font-black text-white uppercase bg-green-500 px-4 py-2 rounded-full shadow-lg hover:bg-green-400">+ Add Job</button></div>
                                           {customJobs.map((job) => (
-                                             <div key={job.id} className="bg-slate-950/50 p-4 rounded-3xl border border-white/5 space-y-4">
+                                             <div key={job.id} className="bg-slate-50 p-4 rounded-3xl border border-slate-200 space-y-4">
                                                 <div className="flex gap-4 font-bold">
-                                                   <input placeholder="e.g. Power wash patio" value={job.details} onChange={(e) => updateCustomJob(job.id, 'details', e.target.value)} className="flex-grow bg-slate-900 border border-white/5 rounded-xl p-3 text-[11px] font-bold text-white placeholder-slate-600" />
-                                                   <input placeholder="$0" type="number" value={job.price} onChange={(e) => updateCustomJob(job.id, 'price', e.target.value)} className="w-24 bg-slate-900 border border-white/5 rounded-xl p-3 text-[11px] font-black text-green-400 text-center" />
-                                                   <button onClick={() => removeCustomJob(job.id)} className="p-3 text-red-500 hover:bg-red-500/10 rounded-xl transition-all"><TrashIcon className="w-4 h-4" /></button>
+                                                   <input placeholder="e.g. Power wash patio" value={job.details} onChange={(e) => updateCustomJob(job.id, 'details', e.target.value)} className="flex-grow bg-white border border-slate-200 rounded-xl p-3 text-[11px] font-bold text-slate-900 placeholder-slate-400" />
+                                                   <input placeholder="$0" type="number" value={job.price} onChange={(e) => updateCustomJob(job.id, 'price', e.target.value)} className="w-24 bg-white border border-slate-200 rounded-xl p-3 text-[11px] font-black text-green-600 text-center" />
+                                                   <button onClick={() => removeCustomJob(job.id)} className="p-3 text-red-500 hover:bg-red-50 rounded-xl transition-all"><TrashIcon className="w-4 h-4" /></button>
                                                 </div>
                                              </div>
                                           ))}
@@ -674,35 +826,45 @@ export default function InstantQuoteMap({ onQuoteComplete, selectedPlace, setSel
                       )
                     })}
                   </div>
-                </div>
+                  </div>
+                )}
 
-                <div className="pt-4 lg:pt-6 border-t border-white/10 flex-shrink-0 font-bold">
-                   <div className="flex justify-between items-end mb-4 lg:mb-6 px-2 lg:px-4 font-bold">
-                      <div className="text-left font-bold">
-                         <p className="text-xs lg:text-sm font-black text-slate-500 uppercase tracking-[0.1em] leading-none mb-2 italic">Total Estimate</p>
-                         {totalDiscount > 0 && (
-                           <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="flex flex-col lg:flex-row lg:items-center gap-1 lg:gap-3">
-                             <span className="text-[9px] lg:text-[11px] font-black bg-green-500 text-black px-2 py-0.5 lg:px-3 lg:py-1 rounded-lg uppercase tracking-wider inline-block">-{Math.round(discountRate * 100)}% REWARD</span>
-                             <span className="text-xs lg:text-sm font-black text-slate-500 line-through opacity-60">${quoteBeforeDiscount.toLocaleString()}</span>
-                           </motion.div>
-                         )}
-                      </div>
-                      <p className="text-4xl lg:text-7xl font-black text-green-500 italic tracking-tighter leading-none">${totalQuote.toLocaleString()}</p>
-                   </div>
-                   <div className="flex gap-3 lg:gap-4 font-bold">
-                      <button onClick={downloadQuotePDF} className="shrink-0 w-14 h-14 lg:w-20 lg:h-20 bg-white/5 hover:bg-white/10 text-white rounded-2xl lg:rounded-[2rem] flex items-center justify-center transition-all shadow-xl group"><ArrowDownTrayIcon className="w-5 h-5 lg:w-8 lg:h-8 group-hover:translate-y-1 transition-transform" /></button>
-                      <button onClick={() => {
-                        const payload = { 
-                          area: currentArea, 
-                          ai_original_area: aiOriginalArea,
-                          price: totalQuote, 
-                          breakdown: getFullBreakdown(),
-                          address: selectedPlace.name 
-                        };
-                        onQuoteComplete(payload);
-                      }} className="flex-grow h-14 lg:h-20 bg-green-500 hover:bg-green-400 text-black font-black uppercase rounded-2xl lg:rounded-[2rem] shadow-4xl flex justify-center items-center gap-2 lg:gap-4 transition-all active:scale-95 text-xs lg:text-base">Confirm Rate <ArrowRightIcon className="w-4 h-4 lg:w-6 lg:h-6" /></button>
-                   </div>
-                </div>
+                {isPriceUnlocked && (
+                  <div className="pt-4 lg:pt-6 border-t border-slate-100 flex-shrink-0 font-bold">
+                     <div className="flex justify-between items-end mb-4 px-2 lg:px-4 font-bold">
+                        <div className="text-left font-bold">
+                           <p className="text-xs lg:text-sm font-black text-slate-400 uppercase tracking-[0.1em] leading-none mb-2 italic">Total Estimate</p>
+                           {totalDiscount > 0 && (
+                             <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="flex flex-col lg:flex-row lg:items-center gap-1 lg:gap-3">
+                               <span className="text-[9px] lg:text-[11px] font-black bg-green-100 text-green-700 px-2 py-0.5 lg:px-3 lg:py-1 rounded-lg uppercase tracking-wider inline-block">-{Math.round(discountRate * 100)}% REWARD</span>
+                               <span className="text-xs lg:text-sm font-black text-slate-400 line-through opacity-60">${quoteBeforeDiscount.toLocaleString()}</span>
+                             </motion.div>
+                           )}
+                        </div>
+                        <p className="text-4xl lg:text-6xl font-black text-green-500 italic tracking-tighter leading-none">${totalQuote.toLocaleString()}</p>
+                     </div>
+                     
+                     {leadStatus ? (
+                       <div className={`p-4 rounded-xl text-center font-black uppercase text-sm border ${leadStatus.type === 'success' ? 'bg-green-50 border-green-200 text-green-700' : 'bg-red-50 border-red-200 text-red-700'}`}>
+                          {leadStatus.message}
+                       </div>
+                     ) : (
+                       <div className="space-y-3 mt-4">
+                          <input placeholder="Full Name" value={leadForm.name} onChange={e => setLeadForm({...leadForm, name: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-4 text-sm font-bold text-slate-900 placeholder-slate-400 focus:border-green-500 focus:ring-1 focus:ring-green-500 outline-none transition-all" />
+                          <div className="flex gap-3">
+                             <input placeholder="Phone" value={leadForm.phone} onChange={e => setLeadForm({...leadForm, phone: e.target.value})} className="w-1/2 bg-slate-50 border border-slate-200 rounded-xl p-4 text-sm font-bold text-slate-900 placeholder-slate-400 focus:border-green-500 focus:ring-1 focus:ring-green-500 outline-none transition-all" />
+                             <input placeholder="Email Address" value={leadForm.email} onChange={e => setLeadForm({...leadForm, email: e.target.value})} className="w-1/2 bg-slate-50 border border-slate-200 rounded-xl p-4 text-sm font-bold text-slate-900 placeholder-slate-400 focus:border-green-500 focus:ring-1 focus:ring-green-500 outline-none transition-all" />
+                          </div>
+                          <div className="flex gap-3 lg:gap-4 font-bold pt-2">
+                             <button onClick={downloadQuotePDF} className="shrink-0 w-14 h-14 lg:w-16 lg:h-16 bg-white border border-slate-200 hover:bg-slate-50 text-slate-500 rounded-xl flex items-center justify-center transition-all shadow-sm group"><ArrowDownTrayIcon className="w-5 h-5 lg:w-6 lg:h-6 group-hover:translate-y-1 transition-transform" /></button>
+                             <button onClick={handleLeadSubmit} disabled={isSubmittingLead || !leadForm.name || !leadForm.phone || !leadForm.email} className="flex-grow h-14 lg:h-16 bg-green-500 hover:bg-green-400 disabled:opacity-50 disabled:cursor-not-allowed text-white font-black uppercase rounded-xl shadow-xl flex justify-center items-center gap-2 transition-all active:scale-95 text-xs lg:text-sm">
+                               {isSubmittingLead ? 'Sending...' : 'Send for Review'} <ArrowRightIcon className="w-4 h-4 lg:w-5 lg:h-5" />
+                             </button>
+                          </div>
+                       </div>
+                     )}
+                  </div>
+                )}
               </motion.div>
             )}
           </AnimatePresence>
@@ -713,8 +875,8 @@ export default function InstantQuoteMap({ onQuoteComplete, selectedPlace, setSel
                 {isDrawingMode && (
                   <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="absolute top-4 lg:top-12 left-1/2 -translate-x-1/2 z-50 bg-slate-900 border-4 border-white px-4 lg:px-10 py-4 lg:py-6 rounded-[2rem] shadow-6xl flex items-center gap-4 lg:gap-6 font-bold w-[90%] lg:w-auto">
                      <div className={`shrink-0 w-10 h-10 lg:w-12 lg:h-12 rounded-full flex items-center justify-center animate-pulse ${drawingTarget === 'overseed' ? 'bg-emerald-500' : drawingTarget === 'mulch' ? 'bg-amber-500' : 'bg-green-500'}`}><SparklesIcon className="w-5 h-5 lg:w-6 lg:h-6 text-black" /></div>
-                     <div className="text-left"><p className="text-lg lg:text-2xl font-black text-white italic uppercase tracking-tighter leading-none mb-1">MEASURING {drawingTarget.toUpperCase()}</p><p className="text-[8px] lg:text-[10px] font-black text-slate-500 uppercase tracking-widest hidden sm:block">Isolated spot detection active...</p></div>
-                     <button onClick={() => { setIsDrawingMode(false); drawingManagerRef.current.setDrawingMode(null); }} className="ml-auto p-2 bg-white/5 rounded-full"><XMarkIcon className="w-5 h-5 lg:w-6 lg:h-6 text-white" /></button>
+                     <div className="text-left"><p className="text-lg lg:text-2xl font-black text-white italic uppercase tracking-tighter leading-none mb-1">MEASURING {drawingTarget.toUpperCase()}</p><p className="text-[8px] lg:text-[10px] font-black text-green-400 uppercase tracking-widest hidden sm:block">Tip: Trace multiple separate areas to add them together!</p></div>
+                     <button onClick={() => { setIsDrawingMode(false); drawingManagerRef.current.setDrawingMode(null); }} className="ml-auto px-6 py-3 bg-green-500 hover:bg-green-400 text-white rounded-xl font-black uppercase text-xs lg:text-sm shadow-xl transition-all active:scale-95">Done</button>
                   </motion.div>
                 )}
              </AnimatePresence>
