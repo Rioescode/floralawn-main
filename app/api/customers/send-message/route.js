@@ -48,59 +48,89 @@ export async function POST(request) {
           let emailHtml = '';
 
           if (type === 'review') {
-            emailSubject = subject || `Checking in on your property! 🌿 - Flora Lawn & Landscaping`;
+            const baseUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'https://floralawn-and-landscaping.com';
+            const reviewLink = `${baseUrl}/review`;
+            
+            emailSubject = subject || `Quick question regarding your service 🌿`;
             emailHtml = `
-              <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e5e7eb; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
-                <div style="background-color: #0f172a; padding: 40px 20px; text-align: center;">
-                  <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: 800; letter-spacing: -0.025em;">How does it look?</h1>
-                  <p style="color: #94a3b8; margin-top: 8px; font-weight: 500;">Checking in on your service from yesterday</p>
-                </div>
-                <div style="padding: 40px 32px;">
-                  <p style="font-size: 18px; line-height: 1.6; color: #1e293b; margin-top: 0;">Hi ${appointment.customer_name || 'there'},</p>
-                  <p style="font-size: 16px; line-height: 1.6; color: #475569;">It was a pleasure working on your property yesterday! We hope you're still loving the results and that everything looks exactly how you wanted it.</p>
-                  <p style="font-size: 16px; line-height: 1.6; color: #475569;">As a small local business, we rely heavily on word-of-mouth from our happy customers. Would you mind taking just 30 seconds to share your experience with us on Google?</p>
-                  
-                  <div style="text-align: center; margin: 40px 0;">
-                    <a href="https://g.page/r/CQjJ-AbEL4N2EBE/review" style="background-color: #10b981; color: #ffffff; padding: 18px 36px; border-radius: 12px; text-decoration: none; font-weight: 800; font-size: 16px; display: inline-block; box-shadow: 0 10px 15px -3px rgba(16, 185, 129, 0.3);">
-                      ⭐ Post a Quick Review
-                    </a>
-                  </div>
-                  
-                  <p style="font-size: 14px; line-height: 1.6; color: #94a3b8; text-align: center;">It helps our team more than you know! Thank you so much for your support.</p>
-                </div>
-                <div style="background-color: #f8fafc; padding: 32px; text-align: center; border-top: 1px solid #e5e7eb;">
-                  <p style="margin: 0; font-size: 14px; font-weight: 700; color: #1e293b;">Flora Lawn & Landscaping Inc</p>
-                  <p style="margin: 4px 0 0; font-size: 12px; color: #64748b;">Professional Lawn Care & Landscaping Services</p>
-                  <p style="margin: 16px 0 0; font-size: 12px; color: #94a3b8;">(401) 389-0913 • floralawncareri@gmail.com</p>
-                </div>
+              <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px; color: #334155;">
+                <p style="font-size: 16px; line-height: 1.6; margin-bottom: 24px;">Hi ${appointment.customer_name?.split(' ')[0] || 'there'},</p>
+                
+                <p style="font-size: 16px; line-height: 1.6; margin-bottom: 24px;">I'm just checking in to make sure you're happy with how everything looks at your property!</p>
+                
+                ${message ? `
+                <p style="font-size: 16px; line-height: 1.6; margin-bottom: 24px; color: #1e293b;"><em>"${message}"</em></p>
+                ` : ''}
+                
+                <p style="font-size: 16px; line-height: 1.6; margin-bottom: 24px;">As a small local team, your feedback really helps us out. If you have a moment, would you mind sharing a quick note about your experience with us?</p>
+                
+                <p style="font-size: 16px; line-height: 1.6; margin-bottom: 32px;">
+                  <strong>You can share your thoughts here:</strong><br>
+                  <a href="${reviewLink}" style="color: #2563eb; text-decoration: underline;">${reviewLink}</a>
+                </p>
+                
+                <p style="font-size: 16px; line-height: 1.6; margin-bottom: 8px;">Thanks again for choosing us!</p>
+                <p style="font-size: 16px; line-height: 1.6; font-weight: 700; margin-bottom: 40px;">Flora Lawn & Landscaping</p>
+                
+                <hr style="border: 0; border-top: 1px solid #e2e8f0; margin-bottom: 24px;">
+                
+                <p style="font-size: 12px; color: #94a3b8; line-height: 1.6;">
+                  Flora Lawn & Landscaping Inc.<br>
+                  (401) 389-0913 • floralawncareri@gmail.com<br>
+                  Rhode Island's Lawn Care Experts
+                </p>
               </div>
             `;
           } else if (type === 'completed' || subject?.toLowerCase().includes('completed')) {
+            const formattedService = (appointment.service_type || 'service').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+            const displayDate = appointment.date ? new Date(appointment.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : new Date().toLocaleDateString();
+            
             emailSubject = subject || `Job Completed! 🌿 - Flora Lawn & Landscaping`;
             emailHtml = `
-              <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e5e7eb; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
-                <div style="background-color: #10b981; padding: 40px 20px; text-align: center;">
-                  <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: 800; letter-spacing: -0.025em;">Mission Accomplished!</h1>
-                  <p style="color: #d1fae5; margin-top: 8px; font-weight: 500;">Your property is looking great!</p>
+              <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 24px; overflow: hidden; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);">
+                <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 50px 20px; text-align: center;">
+                  <div style="background-color: rgba(255, 255, 255, 0.2); width: 64px; height: 64px; border-radius: 20px; margin: 0 auto 20px; display: flex; align-items: center; justify-content: center; font-size: 32px;">✨</div>
+                  <h1 style="color: #ffffff; margin: 0; font-size: 32px; font-weight: 900; letter-spacing: -0.04em;">Mission Accomplished!</h1>
+                  <p style="color: rgba(255, 255, 255, 0.9); margin-top: 10px; font-size: 16px; font-weight: 500;">Your property is looking better than ever.</p>
                 </div>
-                <div style="padding: 40px 32px;">
-                  <p style="font-size: 18px; line-height: 1.6; color: #1e293b; margin-top: 0;">Hi ${appointment.customer_name || 'there'},</p>
-                  <p style="font-size: 16px; line-height: 1.6; color: #475569;">Great news! We have successfully completed your <strong>${appointment.service_type || 'service'}</strong> today.</p>
+                
+                <div style="padding: 40px 40px 30px;">
+                  <p style="font-size: 18px; color: #1e293b; margin: 0 0 20px; font-weight: 600;">Hi ${appointment.customer_name?.split(' ')[0] || 'there'},</p>
+                  <p style="font-size: 16px; line-height: 1.7; color: #475569; margin: 0 0 30px;">Great news! Our team just finished up the <strong>${formattedService}</strong> at your property. We took great care with every detail to ensure everything looks perfect.</p>
                   
-                  <div style="background-color: #f8fafc; padding: 24px; border-radius: 12px; margin: 32px 0; border: 1px solid #e5e7eb;">
-                    <h3 style="margin: 0 0 16px 0; font-size: 14px; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b;">Service Details</h3>
-                    <p style="margin: 0; font-size: 15px; color: #1e293b;"><strong>Type:</strong> ${appointment.service_type || 'General Service'}</p>
-                    <p style="margin: 8px 0 0; font-size: 15px; color: #1e293b;"><strong>Date:</strong> ${new Date().toLocaleDateString()}</p>
-                    ${message ? `<p style="margin: 16px 0 0; font-size: 14px; color: #475569; font-style: italic; border-top: 1px solid #e2e8f0; pt: 16px;">"${message}"</p>` : ''}
+                  <div style="background-color: #f8fafc; border: 1px solid #f1f5f9; border-radius: 20px; padding: 25px; margin-bottom: 30px;">
+                    <div style="display: flex; margin-bottom: 15px;">
+                      <div style="width: 100%;">
+                        <p style="margin: 0; font-size: 12px; text-transform: uppercase; letter-spacing: 0.1em; color: #94a3b8; font-weight: 700;">Service Performed</p>
+                        <p style="margin: 4px 0 0; font-size: 16px; color: #1e293b; font-weight: 600;">${formattedService}</p>
+                      </div>
+                    </div>
+                    <div style="width: 100%;">
+                      <p style="margin: 0; font-size: 12px; text-transform: uppercase; letter-spacing: 0.1em; color: #94a3b8; font-weight: 700;">Completion Date</p>
+                      <p style="margin: 4px 0 0; font-size: 16px; color: #1e293b; font-weight: 600;">${displayDate}</p>
+                    </div>
                   </div>
+
+                  ${message ? `
+                  <div style="border-left: 4px solid #10b981; padding: 10px 20px; margin-bottom: 30px; background-color: #f0fdf4; border-radius: 0 12px 12px 0;">
+                    <p style="margin: 0; font-size: 15px; line-height: 1.6; color: #065f46; font-style: italic;">"${message}"</p>
+                  </div>
+                  ` : ''}
                   
-                  <p style="font-size: 16px; line-height: 1.6; color: #475569;">Thank you for your business! We take great pride in our work and hope you're thrilled with the results.</p>
-                  <p style="font-size: 16px; line-height: 1.6; color: #475569; margin-bottom: 0;">If you have any questions or would like to schedule your next service, simply reply to this email!</p>
+                  <p style="font-size: 16px; line-height: 1.7; color: #475569; margin: 0 0 20px;">We take massive pride in our work. If you have any questions or if there is anything else we can help you with, please don't hesitate to reach out.</p>
+                  
+                  <div style="text-align: center; margin-top: 40px;">
+                    <a href="mailto:floralawncareri@gmail.com" style="display: inline-block; background-color: #1e293b; color: #ffffff; padding: 14px 28px; border-radius: 12px; text-decoration: none; font-weight: 700; font-size: 15px;">Reply to this Email</a>
+                  </div>
                 </div>
-                <div style="background-color: #f8fafc; padding: 32px; text-align: center; border-top: 1px solid #e5e7eb;">
-                  <p style="margin: 0; font-size: 14px; font-weight: 700; color: #1e293b;">Flora Lawn & Landscaping Inc</p>
-                  <p style="margin: 4px 0 0; font-size: 12px; color: #64748b;">Professional Lawn Care & Landscaping Services</p>
-                  <p style="margin: 16px 0 0; font-size: 12px; color: #94a3b8;">(401) 389-0913 • floralawncareri@gmail.com</p>
+
+                <div style="background-color: #f8fafc; padding: 40px; text-align: center; border-top: 1px solid #f1f5f9;">
+                  <p style="margin: 0; font-size: 16px; font-weight: 800; color: #1e293b;">Flora Lawn & Landscaping</p>
+                  <p style="margin: 4px 0 0; font-size: 13px; color: #64748b; font-weight: 500;">Rhode Island's Lawn Care Experts</p>
+                  <div style="margin-top: 20px; border-top: 1px solid #e2e8f0; padding-top: 20px;">
+                    <p style="margin: 0; font-size: 12px; color: #94a3b8;">(401) 389-0913 • floralawncareri@gmail.com</p>
+                    <p style="margin: 8px 0 0; font-size: 11px; color: #cbd5e1;">&copy; ${new Date().getFullYear()} Flora Lawn & Landscaping Inc. All rights reserved.</p>
+                  </div>
                 </div>
               </div>
             `;

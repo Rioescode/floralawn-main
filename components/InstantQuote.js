@@ -23,7 +23,8 @@ import {
   TrashIcon,
   ArrowsPointingOutIcon,
   ArrowsPointingInIcon,
-  ArrowDownTrayIcon
+  ArrowDownTrayIcon,
+  ArrowUturnLeftIcon
 } from '@heroicons/react/24/solid';
 
 import { supabase } from '@/lib/supabase';
@@ -75,7 +76,8 @@ export default function InstantQuoteMap({ onQuoteComplete, selectedPlace, setSel
   // New Workflow States
   const [isPriceUnlocked, setIsPriceUnlocked] = useState(false);
   const [mapImageUrl, setMapImageUrl] = useState('');
-  const [leadForm, setLeadForm] = useState({ name: '', phone: '', email: '' });
+  const [leadForm, setLeadForm] = useState({ name: '', phone: '', email: '', notes: '' });
+  const [hasPartialSent, setHasPartialSent] = useState(false);
   const [isSubmittingLead, setIsSubmittingLead] = useState(false);
   const [leadStatus, setLeadStatus] = useState(null);
 
@@ -104,6 +106,8 @@ export default function InstantQuoteMap({ onQuoteComplete, selectedPlace, setSel
     overseedLaborPer1k: 35,
     springFactors: { md: 1.8, lg: 2.6 },
     fallFactors: { md: 1.83, lg: 2.83 },
+    fallIntensityMedium: 1.5,
+    fallIntensityHeavy: 2.2,
     disposalHaulFee: 125,
     treeTrimPrice: 75,
     snowBase: 75,
@@ -113,6 +117,8 @@ export default function InstantQuoteMap({ onQuoteComplete, selectedPlace, setSel
     shrubPrices: { small: 25, medium: 45, large: 75 },
     gutterBase: 150
   };
+  
+  const [traceHistory, setTraceHistory] = useState([]);
 
   const [pricingConfig, setPricingConfig] = useState(defaultPricing);
   const [calibratedData, setCalibratedData] = useState({
@@ -155,7 +161,12 @@ export default function InstantQuoteMap({ onQuoteComplete, selectedPlace, setSel
           springBase: d.seasonal.spring_cleanup_base,
           fallBase: d.seasonal.fall_cleanup_base,
           springFactors: { md: d.seasonal.med_scale_mult_1_4k, lg: d.seasonal.lrg_scale_mult_5k_plus },
-          fallFactors: { md: d.seasonal.med_scale_mult_1_4k + 0.03, lg: d.seasonal.lrg_scale_mult_5k_plus + 0.23 },
+          fallFactors: { 
+            md: d.seasonal.fall_med_scale_mult || (d.seasonal.med_scale_mult_1_4k + 0.03), 
+            lg: d.seasonal.fall_lrg_scale_mult || (d.seasonal.lrg_scale_mult_5k_plus + 0.23) 
+          },
+          fallIntensityMedium: d.seasonal.fall_intensity_med || 1.5,
+          fallIntensityHeavy: d.seasonal.fall_intensity_heavy || 2.2,
           aerationBase: d.advanced_care.aeration_base,
           aerationPer1k: d.advanced_care.aeration_price_per_1k,
           dethatchBase: d.advanced_care.dethatch_base,
@@ -230,6 +241,17 @@ export default function InstantQuoteMap({ onQuoteComplete, selectedPlace, setSel
     fetchConfig();
   }, []);
 
+  // Mobile Drawing Experience: Lock Body Scroll
+  useEffect(() => {
+    if (isDrawingMode) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => { document.body.style.overflow = 'unset'; };
+  }, [isDrawingMode]);
+
+
   const signInAdmin = async () => {
     const origin = window.location.origin;
     await supabase.auth.signInWithOAuth({ 
@@ -255,7 +277,60 @@ export default function InstantQuoteMap({ onQuoteComplete, selectedPlace, setSel
     setPricingConfig(newConfig);
     localStorage.setItem('floralawn_pricing', JSON.stringify(newConfig));
     setIsSyncing(true);
-    await supabase.from('pricing_config').upsert({ id: 'default', config: newConfig });
+    
+    try {
+      // 1. Save to the simple/internal pricing_config table
+      await supabase.from('pricing_config').upsert({ id: 'default', config: newConfig });
+
+      // 2. Sync back to the Business Intelligence Master Workspace (business_config)
+      const masterPayload = {
+        lawn_mowing: {
+          base_house: newConfig.mowingBase,
+          base_sqft_limit: newConfig.mowingBaseLimit,
+          price_per_1k_sqft: newConfig.mowingPer1k,
+          bi_weekly_surcharge: newConfig.mowingBiWeeklySurcharge
+        },
+        materials: {
+          mulch_per_yd: newConfig.mulchPrices.Black,
+          edging_per_ft: newConfig.mulchEdgingPrice,
+          mulch_depth_inches: newConfig.mulchDepth,
+          tree_trim_flat: newConfig.treeTrimPrice
+        },
+        seasonal: {
+          spring_cleanup_base: newConfig.springBase,
+          fall_cleanup_base: newConfig.fallBase,
+          med_scale_mult_1_4k: newConfig.springFactors.md,
+          lrg_scale_mult_5k_plus: newConfig.springFactors.lg,
+          fall_med_scale_mult: newConfig.fallFactors.md,
+          fall_lrg_scale_mult: newConfig.fallFactors.lg,
+          fall_intensity_med: newConfig.fallIntensityMedium,
+          fall_intensity_heavy: newConfig.fallIntensityHeavy
+        },
+        advanced_care: {
+          aeration_base: newConfig.aerationBase,
+          aeration_price_per_1k: newConfig.aerationPer1k,
+          dethatch_base: newConfig.dethatchBase,
+          seed_price_per_1k: newConfig.overseedSeedPer1k,
+          snow_base: newConfig.snowBase
+        },
+        operations: {
+          fertilizer_base: newConfig.fertBase,
+          gutter_base: newConfig.gutterBase,
+          shrub_rates: newConfig.shrubPrices,
+          disposal_fee: newConfig.disposalHaulFee
+        }
+      };
+
+      await supabase.from('business_config').upsert({ 
+        category: 'master_pricing', 
+        data: masterPayload,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'category' });
+
+    } catch (err) {
+      console.error("Sync Error:", err);
+    }
+    
     setIsSyncing(false);
   };
 
@@ -278,9 +353,9 @@ export default function InstantQuoteMap({ onQuoteComplete, selectedPlace, setSel
   const getServicePrice = (id, area) => {
     let intensityMult = 1;
     if (id === 'spring') intensityMult = springIntensity === 1 ? 1 : springIntensity === 2 ? 1.5 : 2.2;
-    if (id === 'fall') intensityMult = fallIntensity === 1 ? 1 : fallIntensity === 2 ? 1.5 : 2.2;
+    if (id === 'fall') intensityMult = fallIntensity === 1 ? 1 : fallIntensity === 2 ? (pricingConfig.fallIntensityMedium || 1.5) : (pricingConfig.fallIntensityHeavy || 2.2);
 
-    const { mowingBase, mowingBaseLimit, mowingPer1k, mowingBiWeeklySurcharge, springBase, fallBase, springFactors, fallFactors, aerationBase, dethatchBase, overseedBase, overseedSeedPer1k, overseedLaborPer1k, disposalHaulFee, treeTrimPrice } = pricingConfig;
+    const { mowingBase, mowingBaseLimit, mowingPer1k, mowingBiWeeklySurcharge, springBase, fallBase, springFactors, fallFactors, aerationBase, dethatchBase, overseedBase, overseedSeedPer1k, overseedLaborPer1k, disposalHaulFee, treeTrimPrice, fallLegacyFee } = pricingConfig;
 
     if (id === 'mowing') {
        const mult = mowingFrequency === 'bi-weekly' ? (mowingBiWeeklySurcharge || 1.3) : 1;
@@ -312,8 +387,17 @@ export default function InstantQuoteMap({ onQuoteComplete, selectedPlace, setSel
        const per1kRate = (overseedSeedPer1k || 45) + (overseedLaborPer1k || 35);
        return Math.round(overseedBase + (osArea / 1000) * per1kRate);
     }
-    if (id === 'spring') return Math.round(springBase * (area < 5000 ? 1 : area < 10000 ? springFactors.md : springFactors.lg) * intensityMult) + (debrisDisposal === 'haul' ? (disposalHaulFee || 125) : 0);
-    if (id === 'fall') return Math.round(fallBase * (area < 5000 ? 1 : area < 10000 ? fallFactors.md : fallFactors.lg) * intensityMult) + (!fallCleanedLastYear ? 150 : 0) + (debrisDisposal === 'haul' ? (disposalHaulFee || 125) : 0);
+    if (id === 'spring') {
+       const scaleMult = area < 5000 ? 1 : area < 10000 ? (springFactors.md || 1) : (springFactors.lg || 1);
+       // Ensure the multiplier never effectively reduces the price below the base unless intended
+       const multiplier = Math.max(1, scaleMult); 
+       return Math.round(springBase * multiplier * intensityMult) + (debrisDisposal === 'haul' ? (disposalHaulFee || 125) : 0);
+    }
+    if (id === 'fall') {
+       const scaleMult = area < 5000 ? 1 : area < 10000 ? (fallFactors.md || 1) : (fallFactors.lg || 1);
+       const multiplier = Math.max(1, scaleMult);
+       return Math.round(fallBase * multiplier * intensityMult) + (!fallCleanedLastYear ? 150 : 0) + (debrisDisposal === 'haul' ? (disposalHaulFee || 125) : 0);
+    }
     if (id === 'aeration') return Math.max(aerationBase, Math.round((area / 1000) * (pricingConfig.aerationPer1k || 35.36)));
     if (id === 'tree_trimming') return treeTrimPrice || 75;
     if (id === 'snow_removal') return pricingConfig.snowBase || 75;
@@ -450,6 +534,7 @@ export default function InstantQuoteMap({ onQuoteComplete, selectedPlace, setSel
       else if (target === 'mulch') { setMulchSqFt(prev => prev + aSqFt); if (!selectedServices.includes('mulch')) setSelectedServices(prev => [...prev, 'mulch']); }
       else if (target === 'overseed') { setOverseedSqFt(prev => prev + aSqFt); if (!selectedServices.includes('overseeding')) setSelectedServices(prev => [...prev, 'overseeding']); }
       setIsManualAreaMode(false);
+      setTraceHistory(prev => [...prev, { id: Date.now(), area: aSqFt, target, polygon: p }]);
       // NOTE: We DO NOT set isDrawingMode(false) here, allowing them to keep drawing multiple shapes.
     });
 
@@ -482,13 +567,27 @@ export default function InstantQuoteMap({ onQuoteComplete, selectedPlace, setSel
      let color = '#22C55E'; 
      if (target === 'mulch') color = '#D97706';
      if (target === 'overseed') color = '#10B981';
-     if (drawingManagerRef.current) {
+      if (drawingManagerRef.current) {
+        if (target === 'lawn') handlePartialSubmit(); // Capture info before they start drawing
         drawingManagerRef.current.setOptions({ polygonOptions: { fillColor: color, strokeColor: color, fillOpacity: 0.5, strokeWeight: 4 } });
         drawingManagerRef.current.setDrawingMode('polygon');
      }
      if (mapRef.current && window.innerWidth < 1024) {
         mapRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
      }
+  };
+
+  const undoLastTrace = () => {
+    if (traceHistory.length === 0) return;
+    const lastTrace = traceHistory[traceHistory.length - 1];
+    
+    if (lastTrace.polygon) lastTrace.polygon.setMap(null);
+    
+    if (lastTrace.target === 'lawn') setCalculatedArea(prev => Math.max(0, prev - lastTrace.area));
+    else if (lastTrace.target === 'mulch') setMulchSqFt(prev => Math.max(0, prev - lastTrace.area));
+    else if (lastTrace.target === 'overseed') setOverseedSqFt(prev => Math.max(0, prev - lastTrace.area));
+    
+    setTraceHistory(prev => prev.slice(0, -1));
   };
 
   const addCustomJob = () => setCustomJobs([...customJobs, { id: Date.now(), details: '', price: 0 }]);
@@ -581,6 +680,33 @@ export default function InstantQuoteMap({ onQuoteComplete, selectedPlace, setSel
     };
     img.onerror = () => finishPdf();
   };
+  const handlePartialSubmit = async () => {
+    if (hasPartialSent || !leadForm.name || !leadForm.email) return;
+    try {
+      const dbPayload = {
+        name: leadForm.name,
+        phone: leadForm.phone,
+        email: leadForm.email,
+        address: selectedPlace?.formatted_address || selectedPlace?.name || '',
+        status: 'PARTIAL / ABANDONED',
+        created_at: new Date().toISOString(),
+        custom_details: '[AUTO-CAPTURED PARTIAL LEAD]'
+      };
+      await supabase.from('leads').insert([dbPayload]);
+      setHasPartialSent(true);
+      
+      // Also send a quick notification to the API
+      fetch('/api/lead', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...dbPayload,
+          isPartial: true
+        })
+      }).catch(e => console.error("Email notification failed for partial lead", e));
+
+    } catch (e) { console.error("Partial lead failed", e); }
+  };
 
   const handleLeadSubmit = async () => {
     setIsSubmittingLead(true);
@@ -591,11 +717,11 @@ export default function InstantQuoteMap({ onQuoteComplete, selectedPlace, setSel
         name: leadForm.name,
         phone: leadForm.phone,
         email: leadForm.email,
-        address: selectedPlace?.name || '',
+        address: selectedPlace?.formatted_address || selectedPlace?.name || '',
         area: currentArea,
         price: totalQuote,
         breakdown: JSON.stringify(getFullBreakdown()),
-        custom_details: mapImageUrl ? `[LAWN_SNAPSHOT_URL]: ${mapImageUrl}` : '',
+        custom_details: (mapImageUrl ? `[LAWN_SNAPSHOT_URL]: ${mapImageUrl}\n\n` : '') + (leadForm.notes ? `[CUSTOMER_NOTES]: ${leadForm.notes}` : ''),
         status: 'NEW QUOTE',
         created_at: new Date().toISOString()
       };
@@ -609,11 +735,13 @@ export default function InstantQuoteMap({ onQuoteComplete, selectedPlace, setSel
           name: leadForm.name,
           phone: leadForm.phone,
           email: leadForm.email,
-          address: selectedPlace?.name || '',
+          address: selectedPlace?.formatted_address || selectedPlace?.name || '',
           sqft: currentArea,
           price: totalQuote,
           services: getFullBreakdown(),
-          map_image_url: mapImageUrl || null
+          map_image_url: mapImageUrl || null,
+          notes: leadForm.notes || null,
+          notes: leadForm.notes || null
         };
         await fetch('/api/lead', {
           method: 'POST',
@@ -654,12 +782,11 @@ export default function InstantQuoteMap({ onQuoteComplete, selectedPlace, setSel
                     )}
                   </div>
 
-                  {/* MOBILE BETA WARNING */}
                   <div className="block lg:hidden bg-amber-50 border border-amber-200 rounded-2xl p-4 text-center mt-2 shadow-inner">
-                     <p className="text-[11px] font-black uppercase tracking-widest text-amber-600 mb-1">Beta / Testing Mode</p>
-                     <p className="text-[10px] text-amber-700 font-bold mb-3">Prices may vary during testing. For accurate quoting right now, use the main form.</p>
+                     <p className="text-[11px] font-black uppercase tracking-widest text-amber-600 mb-1">Estimate Only — Review Required</p>
+                     <p className="text-[10px] text-amber-700 font-bold mb-3">All quotes are sent for manual review. This helps you get a pricing idea, but final cost may vary slightly as we finalize accuracy.</p>
                      <button onClick={() => window.location.href = '/contact'} className="w-full bg-amber-500 text-white font-black uppercase text-[11px] py-2.5 rounded-xl shadow-lg active:scale-95 transition-transform flex justify-center items-center gap-2">
-                        Open Contact Form
+                        Open Main Contact Form
                      </button>
                   </div>
 
@@ -674,17 +801,45 @@ export default function InstantQuoteMap({ onQuoteComplete, selectedPlace, setSel
                 </div>
 
                 {!isPriceUnlocked ? (
-                  <div className="flex-grow flex flex-col items-center justify-center text-center p-6 bg-green-50/50 rounded-3xl border border-green-100 my-4">
-                     <SparklesIcon className="w-16 h-16 text-green-500 mb-4 animate-pulse" />
-                     <h3 className="text-2xl font-black text-slate-900 italic tracking-tighter uppercase leading-tight mb-3">Unlock Your Exact Price</h3>
-                     <p className="text-xs text-slate-500 font-bold mb-6">To ensure 100% accuracy, please use the map tool to quickly trace the shape of your grass. <br/><br/><span className="text-green-600">Tip: You can trace multiple separate parts of your lawn and the total SQFT will automatically add together!</span></p>
-                     <button onClick={() => startDrawing('lawn')} className="w-full py-4 bg-green-500 hover:bg-green-400 text-white font-black uppercase text-sm rounded-2xl shadow-xl flex items-center justify-center gap-2 transition-all active:scale-95 mb-4">
-                        <MapPinIcon className="w-5 h-5" /> Start Drawing
-                     </button>
-                     <button onClick={() => setIsPriceUnlocked(true)} className="text-[10px] font-black text-slate-400 hover:text-slate-600 uppercase tracking-widest underline decoration-slate-300 underline-offset-4">Skip & Use API Estimate</button>
-                  </div>
+                   <div className="flex-grow flex flex-col items-center justify-center text-center p-6 lg:p-8 bg-green-50/50 rounded-3xl border border-green-100 my-4">
+                      <SparklesIcon className="w-12 h-12 text-green-500 mb-4 animate-pulse" />
+                      <h3 className="text-xl lg:text-2xl font-black text-slate-900 italic tracking-tighter uppercase leading-tight mb-2">Unlock Your Exact Price</h3>
+                      <p className="text-[10px] lg:text-xs text-slate-500 font-bold mb-6">To ensure 100% accuracy, please confirm your contact info and trace your lawn.</p>
+                      
+                      <div className="w-full space-y-3 mb-6">
+                         <input 
+                            type="text" 
+                            placeholder="Your Name..." 
+                            value={leadForm.name} 
+                            onChange={(e) => setLeadForm({...leadForm, name: e.target.value})}
+                            className="w-full bg-white border-2 border-slate-100 rounded-xl p-4 text-xs font-black uppercase tracking-widest focus:border-green-500 transition-all outline-none" 
+                         />
+                         <input 
+                            type="email" 
+                            placeholder="Email Address..." 
+                            value={leadForm.email} 
+                            onChange={(e) => setLeadForm({...leadForm, email: e.target.value})}
+                            className="w-full bg-white border-2 border-slate-100 rounded-xl p-4 text-xs font-black uppercase tracking-widest focus:border-green-500 transition-all outline-none" 
+                         />
+                      </div>
+
+                      <button 
+                        onClick={() => startDrawing('lawn')} 
+                        disabled={!leadForm.name || !leadForm.email}
+                        className="w-full py-5 bg-green-500 hover:bg-green-400 disabled:opacity-50 disabled:grayscale text-white font-black uppercase text-xs lg:text-sm rounded-2xl shadow-xl flex items-center justify-center gap-2 transition-all active:scale-95 mb-4"
+                      >
+                         <MapPinIcon className="w-5 h-5" /> {leadForm.name ? `Start Drawing, ${leadForm.name.split(' ')[0]}!` : 'Start Drawing'}
+                      </button>
+                      <button onClick={() => { handlePartialSubmit(); setIsPriceUnlocked(true); }} className="text-[10px] font-black text-slate-400 hover:text-slate-600 uppercase tracking-widest underline decoration-slate-300 underline-offset-4">Skip & Use API Estimate</button>
+                   </div>
                 ) : (
                   <div className="flex-grow overflow-y-auto pr-4 custom-scrollbar space-y-4 mb-6 relative">
+                    <div className="bg-green-50 border border-green-200 rounded-2xl p-4 mb-2 text-center shadow-sm">
+                      <p className="text-[10px] font-black text-green-600 uppercase tracking-widest mb-1 flex items-center justify-center gap-1.5"><MapPinIcon className="w-3 h-3"/> Keep Drawing?</p>
+                      <p className="text-[11px] text-green-700 font-bold leading-snug">
+                        If you have more grass areas to cover, click the <span className="font-black text-slate-700">"Draw Calibration"</span> button above to keep adding to your total SQFT!
+                      </p>
+                    </div>
                     <div className="flex justify-between items-center px-4 py-2">
                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest italic">Quoting Details</p>
                        <button onClick={() => expandedServices.length === services.length ? setExpandedServices([]) : setExpandedServices(services.map(s => s.id))} className="text-[10px] font-black uppercase text-green-600 flex items-center gap-2 bg-slate-50 px-4 py-2 rounded-full font-bold">{expandedServices.length === services.length ? <><ArrowsPointingInIcon className="w-3 h-3" /> Hide All</> : <><ArrowsPointingOutIcon className="w-3 h-3" /> See All Details</>}</button>
@@ -717,11 +872,19 @@ export default function InstantQuoteMap({ onQuoteComplete, selectedPlace, setSel
                                {expanded && (
                                  <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="px-6 pb-6 pt-2 border-t border-slate-100 space-y-6">
                                     {s.id === 'mowing' && (
+                                       <>
                                        <div className="flex bg-slate-100 p-1 rounded-xl gap-2 border border-slate-200 font-bold">
                                           {['weekly', 'bi-weekly'].map(f => (
                                              <button key={f} onClick={() => setMowingFrequency(f)} className={`flex-1 py-3 rounded-lg text-[9px] font-black uppercase transition-all ${mowingFrequency === f ? 'bg-green-500 text-white shadow-lg' : 'text-slate-500 hover:text-slate-700'}`}>{f}</button>
                                           ))}
                                        </div>
+                                       <button 
+                                          onClick={() => document.getElementById('lead-form-anchor')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                                          className="w-full py-4 bg-gradient-to-r from-green-600 to-emerald-500 hover:from-green-500 hover:to-emerald-400 text-white font-black uppercase text-[10px] tracking-widest rounded-xl shadow-[0_10px_20px_-10px_rgba(34,197,94,0.4)] hover:shadow-[0_15px_25px_-10px_rgba(34,197,94,0.5)] flex justify-center items-center gap-2 transition-all active:scale-[0.98]"
+                                        >
+                                          Send for Review <ArrowRightIcon className="w-4 h-4" />
+                                        </button>
+                                       </>
                                     )}
                                     {s.id === 'mulch' && (
                                        <div className="space-y-6 font-bold">
@@ -826,14 +989,10 @@ export default function InstantQuoteMap({ onQuoteComplete, selectedPlace, setSel
                       )
                     })}
                   </div>
-                  </div>
-                )}
-
-                {isPriceUnlocked && (
-                  <div className="pt-4 lg:pt-6 border-t border-slate-100 flex-shrink-0 font-bold">
+                  <div className="pt-4 lg:pt-6 border-t border-slate-100 mt-6 font-bold pb-4">
                      <div className="flex justify-between items-end mb-4 px-2 lg:px-4 font-bold">
                         <div className="text-left font-bold">
-                           <p className="text-xs lg:text-sm font-black text-slate-400 uppercase tracking-[0.1em] leading-none mb-2 italic">Total Estimate</p>
+                           <p id="lead-form-anchor" className="text-xs lg:text-sm font-black text-slate-400 uppercase tracking-[0.1em] leading-none mb-2 italic">Total Estimate</p>
                            {totalDiscount > 0 && (
                              <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="flex flex-col lg:flex-row lg:items-center gap-1 lg:gap-3">
                                <span className="text-[9px] lg:text-[11px] font-black bg-green-100 text-green-700 px-2 py-0.5 lg:px-3 lg:py-1 rounded-lg uppercase tracking-wider inline-block">-{Math.round(discountRate * 100)}% REWARD</span>
@@ -843,6 +1002,15 @@ export default function InstantQuoteMap({ onQuoteComplete, selectedPlace, setSel
                         </div>
                         <p className="text-4xl lg:text-6xl font-black text-green-500 italic tracking-tighter leading-none">${totalQuote.toLocaleString()}</p>
                      </div>
+                     
+                     {mapImageUrl && (
+                        <div className="mb-4 mt-2 px-2 lg:px-4">
+                           <p className="text-[9px] lg:text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Map Snapshot Attached</p>
+                           <div className="w-full h-32 lg:h-40 rounded-xl border-2 border-slate-100 shadow-sm overflow-hidden relative">
+                              <img src={mapImageUrl} alt="Lawn tracing map" className="w-full h-full object-cover" />
+                           </div>
+                        </div>
+                     )}
                      
                      {leadStatus ? (
                        <div className={`p-4 rounded-xl text-center font-black uppercase text-sm border ${leadStatus.type === 'success' ? 'bg-green-50 border-green-200 text-green-700' : 'bg-red-50 border-red-200 text-red-700'}`}>
@@ -864,22 +1032,41 @@ export default function InstantQuoteMap({ onQuoteComplete, selectedPlace, setSel
                        </div>
                      )}
                   </div>
+                  </div>
                 )}
               </motion.div>
             )}
           </AnimatePresence>
 
-          <div className="order-first lg:order-none min-h-[400px] lg:min-h-0 flex-grow relative rounded-[2rem] lg:rounded-[4rem] overflow-hidden shadow-6xl border-4 lg:border-8 border-white bg-slate-950 flex flex-col">
+          <div className={`${isDrawingMode ? 'fixed inset-0 z-[200] rounded-0' : 'order-first lg:order-none min-h-[400px] lg:min-h-0 flex-grow relative rounded-[2rem] lg:rounded-[4rem]'} overflow-hidden shadow-6xl border-4 lg:border-8 border-white bg-slate-950 flex flex-col transition-all duration-500`}>
              <div ref={mapRef} className="w-full h-full min-h-[400px] lg:min-h-full" />
              <AnimatePresence>
                 {isDrawingMode && (
-                  <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="absolute top-4 lg:top-12 left-1/2 -translate-x-1/2 z-50 bg-slate-900 border-4 border-white px-4 lg:px-10 py-4 lg:py-6 rounded-[2rem] shadow-6xl flex items-center gap-4 lg:gap-6 font-bold w-[90%] lg:w-auto">
-                     <div className={`shrink-0 w-10 h-10 lg:w-12 lg:h-12 rounded-full flex items-center justify-center animate-pulse ${drawingTarget === 'overseed' ? 'bg-emerald-500' : drawingTarget === 'mulch' ? 'bg-amber-500' : 'bg-green-500'}`}><SparklesIcon className="w-5 h-5 lg:w-6 lg:h-6 text-black" /></div>
-                     <div className="text-left"><p className="text-lg lg:text-2xl font-black text-white italic uppercase tracking-tighter leading-none mb-1">MEASURING {drawingTarget.toUpperCase()}</p><p className="text-[8px] lg:text-[10px] font-black text-green-400 uppercase tracking-widest hidden sm:block">Tip: Trace multiple separate areas to add them together!</p></div>
-                     <button onClick={() => { setIsDrawingMode(false); drawingManagerRef.current.setDrawingMode(null); }} className="ml-auto px-6 py-3 bg-green-500 hover:bg-green-400 text-white rounded-xl font-black uppercase text-xs lg:text-sm shadow-xl transition-all active:scale-95">Done</button>
-                  </motion.div>
+                  <div className="absolute top-2 inset-x-0 flex justify-center z-[9999] pointer-events-none p-4">
+                    <motion.div 
+                      initial={{ opacity: 0, y: -40 }} 
+                      animate={{ opacity: 1, y: 0 }} 
+                      className="pointer-events-auto bg-slate-950 border-4 border-white px-4 lg:px-8 py-3 lg:py-5 rounded-2xl lg:rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.7)] flex flex-col lg:flex-row items-center gap-3 lg:gap-8 font-bold w-full lg:w-auto"
+                    >
+                        <div className="flex items-center gap-4 lg:gap-6">
+                          <div className={`shrink-0 w-8 h-8 lg:w-12 lg:h-12 rounded-full flex items-center justify-center animate-pulse ${drawingTarget === 'overseed' ? 'bg-emerald-500' : drawingTarget === 'mulch' ? 'bg-amber-500' : 'bg-green-500'}`}><SparklesIcon className="w-4 h-4 lg:w-6 lg:h-6 text-black" /></div>
+                          <div className="text-left">
+                            <p className="text-base lg:text-2xl font-black text-white italic uppercase tracking-tighter leading-none mb-1">MEASURING {drawingTarget.toUpperCase()}</p>
+                            <p className="text-[7px] lg:text-[10px] font-black text-green-400 uppercase tracking-widest leading-none">Tap each corner of your lawn to trace</p>
+                          </div>
+                        </div>
+                        
+                        <div className="flex gap-2 ml-auto w-full lg:w-auto justify-end">
+                          {traceHistory.length > 0 && (
+                             <button onClick={undoLastTrace} className="flex-1 lg:flex-none px-3 py-3 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-black uppercase text-[10px] lg:text-xs shadow-xl transition-all active:scale-95 flex items-center justify-center gap-2 border border-white/10"><ArrowUturnLeftIcon className="w-3 h-3" /> Undo</button>
+                          )}
+                          <button onClick={() => { setIsDrawingMode(false); drawingManagerRef.current.setDrawingMode(null); }} className="flex-grow lg:flex-none px-6 py-3 bg-green-500 hover:bg-green-400 text-white rounded-xl font-black uppercase text-xs lg:text-sm shadow-xl transition-all active:scale-95">Save & Finish</button>
+                        </div>
+                    </motion.div>
+                  </div>
                 )}
              </AnimatePresence>
+
              <AnimatePresence>{isAiScanning && <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute inset-0 z-50 bg-slate-950/80 backdrop-blur-3xl flex flex-col items-center justify-center text-center"><SparklesIcon className="w-40 h-40 text-green-500 animate-pulse mb-10" /><h3 className="text-5xl font-black text-white italic tracking-tighter uppercase leading-tight font-bold">Analyzing Property<br/>AI Measurement Engine</h3></motion.div>}</AnimatePresence>
           </div>
         </motion.div>
@@ -927,11 +1114,35 @@ export default function InstantQuoteMap({ onQuoteComplete, selectedPlace, setSel
                      </div>
                      <div className="space-y-8">
                         <p className="text-[11px] font-black text-orange-500 uppercase tracking-[0.2em] border-l-4 border-orange-500 pl-4 py-1">Seasonal Bases</p>
-                        <div className="space-y-5">
-                           <div><label className="text-[9px] font-black text-slate-500 uppercase mb-2 block">Spring Cleanup Base</label><input type="number" value={pricingConfig.springBase} onChange={(e) => savePricing({...pricingConfig, springBase: Number(e.target.value)})} className="w-full bg-slate-900 border border-white/10 rounded-2xl p-5 text-2xl font-black text-white" /></div>
-                           <div><label className="text-[9px] font-black text-slate-500 uppercase mb-2 block">Fall Cleanup Base</label><input type="number" value={pricingConfig.fallBase} onChange={(e) => savePricing({...pricingConfig, fallBase: Number(e.target.value)})} className="w-full bg-slate-900 border border-white/10 rounded-2xl p-5 text-2xl font-black text-white" /></div>
-                           <div><label className="text-[9px] font-black text-slate-500 uppercase mb-2 block">Med Scale Mult (1-4.9k)</label><input type="number" step="0.1" value={pricingConfig.springFactors.md} onChange={(e) => savePricing({...pricingConfig, springFactors: { ...pricingConfig.springFactors, md: Number(e.target.value) }, fallFactors: { ...pricingConfig.fallFactors, md: Number(e.target.value) }})} className="w-full bg-slate-900 border border-white/10 rounded-2xl p-5 text-2xl font-black text-white" /></div>
-                           <div><label className="text-[9px] font-black text-slate-500 uppercase mb-2 block">Lrg Scale Mult (5k+)</label><input type="number" step="0.1" value={pricingConfig.springFactors.lg} onChange={(e) => savePricing({...pricingConfig, springFactors: { ...pricingConfig.springFactors, lg: Number(e.target.value) }, fallFactors: { ...pricingConfig.fallFactors, lg: Number(e.target.value) }})} className="w-full bg-slate-900 border border-white/10 rounded-2xl p-5 text-2xl font-black text-white" /></div>
+                        <div className="space-y-4">
+                           <div className="grid grid-cols-2 gap-3">
+                              <div><label className="text-[8px] font-black text-slate-500 uppercase mb-1 block">Spring Base ($)</label><input type="number" value={pricingConfig.springBase} onChange={(e) => savePricing({...pricingConfig, springBase: Number(e.target.value)})} className="w-full bg-slate-900 border border-white/10 rounded-xl p-3 text-lg font-black text-white" /></div>
+                              <div><label className="text-[8px] font-black text-slate-500 uppercase mb-1 block">Fall Base ($)</label><input type="number" value={pricingConfig.fallBase} onChange={(e) => savePricing({...pricingConfig, fallBase: Number(e.target.value)})} className="w-full bg-slate-900 border border-white/10 rounded-xl p-3 text-lg font-black text-white" /></div>
+                           </div>
+                           
+                           <div className="border-t border-white/5 pt-4">
+                              <p className="text-[8px] font-black text-green-500 uppercase tracking-widest mb-3 italic">Spring Scale Multipliers</p>
+                              <div className="grid grid-cols-2 gap-3">
+                                 <div><label className="text-[8px] font-black text-slate-500 uppercase mb-1 block">Med (5k-10k) [x]</label><input type="number" step="0.1" value={pricingConfig.springFactors.md} onChange={(e) => savePricing({...pricingConfig, springFactors: { ...pricingConfig.springFactors, md: Number(e.target.value) }})} className="w-full bg-slate-900 border border-white/10 rounded-xl p-3 text-sm font-black text-white" /></div>
+                                 <div><label className="text-[8px] font-black text-slate-500 uppercase mb-1 block">Lrg (10k+) [x]</label><input type="number" step="0.1" value={pricingConfig.springFactors.lg} onChange={(e) => savePricing({...pricingConfig, springFactors: { ...pricingConfig.springFactors, lg: Number(e.target.value) }})} className="w-full bg-slate-900 border border-white/10 rounded-xl p-3 text-sm font-black text-white" /></div>
+                              </div>
+                           </div>
+
+                           <div className="border-t border-white/5 pt-4">
+                              <p className="text-[8px] font-black text-orange-500 uppercase tracking-widest mb-3 italic">Fall Scale Multipliers</p>
+                              <div className="grid grid-cols-2 gap-3">
+                                 <div><label className="text-[8px] font-black text-slate-500 uppercase mb-1 block">Med (5k-10k) [x]</label><input type="number" step="0.1" value={pricingConfig.fallFactors.md} onChange={(e) => savePricing({...pricingConfig, fallFactors: { ...pricingConfig.fallFactors, md: Number(e.target.value) }})} className="w-full bg-slate-900 border border-white/10 rounded-xl p-3 text-sm font-black text-white" /></div>
+                                 <div><label className="text-[8px] font-black text-slate-500 uppercase mb-1 block">Lrg (10k+) [x]</label><input type="number" step="0.1" value={pricingConfig.fallFactors.lg} onChange={(e) => savePricing({...pricingConfig, fallFactors: { ...pricingConfig.fallFactors, lg: Number(e.target.value) }})} className="w-full bg-slate-900 border border-white/10 rounded-xl p-3 text-sm font-black text-white" /></div>
+                              </div>
+                           </div>
+
+                           <div className="border-t border-white/5 pt-4">
+                              <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-3 italic">Fall Intensity Scaling</p>
+                              <div className="grid grid-cols-2 gap-3">
+                                 <div><label className="text-[8px] font-black text-slate-500 uppercase mb-1 block">Medium (x)</label><input type="number" step="0.1" value={pricingConfig.fallIntensityMedium} onChange={(e) => savePricing({...pricingConfig, fallIntensityMedium: Number(e.target.value)})} className="w-full bg-slate-900 border border-white/10 rounded-xl p-3 text-sm font-black text-white" /></div>
+                                 <div><label className="text-[8px] font-black text-slate-500 uppercase mb-1 block">Heavy (x)</label><input type="number" step="0.1" value={pricingConfig.fallIntensityHeavy} onChange={(e) => savePricing({...pricingConfig, fallIntensityHeavy: Number(e.target.value)})} className="w-full bg-slate-900 border border-white/10 rounded-xl p-3 text-sm font-black text-white" /></div>
+                              </div>
+                           </div>
                         </div>
                      </div>
                      <div className="space-y-8">

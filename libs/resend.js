@@ -89,10 +89,10 @@ export const sendEmail = async ({ to, subject, text, html, replyTo, type, recipi
     
     // Add headers for better deliverability (helps avoid promotions folder)
     const headers = {
-      'List-Unsubscribe': `<${baseUrl}/unsubscribe?email=${encodeURIComponent(emailAddress)}>`,
-      'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
       'X-Entity-Ref-ID': `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      'Precedence': 'bulk', // Helps email clients categorize
+      'Importance': 'high',
+      'Priority': 'urgent',
+      'X-Priority': '1 (Highest)',
     };
 
     const emailPayload = {

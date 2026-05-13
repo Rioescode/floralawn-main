@@ -245,11 +245,11 @@ export default function AutoLawnPage() {
                )}
 
                {/* BETA DISCLAIMER */}
-               <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 max-w-2xl mx-auto text-center relative overflow-hidden mb-12">
-                  <div className="absolute top-0 left-0 w-1 h-full bg-amber-500 hidden sm:block"></div>
-                  <p className="text-amber-600 font-black uppercase tracking-widest text-xs mb-2">Beta Version — Currently Testing</p>
+               <div className="bg-green-500/5 border border-green-500/20 rounded-2xl p-4 max-w-2xl mx-auto text-center relative overflow-hidden mb-12">
+                  <div className="absolute top-0 left-0 w-1 h-full bg-green-500 hidden sm:block"></div>
+                  <p className="text-green-600 font-black uppercase tracking-widest text-xs mb-2">Estimate Tool — Review Required</p>
                   <p className="text-slate-600 text-sm font-medium leading-relaxed">
-                     This quoting tool is currently in development. If your measurements/prices seem incorrect or you experience technical difficulties, please <Link href="/contact" className="text-green-600 font-black underline decoration-amber-500 underline-offset-4 hover:text-green-700 transition-colors">visit our Contact Form</Link> so we can manually measure your property!
+                     All quotes are sent for manual review. This tool helps you get an idea of the price, but the final total might be slightly higher or lower as we work on making our satellite measurements 100% accurate!
                   </p>
                </div>
 

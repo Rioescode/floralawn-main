@@ -1110,8 +1110,8 @@ function ContactForm() {
                                  </div>
                                  <input type="checkbox" className="hidden" checked={emailPreferences.subscribe} onChange={(e) => setEmailPreferences({...emailPreferences, subscribe: e.target.checked})} />
                                  <div>
-                                    <p className="font-black text-xs uppercase tracking-tight italic text-slate-900">Email Newsletter</p>
-                                    <p className="text-[10px] text-slate-400 font-bold italic">Receive seasonal discounts and professional lawn care tips.</p>
+                                    <p className="font-black text-xs uppercase tracking-tight italic text-slate-900">Email Status Updates</p>
+                                    <p className="text-[10px] text-slate-400 font-bold italic">Receive job appointment status, seasonal updates, and service reminders.</p>
                                  </div>
                               </label>
                               <label className="flex items-center gap-4 cursor-pointer">

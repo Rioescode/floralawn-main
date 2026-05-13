@@ -67,11 +67,11 @@ const config = {
   resend: {
     // REQUIRED — Email 'From' field to be used when sending magic login links
     // Using verified domain for better inbox delivery
-    fromEmail: "noreply@riyardworks.com", // ✅ Verified domain - should go to inbox
+    fromEmail: "office@riyardworks.com", // ✅ Verified domain - should go to inbox
     
     fromName: "Flora Lawn & Landscaping",
     // For service completion emails
-    fromAdmin: "Flora Lawn & Landscaping <noreply@riyardworks.com>", // ✅ Verified domain
+    fromAdmin: "Flora Lawn & Landscaping <office@riyardworks.com>", // ✅ Verified domain
     // REQUIRED — Email 'To' field to be used when sending magic login links
     supportEmail: "floralawncareri@gmail.com",
     // REQUIRED — Reply-To field for customer support emails

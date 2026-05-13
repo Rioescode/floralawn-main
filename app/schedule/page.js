@@ -102,6 +102,9 @@ export default function SchedulePage() {
   const [sendEmail, setSendEmail] = useState(true);
   const [sendSMS, setSendSMS] = useState(false);
   const [markingDone, setMarkingDone] = useState(false);
+  const [completionDate, setCompletionDate] = useState(new Date().toISOString().split('T')[0]);
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [selectedCustomerForReview, setSelectedCustomerForReview] = useState(null);
 
   // Email Preview Modal State
   const [showEmailModal, setShowEmailModal] = useState(false);
@@ -352,7 +355,6 @@ export default function SchedulePage() {
             sendEmail: true,
             type: 'review',
             recipientName: job.customer_name, // Pass for smarter logging
-            subject: `Checking in on your property! 🌿 - Flora Lawn & Landscaping`,
             message: `It was a pleasure working on your property! We hope you're loving the results.`
           })
         });
@@ -901,6 +903,20 @@ export default function SchedulePage() {
     customers.forEach(customer => {
       if (customer.scheduled_day && DAYS_OF_WEEK.includes(customer.scheduled_day)) {
         scheduleByDay[customer.scheduled_day].push(customer);
+        
+        // AUTO-POPULATE WEEKLY CUSTOMERS IN BOTH WEEKS
+        if (customer.frequency === 'weekly') {
+          const otherWeek = customer.scheduled_day.includes('Week 1') 
+            ? customer.scheduled_day.replace('Week 1', 'Week 2')
+            : customer.scheduled_day.replace('Week 2', 'Week 1');
+          
+          if (DAYS_OF_WEEK.includes(otherWeek)) {
+            // Avoid duplicates
+            if (!scheduleByDay[otherWeek].some(c => c.id === customer.id)) {
+              scheduleByDay[otherWeek].push(customer);
+            }
+          }
+        }
       } else {
         unassigned.push(customer);
       }
@@ -971,6 +987,20 @@ export default function SchedulePage() {
     filteredCustomerList.forEach(customer => {
       if (customer.scheduled_day && DAYS_OF_WEEK.includes(customer.scheduled_day)) {
         scheduleByDay[customer.scheduled_day].push(customer);
+        
+        // AUTO-POPULATE WEEKLY CUSTOMERS IN BOTH WEEKS
+        if (customer.frequency === 'weekly') {
+          const otherWeek = customer.scheduled_day.includes('Week 1') 
+            ? customer.scheduled_day.replace('Week 1', 'Week 2')
+            : customer.scheduled_day.replace('Week 2', 'Week 1');
+          
+          if (DAYS_OF_WEEK.includes(otherWeek)) {
+            // Avoid duplicates
+            if (!scheduleByDay[otherWeek].some(c => c.id === customer.id)) {
+              scheduleByDay[otherWeek].push(customer);
+            }
+          }
+        }
       } else {
         unassigned.push(customer);
       }
@@ -1773,7 +1803,7 @@ export default function SchedulePage() {
           customer_email: customer.email,
           customer_phone: customer.phone,
           service_type: customer.service_type || 'lawn_mowing',
-          date: new Date().toISOString(),
+          date: new Date(completionDate + 'T12:00:00').toISOString(),
           city: customer.address?.split(',')[1]?.trim() || '',
           street_address: customer.address?.split(',')[0] || ''
         };
@@ -1805,13 +1835,13 @@ export default function SchedulePage() {
         }
       }
 
-      // Archive completion record for today
+      // Archive completion record for the selected date
       try {
-        const today = new Date().toISOString().split('T')[0];
+        const targetDate = completionDate;
         await fetch('/api/archive-daily-completions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ date: today })
+          body: JSON.stringify({ date: targetDate })
         });
       } catch (archiveError) {
         console.error('Error archiving completion:', archiveError);
@@ -3979,7 +4009,6 @@ export default function SchedulePage() {
                                         sendEmail: true,
                                         type: 'review',
                                         recipientName: apt.customer_name, // Pass for smarter logging
-                                        subject: `Checking in on your property! 🌿 - Flora Lawn & Landscaping`,
                                         message: 'It was a pleasure working on your property!'
                                       })
                                     });
@@ -4702,7 +4731,14 @@ export default function SchedulePage() {
               const daySearchTerm = daySearchTerms[day] || '';
               const searchResults = getSearchableCustomers(day, daySearchTerm);
               const isToday = day === `${getCurrentDayName()} ${getCurrentWeek()}` && selectedWeek === getCurrentWeek();
-              const dayCustomers = schedule[day] || [];
+              const rawDayCustomers = schedule[day] || [];
+              const dayCustomers = [...rawDayCustomers].sort((a, b) => {
+                const aIsRunning = !!activeJobTimers[a.id];
+                const bIsRunning = !!activeJobTimers[b.id];
+                if (aIsRunning && !bIsRunning) return -1;
+                if (!aIsRunning && bIsRunning) return 1;
+                return 0;
+              });
               const completedCount = completedCustomers[day]?.length || 0;
               const earningsData = earnings.daily[day];
               const progress = dayCustomers.length > 0 ? (completedCount / dayCustomers.length) * 100 : 0;
@@ -4928,6 +4964,8 @@ export default function SchedulePage() {
                             setSendingReviewFor={setSendingReviewFor}
                             jobPayments={jobPayments}
                             togglePaymentByCustomerName={togglePaymentByCustomerName}
+                            setSelectedCustomerForReview={setSelectedCustomerForReview}
+                            setShowReviewModal={setShowReviewModal}
                           />
                         ))}
                       </div>
@@ -5199,16 +5237,32 @@ export default function SchedulePage() {
               </div>
 
               <div className="mb-4">
-                <label className="block text-xs font-semibold text-gray-400 mb-2 uppercase tracking-wider">Message to Customer</label>
+                <label className="block text-xs font-semibold text-gray-400 mb-2 uppercase tracking-wider">Completion Date</label>
+                <input
+                  type="date"
+                  value={completionDate}
+                  onChange={(e) => setCompletionDate(e.target.value)}
+                  className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-gray-200 outline-none focus:border-green-500/50"
+                />
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-xs font-semibold text-gray-400 mb-2 uppercase tracking-wider">Quick Templates</label>
                 <div className="flex flex-wrap gap-2 mb-3">
                    {[
-                     { label: 'Standard', msg: (name, svc) => `Hi ${name},\n\nGreat news! Your ${svc} has been successfully completed today. We took great care with your property and hope you're thrilled with how everything looks!` },
-                     { label: 'Great Results', msg: (name, svc) => `Hi ${name},\n\nYour property is looking absolutely fantastic after the ${svc} today! Everything went perfectly.` },
+                     { label: 'Standard', msg: (name, svc, date) => {
+                       const isToday = new Date(date + 'T12:00:00').toDateString() === new Date().toDateString();
+                       const timing = isToday ? 'today' : `on ${new Date(date + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}`;
+                       return `Hi ${name},\n\nGreat news! Your ${svc} was successfully completed ${timing}. We took great care with your property and hope you're thrilled with how everything looks!`;
+                     }},
+                     { label: 'Late Send', msg: (name, svc, date) => {
+                        return `Hi ${name},\n\nI realized I missed sending your service update! Your ${svc} was completed on ${new Date(date + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}. The property looks fantastic!`;
+                     }},
                      { label: 'Gate Status', msg: (name, svc) => `Hi ${name},\n\nJust finished the ${svc}! We made sure to close and lock the gate behind us. Have a great day!` },
                    ].map((btn) => (
                      <button
                        key={btn.label}
-                       onClick={() => setCompletionMessage(btn.msg(selectedCustomerForDone.name, selectedCustomerForDone.service_type || 'service'))}
+                       onClick={() => setCompletionMessage(btn.msg(selectedCustomerForDone.name, selectedCustomerForDone.service_type?.replace('_', ' ') || 'service', completionDate))}
                        className="px-3 py-1.5 bg-white/5 hover:bg-white/10 rounded-lg text-[9px] font-black uppercase tracking-widest text-gray-400 border border-white/5 transition-all"
                      >
                        {btn.label}
@@ -5224,7 +5278,7 @@ export default function SchedulePage() {
                 />
               </div>
 
-              <div className="mb-5 space-y-2">
+      <div className="mb-5 space-y-2">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input type="checkbox" checked={sendEmail} onChange={(e) => setSendEmail(e.target.checked)} className="w-4 h-4 text-green-500 bg-white/5 border-white/20 rounded focus:ring-green-500/30" />
                   <span className="text-sm text-gray-400">Send Email to {selectedCustomerForDone.email || 'N/A'}</span>
@@ -5245,6 +5299,99 @@ export default function SchedulePage() {
                 </button>
                 <button
                   onClick={() => { setShowMarkDoneModal(false); setSelectedCustomerForDone(null); setCompletionMessage(''); }}
+                  className="px-4 py-2.5 bg-white/5 text-gray-400 rounded-xl hover:bg-white/10 text-sm transition-all"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Review Request Modal */}
+        {showReviewModal && selectedCustomerForReview && (
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <div className="bg-[#1a1b23] rounded-2xl border border-white/10 max-w-md w-full p-6 shadow-2xl">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-bold text-white">Send Review Request</h3>
+                <button
+                  onClick={() => { setShowReviewModal(false); setSelectedCustomerForReview(null); setCompletionMessage(''); }}
+                  className="text-gray-500 hover:text-white transition-colors"
+                >
+                  <XCircleIcon className="h-6 w-6" />
+                </button>
+              </div>
+
+              <div className="mb-4 p-3 bg-indigo-500/10 rounded-xl border border-indigo-500/20">
+                <p className="text-sm font-semibold text-white">{selectedCustomerForReview.name}</p>
+                <p className="text-xs text-indigo-300/70">Requesting Google Review</p>
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-xs font-semibold text-gray-400 mb-2 uppercase tracking-wider">Quick Templates</label>
+                <div className="flex flex-wrap gap-2 mb-3">
+                   {[
+                     { label: 'Friendly', msg: (name) => `Hi ${name?.split(' ')[0] || name},\n\nIt was a pleasure working on your property recently! If you have 30 seconds, would you mind sharing your experience on Google? It helps us so much!` },
+                     { label: 'Business Focus', msg: (name) => `Hi ${name?.split(' ')[0] || name},\n\nAs a small local business, our reputation means everything. Would you mind leaving us a quick review on Google? Thank you for your support!` },
+                     { label: 'Short', msg: (name) => `Hi ${name?.split(' ')[0] || name}, hope you're loving the lawn! If you have a second to leave a review, we'd greatly appreciate it.` },
+                   ].map((btn) => (
+                     <button
+                       key={btn.label}
+                       onClick={() => setCompletionMessage(btn.msg(selectedCustomerForReview.name))}
+                       className="px-3 py-1.5 bg-white/5 hover:bg-white/10 rounded-lg text-[9px] font-black uppercase tracking-widest text-gray-400 border border-white/5 transition-all"
+                     >
+                       {btn.label}
+                     </button>
+                   ))}
+                </div>
+                <textarea
+                  value={completionMessage}
+                  onChange={(e) => setCompletionMessage(e.target.value)}
+                  rows="4"
+                  className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-gray-200 outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/20 placeholder-gray-600 resize-none"
+                  placeholder="Enter a message..."
+                />
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={async () => {
+                    try {
+                      setMarkingDone(true);
+                      const res = await fetch('/api/customers/send-message', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          customerData: { customer_email: selectedCustomerForReview.email, customer_name: selectedCustomerForReview.name },
+                          sendEmail: true,
+                          type: 'review',
+                          recipientName: selectedCustomerForReview.name,
+                          message: completionMessage
+                        })
+                      });
+                      if (res.ok) {
+                        setSuccessMessage('Review request sent!');
+                        setShowSuccessModal(true);
+                        setShowReviewModal(false);
+                        setSelectedCustomerForReview(null);
+                        setCompletionMessage('');
+                      } else {
+                        alert('Failed to send review.');
+                      }
+                    } catch (err) {
+                      console.error(err);
+                      alert('Error sending review.');
+                    } finally {
+                      setMarkingDone(false);
+                    }
+                  }}
+                  disabled={markingDone}
+                  className="flex-1 py-2.5 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-xl font-semibold text-sm hover:shadow-lg hover:shadow-indigo-500/25 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                >
+                  {markingDone ? 'Sending...' : 'Send Review Request'}
+                </button>
+                <button
+                  onClick={() => { setShowReviewModal(false); setSelectedCustomerForReview(null); setCompletionMessage(''); }}
                   className="px-4 py-2.5 bg-white/5 text-gray-400 rounded-xl hover:bg-white/10 text-sm transition-all"
                 >
                   Cancel
@@ -6337,7 +6484,9 @@ function CustomerCard({
   sendingReviewFor,
   setSendingReviewFor,
   jobPayments,
-  togglePaymentByCustomerName
+  togglePaymentByCustomerName,
+  setSelectedCustomerForReview,
+  setShowReviewModal
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -6751,26 +6900,11 @@ function CustomerCard({
             )}
             {day && isCompleted && customer.email && (
               <button
-                onClick={async (e) => {
+                onClick={(e) => {
                   e.stopPropagation();
-                  try {
-                    setSendingReviewFor(customer.id);
-                    const res = await fetch('/api/customers/send-message', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({
-                        customerData: { customer_email: customer.email, customer_name: customer.name },
-                        sendEmail: true,
-                        type: 'review',
-                        recipientName: customer.name, // Pass for smarter logging
-                        subject: `Checking in on your property! 🌿 - Flora Lawn & Landscaping`,
-                        message: 'It was a pleasure working on your property!'
-                      })
-                    });
-                    if (res.ok) alert(`Review request sent to ${customer.name}!`);
-                    else alert('Failed to send review.');
-                  } catch (err) { console.error(err); }
-                  finally { setSendingReviewFor(null); }
+                  setSelectedCustomerForReview({ ...customer, day });
+                  setCompletionMessage(`Hi ${customer.name?.split(' ')[0] || customer.name},\n\nIt was a pleasure working on your property recently! Would you mind taking 30 seconds to share your experience with us on Google? It helps our small business so much!`);
+                  setShowReviewModal(true);
                 }}
                 disabled={sendingReviewFor === customer.id}
                 className={`px-3 py-1.5 text-[11px] font-medium rounded-lg border transition-all flex items-center gap-1 ${

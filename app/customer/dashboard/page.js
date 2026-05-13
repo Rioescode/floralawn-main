@@ -920,8 +920,8 @@ export default function CustomerDashboard() {
                     className="w-5 h-5 text-green-600 bg-white border-2 border-gray-300 rounded focus:ring-green-500 focus:ring-2 mt-0.5"
                   />
                   <div>
-                    <span className="text-base font-medium text-gray-800 block">💡 Lawn Care Tips</span>
-                    <p className="text-sm text-gray-600">Helpful tips and advice for maintaining a beautiful lawn</p>
+                    <span className="text-base font-medium text-gray-800 block">💡 Email Status Updates</span>
+                    <p className="text-sm text-gray-600">Receive job appointment status, seasonal updates, and service reminders.</p>
                   </div>
                 </label>
 

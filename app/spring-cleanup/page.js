@@ -847,8 +847,8 @@ export default function SpringCleanupFunnel() {
                         className="w-5 h-5 text-green-600 bg-white border-2 border-gray-300 rounded focus:ring-green-500 focus:ring-2"
                       />
                       <div>
-                        <span className="text-base font-medium text-gray-800">📧 Yes, send me emails with:</span>
-                        <p className="text-sm text-gray-600">🎫 Exclusive coupons • 🍂 Seasonal reminders • 📢 Service updates • 💡 Lawn care tips</p>
+                        <span className="text-base font-medium text-gray-800">📧 Yes, send me email status updates:</span>
+                        <p className="text-sm text-gray-600">🎫 Job status • 📅 Appointment reminders • 🍂 Seasonal updates • 💡 Service info</p>
                       </div>
                     </label>
 
