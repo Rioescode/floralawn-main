@@ -19,7 +19,8 @@ import {
   MapPinIcon,
   EnvelopeIcon,
   PhoneIcon,
-  IdentificationIcon
+  IdentificationIcon,
+  ArrowPathIcon
 } from '@heroicons/react/24/outline';
 
 function InvoiceMakerContent() {
@@ -31,6 +32,7 @@ function InvoiceMakerContent() {
   const [docType, setDocType] = useState('Invoice'); // 'Invoice' | 'Quote'
   const [isManual, setIsManual] = useState(false);
   const [isManualBalance, setIsManualBalance] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
 
   const [invoiceData, setInvoiceData] = useState({
     customer_id: '',
@@ -204,7 +206,9 @@ function InvoiceMakerContent() {
     { name: "Hedge Trimming", rate: "" },
     { name: "Leaf Removal", rate: "" },
     { name: "Pruning", rate: "" },
-    { name: "Weed Control", rate: "" }
+    { name: "Weed Control", rate: "" },
+    { name: "Bed Edging", rate: "" },
+    { name: "Cleanup Bed / Weeds", rate: "" }
   ];
 
   const addQuickService = (qs) => {
@@ -243,10 +247,11 @@ function InvoiceMakerContent() {
   const updateService = (index, field, value) => {
     const newServices = [...invoiceData.services];
     newServices[index][field] = value;
-    if (field === 'quantity' || field === 'rate') {
+    if (field === 'quantity' || field === 'rate' || field === 'isOvergrown') {
       const quantity = parseFloat(newServices[index].quantity) || 0;
       const rate = parseFloat(newServices[index].rate) || 0;
-      newServices[index].amount = (quantity * rate).toFixed(2);
+      const multiplier = newServices[index].isOvergrown ? 1.5 : 1;
+      newServices[index].amount = (quantity * rate * multiplier).toFixed(2);
     }
     setInvoiceData(prev => ({ ...prev, services: newServices }));
   };
@@ -288,7 +293,7 @@ function InvoiceMakerContent() {
     return (sub - dep).toLocaleString('en-US', { minimumFractionDigits: 2 });
   };
 
-  const generateEliteInvoice = () => {
+  const generateEliteInvoice = async () => {
     let selectedCustomer = null;
     if (isManual) {
       selectedCustomer = invoiceData.manual_customer;
@@ -301,9 +306,31 @@ function InvoiceMakerContent() {
       return;
     }
 
+    setIsGenerating(true);
+
     const subtotal = calculateSubtotal();
     const deposit = parseFloat(invoiceData.deposit_amount) || 0;
     const balance = calculateBalanceFormatted();
+
+    let aiSummary = '';
+    try {
+      const breakdown = invoiceData.services.map(s => ({ name: s.description, price: s.amount }));
+      const res = await fetch('/api/quote-summary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          area: 'Custom Sized Property',
+          breakdown: breakdown,
+          totalQuote: subtotal
+        })
+      });
+      const data = await res.json();
+      if (data.summary) aiSummary = data.summary;
+      else if (data.error) aiSummary = `[AI Generation Failed: ${data.error}]`;
+    } catch (e) {
+      console.error("AI Summary generation failed:", e);
+      aiSummary = `[Network or Code Error: ${e.message}]`;
+    }
 
     const invoiceHTML = `
       <div style="font-family: 'Inter', system-ui, -apple-system, sans-serif; color: #1e293b; line-height: 1.5; padding: 40px; background: white; border-radius: 24px;">
@@ -347,6 +374,7 @@ function InvoiceMakerContent() {
                 <td style="padding: 20px 0; font-size: 15px; font-weight: 700; color: #0f172a;">
                   ${s.description}
                   ${s.frequency ? `<br><span style="font-size: 12px; font-weight: 600; color: #64748b; font-style: italic;">• Frequency: ${s.frequency}</span>` : ''}
+                  ${s.isOvergrown ? `<br><span style="font-size: 13px; font-weight: 800; color: #b45309; font-style: italic; margin-top: 4px; display: inline-block;">First Cut / Overgrown Rate: $${(parseFloat(s.rate || 0) * 1.5).toLocaleString('en-US', {minimumFractionDigits: 2})}</span>` : ''}
                   ${s.mulchColor ? `<br><span style="font-size: 12px; font-weight: 600; color: #64748b; font-style: italic;">• Color: ${s.mulchColor} Mulch</span>` : ''}
                   ${s.hedgeDetails ? `<br><span style="font-size: 12px; font-weight: 600; color: #64748b; font-style: italic;">• Covers: ${s.hedgeDetails}</span>` : ''}
                   ${s.includedTasks && s.includedTasks.length > 0 ? `<br><span style="font-size: 12px; font-weight: 600; color: #64748b; font-style: italic;">• Includes: ${s.includedTasks.join(', ')}</span>` : ''}
@@ -383,6 +411,30 @@ function InvoiceMakerContent() {
           </div>
         ` : ''}
 
+        ${aiSummary ? `
+          <div style="margin-top: 40px; padding: 24px; border-radius: 20px; background: linear-gradient(145deg, #f0fdf4 0%, #ecfdf5 100%); border: 1px solid #6ee7b7; box-shadow: 0 10px 25px -5px rgba(5, 150, 105, 0.1);">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.563 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/>
+              </svg>
+              <h3 style="font-size: 12px; font-weight: 900; text-transform: uppercase; color: #059669; margin: 0; letter-spacing: 0.1em;">AI Quote Analysis</h3>
+            </div>
+            <p style="font-size: 14px; font-weight: 600; color: #064e3b; margin: 0; line-height: 1.6;">${aiSummary.replace(/\*\*(.*?)\*\*/g, '<strong style="color: #047857; font-weight: 900; background: #d1fae5; padding: 0 4px; border-radius: 4px;">$1</strong>')}</p>
+          </div>
+        ` : ''}
+
+        <div style="margin-top: 60px; padding: 30px; border-radius: 24px; background: #f8fafc; border: 2px solid #e2e8f0; position: relative; overflow: hidden;">
+          <div style="position: absolute; top: 0; left: 0; width: 4px; height: 100%; background: #10b981;"></div>
+          <h3 style="font-size: 14px; font-weight: 900; text-transform: uppercase; color: #0f172a; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            The Flora Guarantee
+          </h3>
+          <p style="font-size: 15px; font-weight: 800; color: #10b981; margin-bottom: 6px;">Not 100% happy?</p>
+          <p style="font-size: 13px; font-weight: 500; color: #64748b; line-height: 1.5; margin: 0;">
+            Let us know within 3 days and we'll come right back to fix it. 99% of our services delight customers. For the rare 1%, we make it right.
+          </p>
+        </div>
+
         <div style="margin-top: 80px; padding-top: 30px; border-top: 1px solid #f1f5f9; text-align: center;">
           <p style="font-size: 12px; font-weight: 900; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.1em; font-style: italic;">Thank you for choosing Flora Lawn & Landscaping — Rhode Island's Finest</p>
         </div>
@@ -390,6 +442,7 @@ function InvoiceMakerContent() {
     `;
     
     setGeneratedInvoice(invoiceHTML);
+    setIsGenerating(false);
     setTimeout(() => {
       document.getElementById('invoice-preview-container')?.scrollIntoView({ behavior: 'smooth' });
     }, 500);
@@ -589,14 +642,15 @@ function InvoiceMakerContent() {
                             {invoiceData.services.map((service, index) => {
                                const descLower = service.description?.toLowerCase() || '';
                                const isMowing = descLower.includes('mowing');
-                               const isCleanup = descLower.includes('cleanup');
+                               const isCleanup = descLower.includes('cleanup') || descLower.includes('clean beds') || descLower.includes('bed / weeds');
                                const isMulch = descLower.includes('mulch');
                                const isHedge = descLower.includes('hedge') || descLower.includes('trimming') || descLower.includes('pruning');
                                const cleanupTasks = [
                                  "Blow out entire yard and flower beds",
                                  "Pick up fallen branches and sticks",
                                  "Haul away and dispose of yard debris",
-                                 "Cut back perennials and ornamental grasses"
+                                 "Cut back perennials and ornamental grasses",
+                                 "Weed flower beds"
                                ];
 
                                return (
@@ -618,15 +672,22 @@ function InvoiceMakerContent() {
                                   {(isMowing || isCleanup || isMulch || isHedge) && (
                                     <div className="col-span-12 mt-2 pt-4 border-t border-white/10">
                                       {isMowing && (
-                                        <div className="flex items-center gap-4 text-sm font-bold text-slate-400 mb-3">
-                                           <span className="text-xs uppercase tracking-widest text-slate-500">Frequency:</span>
-                                           <label className="flex items-center gap-2 cursor-pointer hover:text-white transition-colors">
-                                             <input type="radio" name={`freq-${index}`} checked={service.frequency === 'Weekly'} onChange={() => updateService(index, 'frequency', 'Weekly')} className="accent-green-500 w-4 h-4" /> Weekly
-                                           </label>
-                                           <label className="flex items-center gap-2 cursor-pointer hover:text-white transition-colors">
-                                             <input type="radio" name={`freq-${index}`} checked={service.frequency === 'Bi-Weekly'} onChange={() => updateService(index, 'frequency', 'Bi-Weekly')} className="accent-green-500 w-4 h-4" /> Bi-Weekly
-                                           </label>
-                                        </div>
+                                         <div className="flex flex-wrap items-center gap-4 text-sm font-bold text-slate-400 mb-3">
+                                            <div className="flex items-center gap-4">
+                                               <span className="text-xs uppercase tracking-widest text-slate-500">Frequency:</span>
+                                               <label className="flex items-center gap-2 cursor-pointer hover:text-white transition-colors">
+                                                 <input type="radio" name={`freq-${index}`} checked={service.frequency === 'Weekly'} onChange={() => updateService(index, 'frequency', 'Weekly')} className="accent-green-500 w-4 h-4" /> Weekly
+                                               </label>
+                                               <label className="flex items-center gap-2 cursor-pointer hover:text-white transition-colors">
+                                                 <input type="radio" name={`freq-${index}`} checked={service.frequency === 'Bi-Weekly'} onChange={() => updateService(index, 'frequency', 'Bi-Weekly')} className="accent-green-500 w-4 h-4" /> Bi-Weekly
+                                               </label>
+                                            </div>
+                                            <div className="h-4 w-[1px] bg-white/20 mx-2 hidden sm:block"></div>
+                                            <label className="flex items-center gap-2 cursor-pointer text-orange-400 hover:text-orange-300 transition-colors">
+                                              <input type="checkbox" checked={service.isOvergrown || false} onChange={(e) => updateService(index, 'isOvergrown', e.target.checked)} className="accent-orange-500 w-4 h-4 rounded border-white/20 bg-slate-900" /> 
+                                              Include Overgrown Price (1.5x)
+                                            </label>
+                                         </div>
                                       )}
                                       {isMulch && (
                                         <div className="flex items-center gap-4 text-sm font-bold text-slate-400 mb-3">
@@ -684,10 +745,10 @@ function InvoiceMakerContent() {
                          <div className="flex flex-col gap-4">
                             <button 
                               onClick={generateEliteInvoice}
-                              disabled={(!isManual && !invoiceData.customer_id) || (isManual && !invoiceData.manual_customer.name)}
+                              disabled={(!isManual && !invoiceData.customer_id) || (isManual && !invoiceData.manual_customer.name) || isGenerating}
                               className="w-full bg-green-600 hover:bg-green-500 text-white font-black p-8 rounded-[2rem] text-xl shadow-2xl transition-all disabled:opacity-30 italic group flex items-center justify-center gap-4"
                             >
-                               Finalize Elite {docType} <ArrowRightIcon className="w-6 h-6 group-hover:translate-x-2 transition-transform" />
+                               {isGenerating ? <><SparklesIcon className="w-6 h-6 animate-spin" /> Enhancing with AI...</> : <>Finalize Elite {docType} <ArrowRightIcon className="w-6 h-6 group-hover:translate-x-2 transition-transform" /></>}
                             </button>
                          </div>
                       </div>
@@ -699,6 +760,14 @@ function InvoiceMakerContent() {
                       <div className="flex flex-col sm:flex-row items-center justify-between mb-10 px-10 gap-6 text-center sm:text-left">
                          <h2 className="text-4xl font-black italic tracking-tight">{docType} <span className="text-green-500">Preview</span></h2>
                          <div className="flex flex-wrap items-center justify-center sm:justify-end gap-4">
+                            <button 
+                               onClick={generateEliteInvoice}
+                               disabled={isGenerating}
+                               className="flex items-center gap-3 bg-white/5 hover:bg-white/10 px-8 py-5 rounded-2xl border border-white/10 transition-all font-black text-xs uppercase tracking-widest text-green-400 disabled:opacity-50"
+                             >
+                                {isGenerating ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <SparklesIcon className="w-4 h-4" />} 
+                                {isGenerating ? 'Regenerating...' : 'Regenerate Analysis'}
+                             </button>
                             <button 
                               onClick={async () => {
                                 const btn = document.getElementById('send-email-btn');

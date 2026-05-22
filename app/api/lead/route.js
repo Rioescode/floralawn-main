@@ -53,7 +53,7 @@ export async function POST(req) {
 
     // Send email to the owner
     await sendEmail({
-      to: "esckoofficial@gmail.com",
+      to: "floralawncareri@gmail.com",
       subject: `🚨 New Lead: ${body.name || 'Website User'} - $${body.price}`,
       text: `New Lead: ${body.name || 'Website User'} requested a quote for $${body.price}.`,
       html: htmlContent,

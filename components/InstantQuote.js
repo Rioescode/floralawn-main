@@ -58,6 +58,7 @@ export default function InstantQuoteMap({ onQuoteComplete, selectedPlace, setSel
   const [customMulchYards, setCustomMulchYards] = useState(0);
   const [treeTrimCount, setTreeTrimCount] = useState(0);
   const [shrubCounts, setShrubCounts] = useState({ small: 0, medium: 0, large: 0 });
+  const [bedEdgingFt, setBedEdgingFt] = useState(0);
   
   const [customJobs, setCustomJobs] = useState([{ id: Date.now(), details: '', price: 0 }]);
   
@@ -80,6 +81,34 @@ export default function InstantQuoteMap({ onQuoteComplete, selectedPlace, setSel
   const [hasPartialSent, setHasPartialSent] = useState(false);
   const [isSubmittingLead, setIsSubmittingLead] = useState(false);
   const [leadStatus, setLeadStatus] = useState(null);
+  
+  const [isOvergrown, setIsOvergrown] = useState(false);
+  const [aiQuoteSummary, setAiQuoteSummary] = useState('');
+  const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
+
+  const generateAiSummary = async () => {
+    setIsGeneratingSummary(true);
+    setAiQuoteSummary('');
+    try {
+      const res = await fetch('/api/quote-summary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          area: currentArea,
+          breakdown: getFullBreakdown(),
+          totalQuote: totalQuote
+        })
+      });
+      const data = await res.json();
+      if (data.summary) {
+        setAiQuoteSummary(data.summary);
+      }
+    } catch (e) {
+      console.error(e);
+      setAiQuoteSummary("Could not generate summary at this time.");
+    }
+    setIsGeneratingSummary(false);
+  };
 
   const drawingTargetRef = useRef('lawn');
   const isDrawingModeRef = useRef(false);
@@ -337,6 +366,7 @@ export default function InstantQuoteMap({ onQuoteComplete, selectedPlace, setSel
   const services = [
     { id: 'mowing', name: `${mowingFrequency === 'weekly' ? 'Weekly' : 'Bi-Weekly'} Mowing`, icon: '✂️', description: 'Trim, edge, and blow' },
     { id: 'mulch', name: 'Mulch Install', icon: '🪵', description: 'Premium dyed mulch' },
+    { id: 'bed_edging', name: 'Bed Edging', icon: '⛏️', description: 'Create sharp, clean bed edges' },
     { id: 'dethatching', name: 'Dethatching', icon: '🧹', description: 'Power-rake thatch removal' },
     { id: 'overseeding', name: 'Overseeding', icon: '🌱', description: 'Precision seed & labor' },
     { id: 'spring', name: 'Spring Cleanup', icon: '🌼', description: 'Debris & leaf removal' },
@@ -373,13 +403,18 @@ export default function InstantQuoteMap({ onQuoteComplete, selectedPlace, setSel
          bp = area <= mowingBaseLimit ? mowingBase : (mowingBase + (Math.ceil(Math.max(0, area - mowingBaseLimit) / 1000) * mowingPer1k));
        }
        
-       return Math.round(bp * mult);
+       const finalBase = Math.round(bp * mult);
+       return isOvergrown ? Math.round(finalBase * 1.5) : finalBase;
     }
     if (id === 'mulch') {
        const mp = pricingConfig.mulchPrices?.[mulchColor] || 135;
        let y = customMulchYards > 0 ? customMulchYards : (mulchSqFt > 0 ? (mulchSqFt * (pricingConfig.mulchDepth/12))/27 : (mulchBeds.small*0.5+mulchBeds.medium+mulchBeds.large*2));
        const ec = mulchEdged ? Math.round((mulchSqFt > 0 ? Math.sqrt(mulchSqFt)*4 : y*30) * (pricingConfig.mulchEdgingPrice || 1.25)) : 0;
        return Math.max(0, Math.ceil(y * mp) + ec);
+    }
+    if (id === 'bed_edging') {
+       const ft = bedEdgingFt > 0 ? bedEdgingFt : Math.round(Math.sqrt(area) * 2.5);
+       return Math.max(0, Math.round(ft * (pricingConfig.mulchEdgingPrice || 1.25)));
     }
     if (id === 'dethatching') return Math.round(dethatchBase * (area < 5000 ? 1 : area < 10000 ? 1.7 : 2.5));
     if (id === 'overseeding') {
@@ -879,6 +914,12 @@ export default function InstantQuoteMap({ onQuoteComplete, selectedPlace, setSel
                                           ))}
                                        </div>
                                        <button 
+                                          onClick={(e) => { e.stopPropagation(); setIsOvergrown(!isOvergrown); }} 
+                                          className={`w-full py-3 mb-2 rounded-xl border text-[9px] font-black uppercase transition-all flex items-center justify-center gap-2 ${isOvergrown ? 'bg-green-500 border-green-600 text-white shadow-md' : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100'}`}
+                                       >
+                                          {isOvergrown ? <><CheckBadgeIcon className="w-4 h-4" /> First Cut / Overgrown (1.5x Rate)</> : 'Add First Cut / Overgrown'}
+                                       </button>
+                                       <button 
                                           onClick={() => document.getElementById('lead-form-anchor')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
                                           className="w-full py-4 bg-gradient-to-r from-green-600 to-emerald-500 hover:from-green-500 hover:to-emerald-400 text-white font-black uppercase text-[10px] tracking-widest rounded-xl shadow-[0_10px_20px_-10px_rgba(34,197,94,0.4)] hover:shadow-[0_15px_25px_-10px_rgba(34,197,94,0.5)] flex justify-center items-center gap-2 transition-all active:scale-[0.98]"
                                         >
@@ -910,12 +951,32 @@ export default function InstantQuoteMap({ onQuoteComplete, selectedPlace, setSel
                                                    <button key={c} onClick={() => setMulchColor(c)} className={`flex-1 py-4 rounded-xl border text-[9px] font-black uppercase transition-all ${mulchColor === c ? 'bg-amber-500 border-amber-600 text-white shadow-xl' : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100'}`}><span>{c}</span></button>
                                                 ))}
                                              </div>
+                                             <button 
+                                                onClick={(e) => { e.stopPropagation(); setMulchEdged(!mulchEdged); }} 
+                                                className={`w-full py-3 rounded-xl border text-[9px] font-black uppercase transition-all flex items-center justify-center gap-2 ${mulchEdged ? 'bg-green-500 border-green-600 text-white shadow-md' : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100'}`}
+                                             >
+                                                {mulchEdged ? <><CheckBadgeIcon className="w-4 h-4" /> Bed Edging Added</> : 'Add Bed Edging'}
+                                             </button>
                                           </div>
                                           <button onClick={(e) => { e.stopPropagation(); startDrawing('mulch'); }} className="w-full py-5 bg-amber-500 hover:bg-amber-400 text-white font-black uppercase rounded-2xl text-[10px] shadow-xl flex items-center justify-center gap-3 transition-all font-bold">
                                              {mulchSqFt > 0 ? <><PlusIcon className="w-4 h-4" /> Add Another Bed</> : <><MapPinIcon className="w-4 h-4" /> Precision Draw Beds</>}
                                           </button>
                                        </div>
                                     )}
+                                    {s.id === 'bed_edging' && (
+                                        <div className="space-y-6 p-4 rounded-3xl bg-slate-50 border border-slate-200 font-bold">
+                                           <div className="flex justify-between items-center mb-1"><p className="text-[10px] font-black text-slate-500 uppercase">Estimated Edging Total</p><p className="text-sm font-black text-slate-700 italic">{bedEdgingFt > 0 ? bedEdgingFt : Math.round(Math.sqrt(currentArea) * 2.5)} FT</p></div>
+                                           <div className="flex bg-white p-1 rounded-xl gap-2 border border-slate-200 shadow-sm">
+                                                 <input 
+                                                    type="number" 
+                                                    placeholder="Linear Feet..." 
+                                                    value={bedEdgingFt || ''} 
+                                                    onChange={(e) => setBedEdgingFt(Number(e.target.value))}
+                                                    className="w-full bg-transparent border-none focus:ring-0 text-slate-900 font-black p-3 text-xs placeholder-slate-400 uppercase tracking-widest"
+                                                 />
+                                           </div>
+                                        </div>
+                                     )}
                                     {s.id === 'overseeding' && (
                                        <div className="space-y-6 p-4 rounded-3xl bg-emerald-50 border border-emerald-100 font-bold">
                                           <div className="flex justify-between items-center mb-1"><p className="text-[10px] font-black text-emerald-600 uppercase">Isolated Seeding Total</p><p className="text-sm font-black text-emerald-700 italic">{(overseedSqFt || 0).toLocaleString()} SQFT</p></div>
@@ -1001,6 +1062,29 @@ export default function InstantQuoteMap({ onQuoteComplete, selectedPlace, setSel
                            )}
                         </div>
                         <p className="text-4xl lg:text-6xl font-black text-green-500 italic tracking-tighter leading-none">${totalQuote.toLocaleString()}</p>
+                     </div>
+                     
+                     {/* AI Summary Block */}
+                     <div className="px-2 lg:px-4 mb-6">
+                        {!aiQuoteSummary ? (
+                           <button 
+                              onClick={generateAiSummary}
+                              disabled={isGeneratingSummary}
+                              className="w-full py-4 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+                           >
+                              {isGeneratingSummary ? (
+                                 <><SparklesIcon className="w-4 h-4 animate-spin" /> Generating AI Explanation...</>
+                              ) : (
+                                 <><SparklesIcon className="w-4 h-4 text-green-400" /> Explain This Quote (AI)</>
+                              )}
+                           </button>
+                        ) : (
+                           <div className="bg-green-50 border border-green-200 rounded-xl p-5 relative overflow-hidden">
+                              <SparklesIcon className="w-32 h-32 text-green-500/10 absolute -top-10 -right-10 pointer-events-none" />
+                              <p className="text-[10px] font-black text-green-600 uppercase tracking-widest flex items-center gap-2 mb-2"><SparklesIcon className="w-3 h-3" /> Claude AI Quote Summary</p>
+                              <p className="text-xs text-slate-700 leading-relaxed font-medium relative z-10">{aiQuoteSummary}</p>
+                           </div>
+                        )}
                      </div>
                      
                      {mapImageUrl && (

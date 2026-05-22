@@ -42,18 +42,25 @@ import {
 const DAYS_OF_WEEK = [
   'Monday Week 1',
   'Monday Week 2',
-  'Tuesday Week 1', 
+  'Monday Week 3',
+  'Tuesday Week 1',
   'Tuesday Week 2',
+  'Tuesday Week 3',
   'Wednesday Week 1',
   'Wednesday Week 2',
+  'Wednesday Week 3',
   'Thursday Week 1',
   'Thursday Week 2',
+  'Thursday Week 3',
   'Friday Week 1',
   'Friday Week 2',
+  'Friday Week 3',
   'Saturday Week 1',
   'Saturday Week 2',
+  'Saturday Week 3',
   'Sunday Week 1',
-  'Sunday Week 2'
+  'Sunday Week 2',
+  'Sunday Week 3'
 ];
 
 export default function SchedulePage() {
@@ -105,6 +112,7 @@ export default function SchedulePage() {
   const [completionDate, setCompletionDate] = useState(new Date().toISOString().split('T')[0]);
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [selectedCustomerForReview, setSelectedCustomerForReview] = useState(null);
+  const [isUnassignedExpanded, setIsUnassignedExpanded] = useState(true);
 
   // Email Preview Modal State
   const [showEmailModal, setShowEmailModal] = useState(false);
@@ -117,6 +125,11 @@ export default function SchedulePage() {
   const [aiInstructions, setAiInstructions] = useState('');
 
   const EMAIL_TEMPLATES = {
+    customer_message: {
+      name: 'Custom Message',
+      subject: (name) => `Update regarding your service - Flora Lawn`,
+      body: (name) => `Hi ${name || 'there'},\n\n[Type your message here]\n\nBest regards,\nFlora Lawn & Landscaping`
+    },
     fully_booked: {
       name: 'Fully Booked (Wait Next Week)',
       subject: (name) => `Update regarding your Spring Cleanup request - Flora Lawn`,
@@ -230,6 +243,15 @@ export default function SchedulePage() {
   const [scheduledReviews, setScheduledReviews] = useState([]); // Reviews pending (completed < 24h ago)
   const [sendingReviewFor, setSendingReviewFor] = useState(null); // id of lead currently sending review
   const [showQuickBIModal, setShowQuickBIModal] = useState(false);
+
+  // Service history modal
+  const [showServiceHistoryModal, setShowServiceHistoryModal] = useState(false);
+  const [serviceHistoryCustomer, setServiceHistoryCustomer] = useState(null);
+  const [serviceHistory, setServiceHistory] = useState([]);
+  const [loadingServiceHistory, setLoadingServiceHistory] = useState(false);
+
+  // Split timer: activeWorkTimers tracks work-only elapsed (after "Start Work" clicked)
+  const [activeWorkTimers, setActiveWorkTimers] = useState({});
   const [pricing, setPricing] = useState({
     lawn_mowing: { base_house: 50, base_sqft_limit: 6000, price_per_1k_sqft: 10, bi_weekly_surcharge: 1.3 },
     materials: { mulch_per_yd: 135, edging_per_ft: 1.25, mulch_depth_inches: 3, tree_trim_flat: 75 },
@@ -446,17 +468,55 @@ export default function SchedulePage() {
     return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
   };
 
+  // Returns the ISO date of the Monday that starts the current 3-week cycle's Week 1
+  const getCycleStartDate = () => {
+    const now = new Date();
+    // Get ISO week number
+    const d = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+    const dayNum = d.getUTCDay() || 7;
+    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    const isoWeek = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+    const mod = isoWeek % 3; // 1=W1, 2=W2, 0=W3
+    const weeksBack = mod === 1 ? 0 : mod === 2 ? 1 : 2;
+    // Find the Monday of the current week
+    const dayOfWeek = now.getDay();
+    const daysToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+    const monday = new Date(now);
+    monday.setDate(now.getDate() + daysToMonday - weeksBack * 7);
+    return `${monday.getFullYear()}-${String(monday.getMonth() + 1).padStart(2, '0')}-${String(monday.getDate()).padStart(2, '0')}`;
+  };
+
+  // Returns true if a scheduled day (e.g. "Monday Week 1") has already passed in the current cycle
+  const isPastDayInCurrentCycle = (dayString) => {
+    if (!dayString) return false;
+    const parts = dayString.split(' ');
+    if (parts.length < 3) return false;
+    const dayName = parts[0];
+    const week = parts[1] + ' ' + parts[2];
+    const currentWeek = (() => {
+      const weekNumber = Math.ceil(new Date().getDate() / 7);
+      return weekNumber % 2 === 0 ? 'Week 1' : 'Week 2';
+    })();
+    // Only flag past days of the SAME week as today
+    if (week !== currentWeek) return false;
+    const ORDER = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const dayIdx = ORDER.indexOf(dayName);
+    const todayIdx = new Date().getDay();
+    return dayIdx !== -1 && dayIdx < todayIdx;
+  };
+
   const saveCompletedCustomersToStorage = (completedData) => {
     if (typeof window !== 'undefined') {
-      const todayKey = getTodayKey();
-      localStorage.setItem(`completedCustomers_${todayKey}`, JSON.stringify(completedData));
+      const cycleKey = getCycleStartDate();
+      localStorage.setItem(`completedCustomers_cycle_${cycleKey}`, JSON.stringify(completedData));
     }
   };
 
   const loadCompletedCustomersFromStorage = () => {
     if (typeof window !== 'undefined') {
-      const todayKey = getTodayKey();
-      const saved = localStorage.getItem(`completedCustomers_${todayKey}`);
+      const cycleKey = getCycleStartDate();
+      const saved = localStorage.getItem(`completedCustomers_cycle_${cycleKey}`);
       return saved ? JSON.parse(saved) : {};
     }
     return {};
@@ -528,28 +588,39 @@ export default function SchedulePage() {
     }
   }, [showEditCustomerModal]);
 
-  // Live timer update effect
+  // Live timer update effect — tracks drive timer AND work-only timer separately
   useEffect(() => {
     const timer = setInterval(() => {
       const now = new Date();
-      const updatedTimers = {};
-      
+      const updatedJobTimers = {};
+      const updatedWorkTimers = {};
+
+      const fmt = (diffInSeconds) => {
+        const h = Math.floor(diffInSeconds / 3600);
+        const m = Math.floor((diffInSeconds % 3600) / 60);
+        const s = diffInSeconds % 60;
+        return `${h > 0 ? h + ':' : ''}${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+      };
+
       customers.forEach(customer => {
+        // Drive/total timer (job_started_at)
         if (customer.job_started_at) {
           const start = new Date(customer.job_started_at);
-          const diffInSeconds = Math.floor((now - start) / 1000);
-          if (diffInSeconds >= 0) {
-            const h = Math.floor(diffInSeconds / 3600);
-            const m = Math.floor((diffInSeconds % 3600) / 60);
-            const s = diffInSeconds % 60;
-            updatedTimers[customer.id] = `${h > 0 ? h + ':' : ''}${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-          }
+          const diff = Math.floor((now - start) / 1000);
+          if (diff >= 0) updatedJobTimers[customer.id] = fmt(diff);
+        }
+        // Work-only timer (work_started_at)
+        if (customer.work_started_at) {
+          const workStart = new Date(customer.work_started_at);
+          const diff = Math.floor((now - workStart) / 1000);
+          if (diff >= 0) updatedWorkTimers[customer.id] = fmt(diff);
         }
       });
-      
-      setActiveJobTimers(updatedTimers);
+
+      setActiveJobTimers(updatedJobTimers);
+      setActiveWorkTimers(updatedWorkTimers);
     }, 1000);
-    
+
     return () => clearInterval(timer);
   }, [customers]);
 
@@ -579,11 +650,19 @@ export default function SchedulePage() {
     return date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
   };
 
-  // Function to get current week based on date
+  // Function to get current week based on date (supports 3-week cycle via ISO week number)
   const getCurrentWeek = () => {
     const now = new Date();
-    const weekNumber = Math.ceil(now.getDate() / 7);
-    return weekNumber % 2 === 0 ? 'Week 1' : 'Week 2';
+    // ISO week number: weeks from start of year
+    const d = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+    const dayNum = d.getUTCDay() || 7;
+    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    const isoWeek = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+    const mod = isoWeek % 3;
+    if (mod === 1) return 'Week 1';
+    if (mod === 2) return 'Week 2';
+    return 'Week 3';
   };
 
   // Function to get date for a day string (e.g., "Tuesday Week 2")
@@ -634,14 +713,15 @@ export default function SchedulePage() {
     setSelectedWeek(currentWeek);
   }, []);
 
-  // Load completed customers from appointments table
+  // Load completed customers from appointments table — only for the current bi-weekly cycle
   const loadCompletedCustomersFromDB = async () => {
     try {
+      const cycleStart = getCycleStartDate(); // e.g. "2026-05-18"
       const { data: completedAppointments, error } = await supabase
         .from('appointments')
-        .select('customer_id, date, status')
+        .select('customer_id, date, updated_at, status')
         .eq('status', 'completed')
-        .gte('date', new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]); // Last 14 days
+        .gte('updated_at', cycleStart); // Only this cycle's completions
 
       if (error) {
         console.error('Error loading completed customers:', error);
@@ -651,7 +731,7 @@ export default function SchedulePage() {
       // Get customer IDs and fetch their scheduled_day
       if (completedAppointments && completedAppointments.length > 0) {
         const customerIds = [...new Set(completedAppointments.map(apt => apt.customer_id).filter(Boolean))];
-        
+
         if (customerIds.length > 0) {
           const { data: customersData } = await supabase
             .from('customers')
@@ -660,14 +740,12 @@ export default function SchedulePage() {
 
           // Group by scheduled_day
           const completedByDay = {};
-          
+
           completedAppointments.forEach(apt => {
             const customer = customersData?.find(c => c.id === apt.customer_id);
             if (customer && customer.scheduled_day) {
               const dayKey = customer.scheduled_day;
-              if (!completedByDay[dayKey]) {
-                completedByDay[dayKey] = [];
-              }
+              if (!completedByDay[dayKey]) completedByDay[dayKey] = [];
               if (!completedByDay[dayKey].includes(apt.customer_id)) {
                 completedByDay[dayKey].push(apt.customer_id);
               }
@@ -840,7 +918,7 @@ export default function SchedulePage() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        router.push('/login');
+        router.push('/login?redirect=/schedule');
         return;
       }
       
@@ -856,13 +934,22 @@ export default function SchedulePage() {
     }
   };
 
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut();
+      router.push('/login');
+    } catch (error) {
+      console.error('Error logging out:', error);
+    }
+  };
+
   const fetchCustomers = async () => {
     try {
       const { data, error } = await supabase
         .from('customers')
         .select('*')
         .in('status', ['active', 'pending'])
-        .in('frequency', ['weekly', 'bi_weekly'])
+        .in('frequency', ['weekly', 'bi_weekly', 'tri_weekly'])
         .order('name');
 
       if (error) throw error;
@@ -903,20 +990,19 @@ export default function SchedulePage() {
     customers.forEach(customer => {
       if (customer.scheduled_day && DAYS_OF_WEEK.includes(customer.scheduled_day)) {
         scheduleByDay[customer.scheduled_day].push(customer);
-        
-        // AUTO-POPULATE WEEKLY CUSTOMERS IN BOTH WEEKS
+
+        // AUTO-POPULATE WEEKLY CUSTOMERS IN WEEK 1 AND WEEK 2
         if (customer.frequency === 'weekly') {
-          const otherWeek = customer.scheduled_day.includes('Week 1') 
-            ? customer.scheduled_day.replace('Week 1', 'Week 2')
-            : customer.scheduled_day.replace('Week 2', 'Week 1');
-          
-          if (DAYS_OF_WEEK.includes(otherWeek)) {
-            // Avoid duplicates
-            if (!scheduleByDay[otherWeek].some(c => c.id === customer.id)) {
-              scheduleByDay[otherWeek].push(customer);
+          ['Week 1', 'Week 2'].forEach(week => {
+            const otherDay = customer.scheduled_day.replace(/Week \d/, week);
+            if (DAYS_OF_WEEK.includes(otherDay) && !scheduleByDay[otherDay].some(c => c.id === customer.id)) {
+              scheduleByDay[otherDay].push(customer);
             }
-          }
+          });
         }
+
+        // bi_weekly: stays in its assigned week only — no auto-populate
+        // tri_weekly: stays in its assigned week only — no auto-populate
       } else {
         unassigned.push(customer);
       }
@@ -1065,24 +1151,28 @@ export default function SchedulePage() {
       const dayCustomers = scheduleByDay[day] || [];
       
       const weeklyEarnings = dayCustomers
-        .filter(c => c.frequency === 'weekly')
+        .filter(c => c.frequency === 'weekly' && !c.maintenance_paused)
         .reduce((sum, c) => sum + parseFloat(c.price || 0), 0);
       
       const biWeeklyEarnings = dayCustomers
-        .filter(c => c.frequency === 'bi_weekly')
+        .filter(c => c.frequency === 'bi_weekly' && !c.maintenance_paused)
+        .reduce((sum, c) => sum + parseFloat(c.price || 0), 0);
+
+      const triWeeklyEarnings = dayCustomers
+        .filter(c => c.frequency === 'tri_weekly' && !c.maintenance_paused)
         .reduce((sum, c) => sum + parseFloat(c.price || 0), 0);
 
       dailyEarnings[day] = {
         weekly: weeklyEarnings,
         biWeekly: biWeeklyEarnings,
-        total: weeklyEarnings + biWeeklyEarnings,
+        total: weeklyEarnings + biWeeklyEarnings + triWeeklyEarnings,
         weeklyCount: dayCustomers.filter(c => c.frequency === 'weekly').length,
         biWeeklyCount: dayCustomers.filter(c => c.frequency === 'bi_weekly').length,
         totalCount: dayCustomers.length
       };
 
       weeklyTotal += weeklyEarnings;
-      biWeeklyTotal += biWeeklyEarnings;
+      biWeeklyTotal += biWeeklyEarnings + triWeeklyEarnings;
       
       // Calculate week-specific earnings
       if (day.includes('Week 1')) {
@@ -1143,8 +1233,10 @@ export default function SchedulePage() {
         const amountDue = parseFloat(job.amount_due || 0);
         const balance = amountDue - amountPaid;
 
-        // Store status by customer name (simplified for quick lookup on card)
-        paymentsMap[job.customer_name] = job.payment_status;
+        // Only store the LATEST job status per customer (data is sorted desc so first occurrence wins)
+        if (!paymentsMap[job.customer_name]) {
+          paymentsMap[job.customer_name] = job.payment_status;
+        }
 
         if (job.payment_status === 'paid') {
           stats[week].paid += amountPaid;
@@ -1180,20 +1272,28 @@ export default function SchedulePage() {
         .eq('id', jobId);
 
       if (error) throw error;
-      
-      await fetchPaymentStats();
+
+      // Do NOT call fetchPaymentStats() here — it would overwrite the optimistic UI state.
+      // The caller (togglePaymentByCustomerName) already set jobPayments optimistically.
       setSuccessMessage(`Payment marked as ${newStatus}!`);
       setShowSuccessModal(true);
+      return newStatus; // Return so caller knows the resolved status
     } catch (err) {
       console.error('Error toggling payment status:', err);
       alert('Failed to update payment status');
+      throw err; // Re-throw so caller can revert optimistic update
     }
   };
 
   const togglePaymentByCustomerName = async (customerName) => {
+    // Optimistically update local state immediately so UI is always responsive
+    const currentStatus = jobPayments[customerName] || 'unpaid';
+    const newStatus = currentStatus === 'paid' ? 'unpaid' : 'paid';
+    setJobPayments(prev => ({ ...prev, [customerName]: newStatus }));
+
     try {
-      // Find the latest completed job for this customer
-      const { data: jobs, error: fetchError } = await supabase
+      // 1. Try exact name match first
+      let { data: jobs, error: fetchError } = await supabase
         .from('completed_jobs')
         .select('id, payment_status, amount_due')
         .eq('customer_name', customerName)
@@ -1201,14 +1301,57 @@ export default function SchedulePage() {
         .limit(1);
 
       if (fetchError) throw fetchError;
-      
+
+      // 2. If no exact match, try case-insensitive search
+      if (!jobs || jobs.length === 0) {
+        const { data: jobsIlike, error: ilikeError } = await supabase
+          .from('completed_jobs')
+          .select('id, payment_status, amount_due')
+          .ilike('customer_name', customerName)
+          .order('job_date', { ascending: false })
+          .limit(1);
+        if (!ilikeError && jobsIlike?.length > 0) jobs = jobsIlike;
+      }
+
+      // 3. If still no record, create one from the customers table so payment can be tracked
+      if (!jobs || jobs.length === 0) {
+        const { data: customerData } = await supabaseAdmin
+          .from('customers')
+          .select('id, name, email, phone, address, price, service_type')
+          .ilike('name', customerName)
+          .limit(1)
+          .single();
+
+        const amountDue = customerData?.price || 0;
+        const { data: newJob, error: insertError } = await supabaseAdmin
+          .from('completed_jobs')
+          .insert({
+            customer_name: customerName,
+            customer_email: customerData?.email || '',
+            customer_phone: customerData?.phone || null,
+            customer_address: customerData?.address || null,
+            service_type: customerData?.service_type || 'lawn_mowing',
+            job_date: new Date().toISOString(),
+            completed_date: new Date().toISOString(),
+            amount_due: amountDue,
+            amount_paid: 0,
+            payment_status: 'unpaid',
+          })
+          .select('id, payment_status, amount_due')
+          .single();
+
+        if (insertError) throw insertError;
+        if (newJob) jobs = [newJob];
+      }
+
       if (jobs && jobs.length > 0) {
+        // Toggle using the real current DB status (not our optimistic guess)
         await togglePaymentStatus(jobs[0].id, jobs[0].payment_status, jobs[0].amount_due);
-      } else {
-        alert(`Could not find a completed job record for ${customerName} to update payment status.`);
       }
     } catch (err) {
       console.error('Error toggling payment:', err);
+      // Revert optimistic update on failure
+      setJobPayments(prev => ({ ...prev, [customerName]: currentStatus }));
     }
   };
 
@@ -1385,6 +1528,24 @@ export default function SchedulePage() {
     }
   };
 
+  // Toggle maintenance pause — keeps customer in schedule but greys out & excludes from monthly total
+  const toggleCustomerPause = async (customerId, currentlyPaused) => {
+    const newPaused = !currentlyPaused;
+    try {
+      const { error } = await supabase
+        .from('customers')
+        .update({ maintenance_paused: newPaused })
+        .eq('id', customerId);
+      if (error) throw error;
+      setCustomers(prev => prev.map(c =>
+        c.id === customerId ? { ...c, maintenance_paused: newPaused } : c
+      ));
+    } catch (err) {
+      console.error('Error toggling pause:', err);
+      alert(`Failed to update: ${err?.message || err}`);
+    }
+  };
+
   const handleBulkScratchCustomers = async () => {
     if (!selectedCustomers.length) return;
     if (!confirm(`Are you sure you want to scratch ${selectedCustomers.length} customers from this year's schedule? This marks them as cancelled.`)) return;
@@ -1476,17 +1637,61 @@ export default function SchedulePage() {
       const now = new Date().toISOString();
       const { error } = await supabaseAdmin
         .from('customers')
-        .update({ job_started_at: now })
+        .update({ job_started_at: now, work_started_at: null })
         .eq('id', customerId);
 
       if (error) throw error;
 
       setCustomers(prev => prev.map(c => 
-        c.id === customerId ? { ...c, job_started_at: now } : c
+        c.id === customerId ? { ...c, job_started_at: now, work_started_at: null } : c
       ));
     } catch (error) {
       console.error('Error starting job:', error);
       alert('Failed to start job timer');
+    }
+  };
+
+  // Start the work-only clock (tap after arriving on site)
+  const startWork = async (customerId) => {
+    try {
+      const now = new Date().toISOString();
+      const { error } = await supabaseAdmin
+        .from('customers')
+        .update({ work_started_at: now })
+        .eq('id', customerId);
+
+      if (error) throw error;
+
+      setCustomers(prev => prev.map(c =>
+        c.id === customerId ? { ...c, work_started_at: now } : c
+      ));
+    } catch (error) {
+      console.error('Error starting work timer:', error);
+      alert('Failed to start work timer');
+    }
+  };
+
+  // Fetch service history for a customer from appointments table
+  const fetchServiceHistory = async (customer) => {
+    setServiceHistoryCustomer(customer);
+    setShowServiceHistoryModal(true);
+    setLoadingServiceHistory(true);
+    try {
+      const { data, error } = await supabase
+        .from('appointments')
+        .select('date, updated_at, status, duration_minutes, service_type, notes')
+        .eq('customer_id', customer.id)
+        .eq('status', 'completed')
+        .order('updated_at', { ascending: false })
+        .limit(30);
+
+      if (error) throw error;
+      setServiceHistory(data || []);
+    } catch (err) {
+      console.error('Error fetching service history:', err);
+      setServiceHistory([]);
+    } finally {
+      setLoadingServiceHistory(false);
     }
   };
 
@@ -1578,13 +1783,13 @@ export default function SchedulePage() {
     try {
       const { error } = await supabaseAdmin
         .from('customers')
-        .update({ job_started_at: null })
+        .update({ job_started_at: null, work_started_at: null })
         .eq('id', customerId);
 
       if (error) throw error;
 
       setCustomers(prev => prev.map(c => 
-        c.id === customerId ? { ...c, job_started_at: null } : c
+        c.id === customerId ? { ...c, job_started_at: null, work_started_at: null } : c
       ));
     } catch (error) {
       console.error('Error cancelling job:', error);
@@ -1600,9 +1805,18 @@ export default function SchedulePage() {
       setMarkingDone(true);
       const customer = selectedCustomerForDone;
       
-      // Calculate duration if timer was active
+      // Calculate duration — prefer work-only timer, fall back to full job timer
       let durationMinutes = null;
-      if (customer.job_started_at) {
+      let driveDurationMinutes = null;
+      if (customer.work_started_at) {
+        const workStart = new Date(customer.work_started_at);
+        const end = new Date();
+        durationMinutes = Math.max(0, Math.round((end - workStart) / (1000 * 60)));
+        if (customer.job_started_at) {
+          const jobStart = new Date(customer.job_started_at);
+          driveDurationMinutes = Math.max(0, Math.round((workStart - jobStart) / (1000 * 60)));
+        }
+      } else if (customer.job_started_at) {
         const start = new Date(customer.job_started_at);
         const end = new Date();
         durationMinutes = Math.max(0, Math.round((end - start) / (1000 * 60)));
@@ -1627,7 +1841,9 @@ export default function SchedulePage() {
           .update({ 
             last_service: new Date().toISOString().split('T')[0],
             job_started_at: null,
+            work_started_at: null,
             last_job_duration_minutes: durationMinutes,
+            last_drive_duration_minutes: driveDurationMinutes,
             service_count: (customer.service_count || 0) + 1
           })
           .eq('id', customer.id);
@@ -1638,8 +1854,10 @@ export default function SchedulePage() {
         setCustomers(prev => prev.map(c => 
           c.id === customer.id ? { 
             ...c, 
-            job_started_at: null, 
-            last_job_duration_minutes: durationMinutes, 
+            job_started_at: null,
+            work_started_at: null,
+            last_job_duration_minutes: durationMinutes,
+            last_drive_duration_minutes: driveDurationMinutes,
             last_service: new Date().toISOString().split('T')[0],
             service_count: (c.service_count || 0) + 1
           } : c
@@ -2217,7 +2435,7 @@ export default function SchedulePage() {
       setEditingCustomerData(null);
     } catch (err) {
       console.error('Error updating customer:', err);
-      alert('Failed to update customer');
+      alert(`Failed to update customer: ${err?.message || err}`);
     }
   };
 
@@ -2401,6 +2619,23 @@ export default function SchedulePage() {
     setShowEmailModal(true);
   };
 
+  const openEmailModalForCustomer = (customer) => {
+    if (!customer.email) {
+      alert("This customer does not have an email address on file.");
+      return;
+    }
+    setSelectedEmailLead({
+      id: customer.id,
+      customer_name: customer.name,
+      customer_email: customer.email,
+      isCustomer: true
+    });
+    setEmailTemplate('customer_message');
+    setEmailSubject(EMAIL_TEMPLATES.customer_message.subject(customer.name));
+    setEmailBody(EMAIL_TEMPLATES.customer_message.body(customer.name));
+    setShowEmailModal(true);
+  };
+
   const handleTemplateChange = (templateKey) => {
     setEmailTemplate(templateKey);
     const template = EMAIL_TEMPLATES[templateKey];
@@ -2413,16 +2648,24 @@ export default function SchedulePage() {
     
     try {
       setSendingEmail(true);
-      const response = await fetch('/api/leads/send-booked-email', {
+      const isCustomer = selectedEmailLead.isCustomer;
+      const endpoint = isCustomer ? '/api/send-customer-email' : '/api/leads/send-booked-email';
+      const bodyPayload = isCustomer ? {
+        email: selectedEmailLead.customer_email,
+        subject: emailSubject,
+        message: emailBody
+      } : {
+        customer_email: selectedEmailLead.customer_email,
+        customer_name: selectedEmailLead.customer_name,
+        lead_id: selectedEmailLead.id,
+        subject: emailSubject,
+        body: emailBody
+      };
+
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          customer_email: selectedEmailLead.customer_email,
-          customer_name: selectedEmailLead.customer_name,
-          lead_id: selectedEmailLead.id,
-          subject: emailSubject,
-          body: emailBody
-        })
+        body: JSON.stringify(bodyPayload)
       });
       
       if (response.ok) {
@@ -3316,6 +3559,13 @@ export default function SchedulePage() {
                 <SparklesIcon className="h-3 w-3 text-green-400 group-hover:scale-125 transition-transform" />
                 <span className="text-[10px] font-black uppercase tracking-widest text-green-400">Quick BI</span>
               </button>
+              
+              <button 
+                onClick={handleLogout}
+                className="flex items-center gap-2 px-3 py-1 bg-red-500/10 border border-red-500/20 rounded-full hover:bg-red-500/20 transition-all group ml-2"
+              >
+                <span className="text-[10px] font-black uppercase tracking-widest text-red-400">Log Out</span>
+              </button>
             </div>
             <p className="text-sm text-gray-400 mt-1">
               {getCurrentDayName()}, {getCurrentWeek()} &bull; {customers.length} active customers
@@ -3524,13 +3774,15 @@ export default function SchedulePage() {
 
               {/* Week Toggle - compact */}
               <div className="flex bg-white/5 rounded-xl p-0.5 border border-white/10 shrink-0">
-                {['Week 1', 'Week 2'].map(week => (
+              {['Week 1', 'Week 2', 'Week 3'].map(week => (
                   <button
                     key={week}
                     onClick={() => { setSelectedWeek(week); setSelectedDay(null); }}
                     className={`px-3 sm:px-4 py-2 rounded-lg text-xs font-bold transition-all duration-200 ${
                       selectedWeek === week
-                        ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-lg shadow-green-500/30'
+                        ? week === 'Week 3'
+                          ? 'bg-gradient-to-r from-purple-500 to-violet-600 text-white shadow-lg shadow-purple-500/30'
+                          : 'bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-lg shadow-green-500/30'
                         : 'text-gray-500 hover:text-white'
                     }`}
                   >
@@ -4574,18 +4826,30 @@ export default function SchedulePage() {
         {/* === UNASSIGNED CUSTOMERS === */}
         {unassignedCustomers.length > 0 && viewMode === 'schedule' && (
           <div className="mb-6">
-            <div className="bg-white/5 backdrop-blur-xl rounded-2xl border border-orange-500/20 p-4 sm:p-6">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+            <div className="bg-white/5 backdrop-blur-xl rounded-2xl border border-orange-500/20 p-4 sm:p-6 transition-all duration-300">
+              <div 
+                className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 cursor-pointer group rounded-xl p-2 -m-2 hover:bg-white/5 transition-colors"
+                onClick={() => setIsUnassignedExpanded(!isUnassignedExpanded)}
+              >
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-gradient-to-br from-orange-500 to-amber-600 rounded-xl shadow-lg shadow-orange-500/20">
+                  <div className="p-2 bg-gradient-to-br from-orange-500 to-amber-600 rounded-xl shadow-lg shadow-orange-500/20 group-hover:scale-105 transition-transform">
                     <ClockIcon className="h-5 w-5 text-white" />
                   </div>
                   <div>
-                    <h2 className="text-lg font-bold text-white">Unassigned</h2>
+                    <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                      Unassigned
+                      <svg 
+                        className={`w-5 h-5 text-gray-400 transition-transform duration-300 ${isUnassignedExpanded ? 'rotate-180' : ''}`} 
+                        fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </h2>
                     <p className="text-xs text-gray-400">{unassignedCustomers.length} waiting to be scheduled</p>
                   </div>
                 </div>
-                <div className="flex flex-wrap gap-2">
+                {isUnassignedExpanded && (
+                  <div className="flex flex-wrap gap-2" onClick={(e) => e.stopPropagation()}>
                   {Object.keys(proximityData).length > 0 && (
                     <button
                       onClick={() => {
@@ -4601,6 +4865,19 @@ export default function SchedulePage() {
                       <MapPinIcon className="h-3.5 w-3.5" />Sort by Distance
                     </button>
                   )}
+                  <button
+                    onClick={() => {
+                      const sorted = [...unassignedCustomers].sort((a, b) => {
+                        const dateA = new Date(a.created_at || 0).getTime();
+                        const dateB = new Date(b.created_at || 0).getTime();
+                        return dateB - dateA; // Newest first
+                      });
+                      setUnassignedCustomers(sorted);
+                    }}
+                    className="px-3 py-2 text-xs font-semibold text-emerald-400 bg-emerald-500/10 rounded-xl hover:bg-emerald-500/20 border border-emerald-500/20 transition-all flex items-center gap-1"
+                  >
+                    📅 Sort by Date Added
+                  </button>
                   <button onClick={selectAllUnassigned} className="px-3 py-2 text-xs font-semibold text-gray-400 bg-white/5 rounded-xl hover:bg-white/10 border border-white/10 transition-all">
                     {selectedCustomers.length === unassignedCustomers.length ? 'Deselect All' : 'Select All'}
                   </button>
@@ -4620,8 +4897,11 @@ export default function SchedulePage() {
                     </button>
                   )}
                 </div>
+                )}
               </div>
 
+              {isUnassignedExpanded && (
+                <>
               {selectedCustomers.length > 0 && (
                 <div className="mb-4 p-3 bg-white/5 border border-white/10 rounded-xl flex items-center justify-between gap-4 flex-wrap">
                   <div className="flex items-center gap-3">
@@ -4717,9 +4997,17 @@ export default function SchedulePage() {
                     setSendingReviewFor={setSendingReviewFor}
                     jobPayments={jobPayments}
                     togglePaymentByCustomerName={togglePaymentByCustomerName}
+                    startWork={startWork}
+                    activeWorkTimers={activeWorkTimers}
+                    fetchServiceHistory={fetchServiceHistory}
+                    isPastDay={false}
+                    toggleCustomerPause={toggleCustomerPause}
+                    openEmailModalForCustomer={openEmailModalForCustomer}
                   />
                 ))}
               </div>
+              </>
+              )}
             </div>
           </div>
         )}
@@ -4966,6 +5254,12 @@ export default function SchedulePage() {
                             togglePaymentByCustomerName={togglePaymentByCustomerName}
                             setSelectedCustomerForReview={setSelectedCustomerForReview}
                             setShowReviewModal={setShowReviewModal}
+                            startWork={startWork}
+                            activeWorkTimers={activeWorkTimers}
+                            fetchServiceHistory={fetchServiceHistory}
+                            isPastDay={isPastDayInCurrentCycle(day)}
+                            toggleCustomerPause={toggleCustomerPause}
+                            openEmailModalForCustomer={openEmailModalForCustomer}
                           />
                         ))}
                       </div>
@@ -5492,7 +5786,8 @@ export default function SchedulePage() {
                       className="w-full p-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white outline-none focus:border-green-500/50"
                     >
                       <option value="weekly">Weekly</option>
-                      <option value="bi_weekly">Bi-Weekly</option>
+                      <option value="bi_weekly">Bi-Weekly (Every 2 Weeks)</option>
+                      <option value="tri_weekly">Tri-Weekly (Every 3 Weeks)</option>
                     </select>
                   </div>
                 </div>
@@ -5881,6 +6176,103 @@ export default function SchedulePage() {
         )}
 
 
+        {/* === SERVICE HISTORY MODAL === */}
+        {showServiceHistoryModal && serviceHistoryCustomer && (
+          <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md" onClick={() => setShowServiceHistoryModal(false)}>
+            <div className="bg-[#0f172a] w-full max-w-md rounded-3xl border border-white/10 shadow-2xl shadow-orange-500/10 overflow-hidden" onClick={e => e.stopPropagation()}>
+              {/* Header */}
+              <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-white/5">
+                <div>
+                  <p className="text-[10px] font-black text-orange-400 uppercase tracking-widest mb-0.5">Service History</p>
+                  <h3 className="text-lg font-black text-white tracking-tight">{serviceHistoryCustomer.name}</h3>
+                  <p className="text-xs text-gray-500 mt-0.5">{serviceHistoryCustomer.address?.split(',')[0]}</p>
+                </div>
+                <button onClick={() => setShowServiceHistoryModal(false)} className="w-9 h-9 flex items-center justify-center rounded-xl bg-white/5 hover:bg-white/10 transition-colors">
+                  <XMarkIcon className="h-5 w-5 text-gray-400" />
+                </button>
+              </div>
+
+              {/* Stats bar */}
+              <div className="flex items-center gap-4 px-6 py-3 bg-orange-500/5 border-b border-orange-500/10">
+                <div className="text-center">
+                  <p className="text-lg font-black text-orange-400">{serviceHistoryCustomer.service_count || 0}</p>
+                  <p className="text-[9px] text-gray-500 uppercase tracking-widest font-bold">Total Visits</p>
+                </div>
+                <div className="w-px h-8 bg-white/5"></div>
+                <div className="text-center">
+                  <p className="text-lg font-black text-green-400">${serviceHistoryCustomer.price || 0}</p>
+                  <p className="text-[9px] text-gray-500 uppercase tracking-widest font-bold">Per Visit</p>
+                </div>
+                <div className="w-px h-8 bg-white/5"></div>
+                <div className="text-center">
+                  <p className="text-lg font-black text-blue-400">{serviceHistoryCustomer.last_job_duration_minutes ? `${serviceHistoryCustomer.last_job_duration_minutes}m` : '--'}</p>
+                  <p className="text-[9px] text-gray-500 uppercase tracking-widest font-bold">Last Duration</p>
+                </div>
+                {serviceHistoryCustomer.last_drive_duration_minutes && (
+                  <>
+                    <div className="w-px h-8 bg-white/5"></div>
+                    <div className="text-center">
+                      <p className="text-lg font-black text-purple-400">{serviceHistoryCustomer.last_drive_duration_minutes}m</p>
+                      <p className="text-[9px] text-gray-500 uppercase tracking-widest font-bold">Drive Time</p>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* History List */}
+              <div className="max-h-80 overflow-y-auto px-6 py-4 space-y-2">
+                {loadingServiceHistory ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="w-6 h-6 border-2 border-orange-500/30 border-t-orange-500 rounded-full animate-spin"></div>
+                    <span className="ml-3 text-sm text-gray-500">Loading history...</span>
+                  </div>
+                ) : serviceHistory.length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-2xl mb-2">📋</p>
+                    <p className="text-sm text-gray-500">No recorded service visits yet.</p>
+                    <p className="text-xs text-gray-600 mt-1">Visits tracked after marking jobs done.</p>
+                  </div>
+                ) : (
+                  serviceHistory.map((entry, i) => {
+                    // Use updated_at (actual completion time) — date is the scheduled slot which can be future-dated
+                    const rawDate = entry.updated_at || entry.date;
+                    const d = rawDate ? new Date(rawDate) : null;
+                    const formattedDate = d ? d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) : 'Unknown date';
+                    return (
+                      <div key={i} className="flex items-center justify-between p-3 bg-white/[0.03] border border-white/[0.06] rounded-2xl hover:bg-white/[0.05] transition-colors">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 bg-orange-500/10 border border-orange-500/20 rounded-xl flex items-center justify-center text-orange-400 text-xs font-black">
+                            {i + 1}
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold text-white">{formattedDate}</p>
+                            <p className="text-[10px] text-gray-500 capitalize">{(entry.service_type || 'lawn mowing').replace(/_/g, ' ')}</p>
+                          </div>
+                        </div>
+                        {entry.duration_minutes && (
+                          <div className="text-right">
+                            <p className="text-xs font-black text-purple-400">{entry.duration_minutes}m</p>
+                            <p className="text-[9px] text-gray-600 uppercase tracking-widest">work</p>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              <div className="px-6 pb-6 pt-2">
+                <button
+                  onClick={() => setShowServiceHistoryModal(false)}
+                  className="w-full py-3 bg-white/5 hover:bg-white/10 text-gray-400 rounded-2xl text-xs font-black uppercase tracking-widest transition-all"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* === SUCCESS MODAL === */}
         {showSuccessModal && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
@@ -6255,7 +6647,8 @@ export default function SchedulePage() {
                       <label className="block text-xs font-bold text-gray-400 mb-1">Frequency</label>
                       <select value={editingCustomerData.frequency} onChange={(e) => handleEditCustomerChange('frequency', e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-blue-500 outline-none appearance-none">
                         <option value="weekly" className="bg-gray-900">Weekly</option>
-                        <option value="bi_weekly" className="bg-gray-900">Bi-Weekly</option>
+                        <option value="bi_weekly" className="bg-gray-900">Bi-Weekly (Every 2 Weeks)</option>
+                        <option value="tri_weekly" className="bg-gray-900">Tri-Weekly (Every 3 Weeks)</option>
                       </select>
                     </div>
                   </div>
@@ -6486,7 +6879,13 @@ function CustomerCard({
   jobPayments,
   togglePaymentByCustomerName,
   setSelectedCustomerForReview,
-  setShowReviewModal
+  setShowReviewModal,
+  startWork,
+  activeWorkTimers,
+  fetchServiceHistory,
+  isPastDay,
+  toggleCustomerPause,
+  openEmailModalForCustomer
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -6539,11 +6938,16 @@ function CustomerCard({
   const isCompleted = day && completedCustomers[day]?.includes(customer.id);
   const isMoved = day && movedCustomers[day]?.includes(customer.id);
   const isSelected = day && daySelectionHandler ? selectedDayCustomers[day]?.includes(customer.id) : selectedCustomers.includes(customer.id);
+  const isPaused = customer.maintenance_paused;
+  // Show attention when day has passed this cycle and customer was NOT marked done
+  const needsAttention = isPastDay && !isCompleted && !isPaused && (customer.service_count > 0 || customer.last_service);
   
   return (
     <div 
       className={`relative group rounded-2xl overflow-hidden transition-all duration-500 ${
-        isCompleted ? 'bg-green-500/5 border border-green-500/20 shadow-lg shadow-green-500/5' 
+        isPaused ? 'bg-slate-900/40 border border-slate-700/30 opacity-60 grayscale-[0.5]'
+        : isCompleted ? 'bg-green-500/5 border border-green-500/20 shadow-lg shadow-green-500/5' 
+        : needsAttention ? 'bg-amber-500/5 border border-amber-500/30 shadow-lg shadow-amber-500/10'
         : isMoved ? 'bg-orange-500/5 border border-orange-500/20'
         : isSelected ? 'bg-blue-500/10 border border-blue-500/30 ring-1 ring-blue-500/20'
         : isDragOver ? 'bg-blue-500/15 border border-blue-500/40 scale-[1.02] shadow-2xl shadow-blue-500/20'
@@ -6563,8 +6967,19 @@ function CustomerCard({
 
       {/* Floating Status Badges - Top Right */}
       <div className="absolute top-3 right-3 flex items-center gap-1.5 z-10">
+        {isPaused && (
+          <span className="px-2 py-0.5 bg-slate-700 text-slate-200 text-[9px] font-black rounded-lg tracking-wider uppercase shadow-lg shadow-slate-900/40">⏸ Paused</span>
+        )}
+
         {newlyAddedIds.has(customer.id) && (
           <span className="px-2 py-0.5 bg-gradient-to-r from-violet-600 to-indigo-600 text-white text-[9px] font-black rounded-lg tracking-wider uppercase animate-bounce shadow-lg shadow-indigo-500/40">✦ New</span>
+        )}
+
+        {/* Attention badge — day passed, not yet done */}
+        {needsAttention && (
+          <span className="flex items-center gap-0.5 px-2 py-0.5 bg-amber-500 text-white text-[9px] font-black rounded-lg tracking-wider uppercase shadow-lg shadow-amber-500/40 animate-pulse">
+            ⚠️ Check
+          </span>
         )}
         
         {isCompleted && (
@@ -6594,10 +7009,19 @@ function CustomerCard({
         {isMoved && (
           <span className="px-2 py-0.5 bg-orange-500 text-white text-[9px] font-black rounded-lg uppercase tracking-wider shadow-lg shadow-orange-500/30">→ Moved</span>
         )}
+        {/* Drive + Work timer badge(s) */}
         {customer.job_started_at && activeJobTimers[customer.id] && !isCompleted && (
-          <div className="flex items-center gap-1 px-2 py-0.5 bg-gradient-to-r from-purple-600 to-blue-600 text-white text-[9px] font-black rounded-lg shadow-lg shadow-purple-500/40 animate-pulse">
-            <ClockIcon className="h-3 w-3" />
-            <span>{activeJobTimers[customer.id]}</span>
+          <div className="flex items-center gap-1 flex-wrap">
+            <div className="flex items-center gap-1 px-2 py-0.5 bg-gradient-to-r from-blue-700 to-blue-500 text-white text-[9px] font-black rounded-lg shadow-lg shadow-blue-500/40 animate-pulse">
+              <span>🚗</span>
+              <span>{activeJobTimers[customer.id]}</span>
+            </div>
+            {activeWorkTimers && activeWorkTimers[customer.id] && (
+              <div className="flex items-center gap-1 px-2 py-0.5 bg-gradient-to-r from-purple-600 to-violet-600 text-white text-[9px] font-black rounded-lg shadow-lg shadow-purple-500/40">
+                <span>🔨</span>
+                <span>{activeWorkTimers[customer.id]}</span>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -6670,12 +7094,23 @@ function CustomerCard({
               )}
 
               <div className={`px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider border ${
-                customer.frequency === 'weekly' 
-                  ? 'bg-emerald-500/5 text-emerald-400 border-emerald-500/20' 
+                customer.frequency === 'weekly'
+                  ? 'bg-emerald-500/5 text-emerald-400 border-emerald-500/20'
+                  : customer.frequency === 'tri_weekly'
+                  ? 'bg-purple-500/5 text-purple-400 border-purple-500/20'
                   : 'bg-cyan-500/5 text-cyan-400 border-cyan-500/20'
               }`}>
-                {customer.frequency === 'bi_weekly' ? 'Bi-Weekly' : 'Weekly'}
+                {customer.frequency === 'weekly' ? 'Weekly'
+                  : customer.frequency === 'tri_weekly' ? 'Every 3W'
+                  : 'Bi-Weekly'}
               </div>
+
+              {/* Show when the customer signed up/was added */}
+              {customer.created_at && (
+                <div className="px-2 py-1 bg-white/5 border border-white/10 rounded-lg text-[9px] font-bold text-gray-500 whitespace-nowrap">
+                  Added: {new Date(customer.created_at).toLocaleDateString()}
+                </div>
+              )}
 
               {hasProximityData && (distanceDisplay || travelTimeDisplay) && (
                 <div className="flex items-center gap-2 px-2 py-1 bg-white/5 border border-white/5 rounded-lg text-[9px] font-bold text-gray-500">
@@ -6689,11 +7124,15 @@ function CustomerCard({
                 </div>
               )}
 
-              {customer.last_service && (
-                <div className="px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider bg-orange-500/5 text-orange-400 border border-orange-500/20">
-                  Last Done: {formatShortDate(customer.last_service)}
-                </div>
-              )}
+        {customer.last_service && (
+          <button
+            onClick={(e) => { e.stopPropagation(); fetchServiceHistory && fetchServiceHistory(customer); }}
+            className="px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider bg-orange-500/5 text-orange-400 border border-orange-500/20 hover:bg-orange-500/20 transition-all cursor-pointer"
+            title="Click to see service history"
+          >
+            📋 Last: {formatShortDate(customer.last_service)}
+          </button>
+        )}
             </div>
           </div>
 
@@ -6931,6 +7370,15 @@ function CustomerCard({
                 Mark Done {activeJobTimers[customer.id] ? `(${activeJobTimers[customer.id]})` : ''}
               </button>
             )}
+            {day && !isCompleted && customer.job_started_at && !customer.work_started_at && (
+              <button
+                onClick={(e) => { e.stopPropagation(); startWork && startWork(customer.id); }}
+                className="px-3 py-1.5 text-[11px] font-medium text-violet-400 bg-violet-500/10 rounded-lg border border-violet-500/20 hover:bg-violet-500/20 transition-all flex items-center gap-1"
+                title="Start work timer (job only, no drive time)"
+              >
+                🔨 Start Work
+              </button>
+            )}
             {day && !isCompleted && !customer.job_started_at && (
               <button
                 onClick={(e) => { e.stopPropagation(); startJob(customer.id); }}
@@ -6971,9 +7419,23 @@ function CustomerCard({
                   className="px-3 py-1.5 text-[11px] font-medium text-amber-400 bg-amber-500/10 rounded-lg border border-amber-500/20 hover:bg-amber-500/20 transition-all flex items-center gap-1">
                   ✕ Scratch
                 </button>
+                {customer.email && (
+                  <button onClick={(e) => { e.stopPropagation(); openEmailModalForCustomer(customer); }}
+                    className="px-3 py-1.5 text-[11px] font-medium text-purple-400 bg-purple-500/10 rounded-lg border border-purple-500/20 hover:bg-purple-500/20 transition-all flex items-center gap-1">
+                    ✉️ Email
+                  </button>
+                )}
                 <button onClick={(e) => { e.stopPropagation(); removeCustomer(customer.id, customer.name); }}
                   className="px-3 py-1.5 text-[11px] font-medium text-red-400 bg-red-500/10 rounded-lg border border-red-500/20 hover:bg-red-500/20 transition-all flex items-center gap-1">
                   🗑 Delete
+                </button>
+                <button onClick={(e) => { e.stopPropagation(); toggleCustomerPause(customer.id, isPaused); }}
+                  className={`px-3 py-1.5 text-[11px] font-medium rounded-lg border transition-all flex items-center gap-1 ${
+                    isPaused 
+                      ? 'text-green-400 bg-green-500/10 border-green-500/20 hover:bg-green-500/20' 
+                      : 'text-slate-400 bg-slate-500/10 border-slate-500/20 hover:bg-slate-500/20'
+                  }`}>
+                  {isPaused ? '▶ Activate' : '⏸ Pause'}
                 </button>
                 <button onClick={(e) => { 
                   e.stopPropagation(); 

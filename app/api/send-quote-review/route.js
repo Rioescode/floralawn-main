@@ -11,7 +11,7 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    const adminEmail = 'esckoofficial@gmail.com';
+    const adminEmail = 'floralawncareri@gmail.com';
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://floralawn-and-landscaping.com';
 
     // Calculate discount if present in breakdown

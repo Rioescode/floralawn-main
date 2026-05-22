@@ -101,7 +101,7 @@ export const sendEmail = async ({ to, subject, text, html, replyTo, type, recipi
       subject,
       text,
       html,
-      ...(replyTo && { replyTo }),
+      replyTo: replyTo || config.resend.replyToEmail,
       headers,
     };
 

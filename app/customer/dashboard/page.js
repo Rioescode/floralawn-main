@@ -27,6 +27,8 @@ export default function CustomerDashboard() {
   const [cancelReason, setCancelReason] = useState('');
   const [skipDate, setSkipDate] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [user, setUser] = useState(null);
@@ -41,6 +43,12 @@ export default function CustomerDashboard() {
   });
   const [isOptingIn, setIsOptingIn] = useState(false);
   const [userRole, setUserRole] = useState(null);
+  
+  // Admin states
+  const [adminLeads, setAdminLeads] = useState([]);
+  const [adminNewCustomers, setAdminNewCustomers] = useState([]);
+  const [loadingAdmin, setLoadingAdmin] = useState(false);
+  
   const router = useRouter();
 
   useEffect(() => {
@@ -83,6 +91,10 @@ export default function CustomerDashboard() {
         .eq('id', user.id)
         .single();
       setUserRole(profile?.role);
+
+      if (profile?.role === 'admin') {
+        fetchAdminData();
+      }
     } catch (error) {
       console.error('Error checking user role:', error);
     }
@@ -91,6 +103,23 @@ export default function CustomerDashboard() {
       fetchServices(user),
       fetchAppointments(user.id)
     ]);
+  };
+
+  const fetchAdminData = async () => {
+    setLoadingAdmin(true);
+    try {
+      const [leadsRes, accountsRes] = await Promise.all([
+        supabase.from('contact_leads').select('*').in('status', ['new', 'pending']).order('created_at', { ascending: false }),
+        supabase.from('customers').select('*').not('user_id', 'is', null).order('created_at', { ascending: false }).limit(20)
+      ]);
+      
+      if (leadsRes.data) setAdminLeads(leadsRes.data);
+      if (accountsRes.data) setAdminNewCustomers(accountsRes.data);
+    } catch (err) {
+      console.error('Error fetching admin data:', err);
+    } finally {
+      setLoadingAdmin(false);
+    }
   };
 
   const checkSubscriptionStatus = async () => {
@@ -472,6 +501,40 @@ export default function CustomerDashboard() {
     }
   };
 
+  const handleDeleteAccount = async () => {
+    setIsDeleting(true);
+    setError('');
+    
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('Not authenticated');
+
+      const response = await fetch('/api/customers/delete-account', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`
+        }
+      });
+
+      const result = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to delete account');
+      }
+
+      // Success, sign them out and redirect
+      await supabase.auth.signOut();
+      router.push('/login?message=account-deleted');
+    } catch (error) {
+      console.error('Error deleting account:', error);
+      setError(error.message);
+      setShowDeleteModal(false);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -568,8 +631,76 @@ export default function CustomerDashboard() {
             </div>
           )}
 
-          {/* Tabs */}
-          <div className="mb-6 border-b border-gray-200">
+          {userRole === 'admin' ? (
+            <div className="space-y-8">
+              {/* Requested Jobs Section */}
+              <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+                <div className="p-6 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
+                  <h2 className="text-xl font-bold text-gray-900">Requested Jobs (Leads)</h2>
+                  <Link href="/schedule" className="text-sm text-green-600 hover:text-green-700 font-medium">View Schedule &rarr;</Link>
+                </div>
+                <div className="divide-y divide-gray-200">
+                  {loadingAdmin ? (
+                    <div className="p-6 text-center text-gray-500">Loading...</div>
+                  ) : adminLeads.length === 0 ? (
+                    <div className="p-6 text-center text-gray-500">No new requested jobs.</div>
+                  ) : (
+                    adminLeads.map(lead => (
+                      <div key={lead.id} className="p-4 hover:bg-gray-50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                        <div>
+                          <div className="font-semibold text-gray-900 flex items-center gap-2">
+                            {lead.customer_name}
+                            <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-purple-100 text-purple-700 rounded-full">
+                              {lead.status}
+                            </span>
+                          </div>
+                          <div className="text-sm text-gray-500 mt-1">{lead.service_type} - {lead.address}</div>
+                        </div>
+                        <div className="text-xs text-gray-400 font-medium whitespace-nowrap">
+                          {new Date(lead.created_at).toLocaleDateString()}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* New Accounts Section */}
+              <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+                <div className="p-6 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
+                  <h2 className="text-xl font-bold text-gray-900">New Account Creates</h2>
+                  <Link href="/customers" className="text-sm text-green-600 hover:text-green-700 font-medium">View All Customers &rarr;</Link>
+                </div>
+                <div className="divide-y divide-gray-200">
+                  {loadingAdmin ? (
+                    <div className="p-6 text-center text-gray-500">Loading...</div>
+                  ) : adminNewCustomers.length === 0 ? (
+                    <div className="p-6 text-center text-gray-500">No new accounts recently.</div>
+                  ) : (
+                    adminNewCustomers.map(cust => (
+                      <div key={cust.id} className="p-4 hover:bg-gray-50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                        <div>
+                          <div className="font-semibold text-gray-900 flex items-center gap-2">
+                            {cust.name}
+                            <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-blue-100 text-blue-700 rounded-full">
+                              New
+                            </span>
+                          </div>
+                          <div className="text-sm text-gray-500 mt-1">{cust.email} - {cust.phone || 'No phone'}</div>
+                        </div>
+                        <div className="text-xs text-gray-400 font-medium whitespace-nowrap">
+                          {new Date(cust.created_at).toLocaleDateString()}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* Tabs */}
+              <div className="mb-6 border-b border-gray-200">
             <nav className="-mb-px flex space-x-8">
               <button
                 onClick={() => setActiveTab('services')}
@@ -835,13 +966,34 @@ export default function CustomerDashboard() {
                       </div>
                     </div>
                   ))}
-                </div>
+</div>
               )}
             </div>
           )}
 
+              {/* Danger Zone */}
+              <div className="mt-12 mb-8 bg-red-50 rounded-xl border border-red-100 overflow-hidden">
+                <div className="p-6 sm:p-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                  <div>
+                    <h3 className="text-lg font-bold text-red-900 mb-1">Danger Zone</h3>
+                    <p className="text-sm text-red-700">
+                      Permanently delete your account. This action cannot be undone. You cannot delete your account if you have an unpaid balance.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setShowDeleteModal(true)}
+                    className="px-6 py-3 bg-red-600 text-white text-sm font-semibold rounded-lg hover:bg-red-700 transition-colors shadow-sm whitespace-nowrap"
+                  >
+                    Delete Account
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </div>
+
+
 
       {/* Opt-In Modal */}
       {showOptInModal && (
@@ -1351,6 +1503,71 @@ export default function CustomerDashboard() {
                         Cancelling...
                       </span>
                     ) : 'Cancel Service'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Account Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg max-w-lg w-full">
+            <div className="p-6">
+              <div className="flex justify-between items-start mb-6">
+                <div>
+                  <h2 className="text-xl font-semibold text-red-600 mb-1">Delete Account</h2>
+                  <p className="text-sm text-gray-600">Are you absolutely sure?</p>
+                </div>
+                <button
+                  onClick={() => setShowDeleteModal(false)}
+                  className="text-gray-400 hover:text-gray-500"
+                >
+                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <div className="space-y-6">
+                <div className="p-4 bg-red-50 border-l-4 border-red-500 rounded">
+                  <p className="text-sm text-red-800 font-medium mb-2">
+                    ⚠️ This action is irreversible.
+                  </p>
+                  <p className="text-xs text-red-700">
+                    Your account profile will be permanently deleted. You will immediately lose access to the dashboard. 
+                    <br/><br/>
+                    <strong>Note:</strong> If you currently have an unpaid balance on your account, the system will prevent the deletion.
+                  </p>
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-gray-100">
+                  <button
+                    onClick={() => setShowDeleteModal(false)}
+                    className="w-full sm:w-1/2 px-4 py-3 text-sm font-medium rounded-xl border-2 border-gray-300 text-gray-700 bg-white hover:bg-gray-50 transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleDeleteAccount}
+                    disabled={isDeleting}
+                    className={`w-full sm:w-1/2 px-4 py-3 rounded-xl text-white font-medium text-sm transition-all
+                      ${isDeleting
+                        ? 'bg-red-400 cursor-not-allowed'
+                        : 'bg-red-600 hover:bg-red-700 shadow-md shadow-red-500/20'
+                      }`}
+                  >
+                    {isDeleting ? (
+                      <span className="flex items-center justify-center">
+                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Deleting...
+                      </span>
+                    ) : 'Yes, Delete My Account'}
                   </button>
                 </div>
               </div>

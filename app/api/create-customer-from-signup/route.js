@@ -19,12 +19,14 @@ export async function POST(request) {
       );
     }
 
-    // Check if customer already exists
-    const { data: existingCustomer } = await supabaseAdmin
+    // Check if customer already exists by user_id
+    const { data: existingCustomerArray } = await supabaseAdmin
       .from('customers')
       .select('id')
       .eq('user_id', userId)
-      .maybeSingle();
+      .limit(1);
+      
+    const existingCustomer = existingCustomerArray?.[0];
 
     if (existingCustomer) {
       return NextResponse.json({
@@ -34,12 +36,14 @@ export async function POST(request) {
       });
     }
 
-    // Also check by email
-    const { data: existingByEmail } = await supabaseAdmin
+    // Also check by email (using limit 1 to prevent multiple row crash)
+    const { data: existingByEmailArray } = await supabaseAdmin
       .from('customers')
       .select('id')
       .eq('email', email)
-      .maybeSingle();
+      .limit(1);
+      
+    const existingByEmail = existingByEmailArray?.[0];
 
     if (existingByEmail) {
       // Update existing customer to link user_id
