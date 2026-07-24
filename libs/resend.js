@@ -1,4 +1,4 @@
-import { Resend } from "resend";
+﻿import { Resend } from "resend";
 import config from "@/config";
 
 let resend = null;
@@ -81,7 +81,7 @@ export const sendEmail = async ({ to, subject, text, html, replyTo }) => {
   });
 
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://floralawn-and-landscaping.com';
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://fallcleanups.com';
     const emailAddress = Array.isArray(to) ? to[0] : to;
     
     // Add headers for better deliverability (helps avoid promotions folder)

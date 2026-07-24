@@ -1,8 +1,8 @@
-export const businessInfo = {
-  name: "Flora Lawn & Landscaping Inc",
+﻿export const businessInfo = {
+  name: "Fall Cleanups Services",
   phone: "(401) 389-0913",
-  email: "floralawncareri@gmail.com",
-  secondaryEmail: "riyardworks@gmail.com",
+  email: "esckoofficial@gmail.com",
+  secondaryEmail: "FallCleanupsServices@gmail.com",
   address: {
     street: "45 Vernon St",
     city: "Pawtucket",

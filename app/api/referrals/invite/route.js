@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+﻿import { NextResponse } from 'next/server';
 import { sendEmail } from '@/libs/resend';
 import { supabase, supabaseAdmin } from '@/lib/supabase';
 
@@ -115,7 +115,7 @@ export async function POST(request) {
       }
     }
 
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://floralawn-and-landscaping.com';
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://fallcleanups.com';
     const contactLink = `${baseUrl}/contact?ref=${referralCode}`;
     
     const greeting = friendName ? `Hi ${friendName}` : 'Hi there';
@@ -123,14 +123,14 @@ export async function POST(request) {
     const emailHtml = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
         <div style="text-align: center; margin-bottom: 30px;">
-          <h1 style="color: #22C55E; margin-bottom: 10px;">🌿 Flora Lawn & Landscaping</h1>
+          <h1 style="color: #22C55E; margin-bottom: 10px;">🌿 Fall Cleanups Services</h1>
           <p style="color: #666; font-size: 14px;">Professional Lawn Care Services</p>
         </div>
 
         <div style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border-radius: 16px; padding: 30px; margin-bottom: 25px;">
           <h2 style="color: #1f2937; margin: 0 0 15px 0; font-size: 24px;">${greeting}! 👋</h2>
           <p style="color: #374151; font-size: 16px; line-height: 1.6; margin: 0;">
-            <strong style="color: #166534;">${referrerName}</strong> thinks you'd love Flora Lawn & Landscaping and wanted to share a special referral with you!
+            <strong style="color: #166534;">${referrerName}</strong> thinks you'd love Fall Cleanups Services and wanted to share a special referral with you!
           </p>
         </div>
 
@@ -185,7 +185,7 @@ export async function POST(request) {
         </div>
 
         <div style="background: #f9fafb; border-radius: 12px; padding: 20px; margin-bottom: 25px;">
-          <h3 style="color: #374151; margin: 0 0 15px 0; font-size: 16px;">✨ Why Choose Flora Lawn?</h3>
+          <h3 style="color: #374151; margin: 0 0 15px 0; font-size: 16px;">✨ Why Choose Fall Cleanups Services?</h3>
           <ul style="color: #4b5563; font-size: 14px; line-height: 1.8; margin: 0; padding-left: 20px;">
             <li>Professional lawn mowing & landscaping</li>
             <li>Reliable weekly, bi-weekly, or monthly service</li>
@@ -203,7 +203,7 @@ export async function POST(request) {
 
         <div style="text-align: center; border-top: 1px solid #e5e7eb; padding-top: 20px;">
           <p style="color: #6b7280; font-size: 12px; margin: 0 0 10px 0;">
-            Flora Lawn and Landscaping Inc<br>
+            Fall Cleanups Services<br>
             45 Vernon Street, Pawtucket, RI 02860<br>
             📞 (401) 389-0913
           </p>
@@ -217,7 +217,7 @@ export async function POST(request) {
     const emailText = `
 ${greeting}!
 
-${referrerName} thinks you'd love Flora Lawn & Landscaping and wanted to share a special referral with you!
+${referrerName} thinks you'd love Fall Cleanups Services and wanted to share a special referral with you!
 
 Your Referral Code: ${referralCode}
 
@@ -232,7 +232,7 @@ This code will be AUTOMATICALLY APPLIED when you click the link below!
 
 Get your free quote here: ${contactLink}
 
-Why Choose Flora Lawn?
+Why Choose Fall Cleanups Services?
 - Professional lawn mowing & landscaping
 - Reliable weekly, bi-weekly, or monthly service
 - Serving Rhode Island communities
@@ -241,7 +241,7 @@ Why Choose Flora Lawn?
 🎁 Referral Rewards: When you complete your first service, you'll both receive service credits! The more referrals, the bigger the rewards (up to $100 per referral)!
 
 ---
-Flora Lawn and Landscaping Inc
+Fall Cleanups Services
 45 Vernon Street, Pawtucket, RI 02860
 Phone: (401) 389-0913
     `;
@@ -249,10 +249,10 @@ Phone: (401) 389-0913
     // Send the email
     const result = await sendEmail({
       to: friendEmail,
-      subject: `${referrerName} invited you to Flora Lawn & Landscaping! 🌿`,
+      subject: `${referrerName} invited you to Fall Cleanups Services! 🌿`,
       text: emailText,
       html: emailHtml,
-      replyTo: 'floralawncareri@gmail.com'
+      replyTo: 'esckoofficial@gmail.com'
     });
 
     console.log('Referral invite email sent:', result);

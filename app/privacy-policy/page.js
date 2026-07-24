@@ -1,10 +1,10 @@
-import Navigation from "@/components/Navigation";
+﻿import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
 import { businessInfo } from "@/utils/business-info";
 
 export const metadata = {
-  title: 'Privacy Policy | Flora Lawn & Landscaping Inc',
-  description: 'Learn how Flora Lawn & Landscaping Inc collects, uses, and protects your personal information.',
+  title: 'Privacy Policy | Fall Cleanups Services',
+  description: 'Learn how Fall Cleanups Services collects, uses, and protects your personal information.',
 };
 
 export default function PrivacyPolicyPage() {
@@ -13,7 +13,7 @@ export default function PrivacyPolicyPage() {
       <Navigation />
 
       <main className="max-w-4xl mx-auto px-4 py-16">
-        <h1 className="text-4xl font-bold text-[#6B7280] mb-8">Flora Lawn & Landscaping Inc Privacy Policy</h1>
+        <h1 className="text-4xl font-bold text-[#6B7280] mb-8">Fall Cleanups Services Privacy Policy</h1>
         
         <div className="prose prose-lg max-w-none">
           <p className="text-gray-600 mb-8">Last updated: {new Date().toLocaleDateString()}</p>
@@ -56,7 +56,7 @@ export default function PrivacyPolicyPage() {
               <li>Respond to your inquiries and support requests</li>
             </ul>
             <p className="text-gray-600 mb-4">
-              <strong>Your Consent:</strong> By providing your phone number and checking the SMS opt-in box, you consent to receive automated text messages from Flora Lawn & Landscaping Inc. You are not required to consent to SMS messages as a condition of receiving our services.
+              <strong>Your Consent:</strong> By providing your phone number and checking the SMS opt-in box, you consent to receive automated text messages from Fall Cleanups Services You are not required to consent to SMS messages as a condition of receiving our services.
             </p>
             <p className="text-gray-600 mb-4">
               <strong>Opting Out:</strong> You can opt out at any time by replying "STOP" or "UNSUBSCRIBE" to any message, or by contacting us directly. Message and data rates may apply.
@@ -121,7 +121,7 @@ export default function PrivacyPolicyPage() {
               For privacy-related inquiries, please contact us at:
             </p>
             <div className="text-gray-600">
-              <p>Flora Lawn & Landscaping Inc</p>
+              <p>Fall Cleanups Services</p>
               <p>{businessInfo.address.street}</p>
               <p>{businessInfo.address.city}, {businessInfo.address.state} {businessInfo.address.zip}</p>
               <p>Phone: {businessInfo.phone}</p>

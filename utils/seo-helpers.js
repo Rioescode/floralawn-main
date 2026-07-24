@@ -1,4 +1,4 @@
-import config from '@/config';
+﻿import config from '@/config';
 
 // Get the base URL consistently
 export function getBaseUrl() {
@@ -11,12 +11,12 @@ export function generateLocalBusinessSchema(businessInfo) {
     '@context': 'https://schema.org',
     '@type': 'LocalBusiness',
     '@id': `${getBaseUrl()}#organization`,
-    name: businessInfo.name || 'Flora Lawn & Landscaping Inc',
+    name: businessInfo.name || 'Fall Cleanups Services',
     image: `${getBaseUrl()}/flora-logo-final.png`,
     '@id': `${getBaseUrl()}`,
     url: getBaseUrl(),
     telephone: businessInfo.phone || '(401) 389-0913',
-    email: businessInfo.email || 'floralawncareri@gmail.com',
+    email: businessInfo.email || 'esckoofficial@gmail.com',
     address: {
       '@type': 'PostalAddress',
       streetAddress: businessInfo.address?.street || '45 Vernon St',
@@ -78,7 +78,7 @@ export function generateServiceSchema(service, city) {
     serviceType: service.title,
     provider: {
       '@type': 'LocalBusiness',
-      name: 'Flora Lawn & Landscaping Inc',
+      name: 'Fall Cleanups Services',
       telephone: '(401) 389-0913'
     },
     areaServed: {

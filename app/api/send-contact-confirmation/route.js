@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+﻿import { NextResponse } from 'next/server';
 import { sendEmail } from '@/libs/resend';
 import { generalApiLimiter } from '@/lib/rate-limiter';
 import { validateEmail, validatePhone, sanitizeText } from '@/lib/validation';
@@ -25,8 +25,8 @@ export async function POST(request) {
     const origin = request.headers.get('origin');
     const referer = request.headers.get('referer');
     const allowedOrigins = [
-      'https://floralawn-and-landscaping.com',
-      'https://riyardworks.com',
+      'https://fallcleanups.com',
+      'https://fallcleanups.com',
       'http://localhost:3000' // For development
     ];
     
@@ -86,7 +86,7 @@ export async function POST(request) {
     const emailHtml = `
       <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; border: 1px solid #f1f5f9; border-radius: 20px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.05);">
         <div style="background-color: #0f172a; padding: 40px; text-align: center; border-bottom: 5px solid #22c55e;">
-          <img src="https://floralawn-and-landscaping.com/flora-logo-final.png" alt="Flora Lawn &amp; Landscaping" style="width: 180px; height: auto; margin-bottom: 15px;">
+          <img src="https://fallcleanups.com/flora-logo-final.png" alt="Fall Cleanups Services &amp; Landscaping" style="width: 180px; height: auto; margin-bottom: 15px;">
           <p style="color: #94a3b8; font-size: 10px; text-transform: uppercase; letter-spacing: 0.3em; margin-top: 8px; font-weight: 800;">Professional Property Care</p>
         </div>
 
@@ -160,15 +160,15 @@ export async function POST(request) {
             <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="width: 100%;">
               <tr>
                 <td style="vertical-align: middle; padding-right: 20px; border-right: 1px solid #e2e8f0; width: 80px;">
-                  <img src="https://floralawn-and-landscaping.com/flora-logo-final.png" alt="Flora Lawn" style="width: 72px; height: 72px; object-fit: contain; display: block;">
+                  <img src="https://fallcleanups.com/flora-logo-final.png" alt="Fall Cleanups Services" style="width: 72px; height: 72px; object-fit: contain; display: block;">
                 </td>
                 <td style="vertical-align: middle; padding-left: 20px;">
                   <p style="margin: 0; font-size: 16px; font-weight: 800; color: #0f172a;">Rafael Escobar</p>
-                  <p style="margin: 2px 0 0 0; font-size: 11px; font-weight: 700; color: #22c55e; text-transform: uppercase; letter-spacing: 0.08em;">Owner &middot; Flora Lawn &amp; Landscaping Inc</p>
+                  <p style="margin: 2px 0 0 0; font-size: 11px; font-weight: 700; color: #22c55e; text-transform: uppercase; letter-spacing: 0.08em;">Owner &middot; Fall Cleanups Services</p>
                   <p style="margin: 8px 0 0 0; font-size: 12px; color: #64748b; line-height: 1.9;">
                     📞 <a href="tel:4013890913" style="color: #64748b; text-decoration: none;">(401) 389-0913</a>&nbsp;&nbsp;
-                    📧 <a href="mailto:floralawncareri@gmail.com" style="color: #64748b; text-decoration: none;">floralawncareri@gmail.com</a><br>
-                    🌐 <a href="https://floralawn-and-landscaping.com" style="color: #22c55e; text-decoration: none; font-weight: 700;">floralawn-and-landscaping.com</a>&nbsp;&nbsp;
+                    📧 <a href="mailto:esckoofficial@gmail.com" style="color: #64748b; text-decoration: none;">esckoofficial@gmail.com</a><br>
+                    🌐 <a href="https://fallcleanups.com" style="color: #22c55e; text-decoration: none; font-weight: 700;">fallcleanups.com</a>&nbsp;&nbsp;
                     📍 45 Vernon St, Pawtucket, RI 02860
                   </p>
                 </td>
@@ -179,7 +179,7 @@ export async function POST(request) {
 
         <div style="background-color: #0f172a; padding: 20px; text-align: center; border-top: 1px solid #1e293b;">
           <p style="color: #475569; font-size: 10px; font-weight: 700; margin: 0; text-transform: uppercase; letter-spacing: 0.1em;">
-            &copy; 2024 Flora Lawn &amp; Landscaping Inc &bull; Pawtucket, Rhode Island
+            &copy; 2024 Fall Cleanups Services &bull; Pawtucket, Rhode Island
           </p>
         </div>
       </div>
@@ -261,10 +261,10 @@ export async function POST(request) {
     try {
       const customerEmailResult = await sendEmail({
         to: sanitizedEmail,
-        subject: 'Thank You for Contacting Flora Lawn & Landscaping',
-        text: `Thank you for contacting Flora Lawn & Landscaping! We've received your inquiry and will get back to you within 1-6 hours during business days. For immediate assistance, call (401) 389-0913.`,
+        subject: 'Thank You for Contacting Fall Cleanups Services',
+        text: `Thank you for contacting Fall Cleanups Services! We've received your inquiry and will get back to you within 1-6 hours during business days. For immediate assistance, call (401) 389-0913.`,
         html: emailHtml,
-        replyTo: 'floralawncareri@gmail.com'
+        replyTo: 'esckoofficial@gmail.com'
       });
 
       // --- ADMIN LEAD DOSSIER ---
@@ -273,7 +273,7 @@ export async function POST(request) {
 
           <!-- HEADER -->
           <div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 32px 36px; border-bottom: 3px solid #22c55e; text-align: center;">
-            <img src="https://floralawn-and-landscaping.com/flora-logo-final.png" alt="Flora Lawn" style="width: 120px; height: auto; margin-bottom: 16px; display: block; margin-left: auto; margin-right: auto;">
+            <img src="https://fallcleanups.com/flora-logo-final.png" alt="Fall Cleanups Services" style="width: 120px; height: auto; margin-bottom: 16px; display: block; margin-left: auto; margin-right: auto;">
             <div style="display: inline-block; background: #22c55e; color: #fff; font-size: 9px; font-weight: 900; letter-spacing: 0.25em; text-transform: uppercase; padding: 5px 14px; border-radius: 99px; margin-bottom: 10px;">🔥 New Lead Alert</div>
             <h1 style="margin: 0; color: #ffffff; font-size: 22px; font-weight: 900; font-style: italic; letter-spacing: -0.02em;">${sanitizedName}</h1>
             <p style="margin: 6px 0 0 0; color: #94a3b8; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em;">${sanitizedService} &bull; ${sanitizedCity}, RI</p>
@@ -395,14 +395,14 @@ export async function POST(request) {
 
           <!-- FOOTER -->
           <div style="background: #0f172a; padding: 18px 36px; text-align: center; border-top: 1px solid #1e293b;">
-            <p style="margin: 0; color: #475569; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em;">Flora Lawn CRM &bull; Lead Received ${new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
+            <p style="margin: 0; color: #475569; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em;">Fall Cleanups Services CRM &bull; Lead Received ${new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
           </div>
         </div>
       `;
 
-      console.log('📧 Sending Lead Dossier to Admin: floralawncareri@gmail.com');
+      console.log('📧 Sending Lead Dossier to Admin: esckoofficial@gmail.com');
       await sendEmail({
-        to: 'floralawncareri@gmail.com',
+        to: 'esckoofficial@gmail.com',
         subject: `🔥 NEW LEAD: ${sanitizedName} (${sanitizedCity})`,
         text: `[FLORA_LEAD_v2] New Elite Lead from ${sanitizedName} for ${sanitizedService}. Address: ${sanitizedAddress}.`,
         html: `<!-- [FLORA_LEAD_v2] -->` + adminHtml,
@@ -418,7 +418,7 @@ export async function POST(request) {
         if (validatePhone(phone)) {
           try {
             const { sendSMS: sendSMSFunction } = await import('@/libs/twilio');
-            const smsMessage = `Hi ${sanitizedName}! Thank you for contacting Flora Lawn & Landscaping. We've received your inquiry about ${sanitizedService || 'your service'} and will get back to you within 1-6 hours. Reply STOP to opt-out.`;
+            const smsMessage = `Hi ${sanitizedName}! Thank you for contacting Fall Cleanups Services. We've received your inquiry about ${sanitizedService || 'your service'} and will get back to you within 1-6 hours. Reply STOP to opt-out.`;
             
             const smsResult = await sendSMSFunction(phone, smsMessage);
             console.log('✅ SMS sent successfully:', smsResult);

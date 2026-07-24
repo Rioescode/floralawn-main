@@ -1,31 +1,31 @@
-import config from '@/config';
+﻿import config from '@/config';
 import { getBaseUrl } from '@/utils/seo-helpers';
 
 const baseUrl = getBaseUrl();
 
 export const metadata = {
-  title: 'Flora Lawn and Landscaping Inc | Professional Lawn Care & Landscaping',
+  title: 'Fall Cleanups Services | Professional Lawn Care & Landscaping',
   description: 'Fast, reliable yard maintenance and landscaping services throughout Rhode Island. Same-day service available. We handle lawn care, landscaping, yard cleanup and more.',
   keywords: 'lawn care, landscaping, lawn mowing, mulch installation, leaf removal, snow removal, Rhode Island, RI, professional landscaping, yard maintenance',
   openGraph: {
-    title: 'Flora Lawn and Landscaping Inc | Rhode Island Landscaping Experts',
+    title: 'Fall Cleanups Services | Rhode Island Landscaping Experts',
     description: 'Professional yard maintenance and landscaping services. From basic lawn care to complete landscape transformations. Serving all of Rhode Island.',
     images: [
       {
         url: `${baseUrl}/images/2024-09-18.jpg`,
         width: 1200,
         height: 630,
-        alt: 'Professional lawn care service by Flora Lawn and Landscaping Inc'
+        alt: 'Professional lawn care service by Fall Cleanups Services'
       }
     ],
     url: baseUrl,
     locale: 'en_US',
     type: 'website',
-    siteName: 'Flora Lawn and Landscaping Inc'
+    siteName: 'Fall Cleanups Services'
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Flora Lawn and Landscaping Inc | Professional Landscaping Services',
+    title: 'Fall Cleanups Services | Professional Landscaping Services',
     description: 'Expert landscaping services in Rhode Island. Fast, reliable, and eco-friendly yard care.',
     images: [`${baseUrl}/images/2024-09-18.jpg`],
   },

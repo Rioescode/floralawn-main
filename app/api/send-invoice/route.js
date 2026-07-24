@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+﻿import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { sendEmail } from '@/libs/resend';
 
@@ -31,7 +31,7 @@ export async function POST(request) {
     const emailContent = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
         <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 30px; border-radius: 10px 10px 0 0;">
-          <h1 style="margin: 0; font-size: 28px;">Flora Lawn & Landscaping</h1>
+          <h1 style="margin: 0; font-size: 28px;">Fall Cleanups Services</h1>
           <p style="margin: 5px 0 0 0; opacity: 0.9;">Professional Lawn Care Services</p>
         </div>
         
@@ -102,16 +102,16 @@ export async function POST(request) {
             <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="width: 100%;">
               <tr>
                 <td style="padding: 0; vertical-align: middle; padding-right: 16px; border-right: 1px solid #e5e7eb; width: 68px;">
-                  <img src="https://floralawn-and-landscaping.com/flora-logo-final.png" alt="Flora Lawn" style="width: 64px; height: 64px; object-fit: contain; display: block;">
+                  <img src="https://fallcleanups.com/flora-logo-final.png" alt="Fall Cleanups Services" style="width: 64px; height: 64px; object-fit: contain; display: block;">
                 </td>
                 <td style="padding: 0; vertical-align: middle; padding-left: 16px;">
                   <p style="margin: 0; font-size: 15px; font-weight: 800; color: #0f172a; line-height: 1.3;">Rafael Escobar</p>
-                  <p style="margin: 0; font-size: 12px; font-weight: 600; color: #22C55E; text-transform: uppercase; letter-spacing: 0.05em;">Owner &middot; Flora Lawn &amp; Landscaping Inc</p>
+                  <p style="margin: 0; font-size: 12px; font-weight: 600; color: #22C55E; text-transform: uppercase; letter-spacing: 0.05em;">Owner &middot; Fall Cleanups Services</p>
                   <div style="height: 8px;"></div>
                   <p style="margin: 0; font-size: 12px; color: #475569; line-height: 1.8;">
                     📞 <a href="tel:4013890913" style="color: #475569; text-decoration: none;">(401) 389-0913</a><br>
-                    📧 <a href="mailto:floralawncareri@gmail.com" style="color: #475569; text-decoration: none;">floralawncareri@gmail.com</a><br>
-                    🌐 <a href="https://floralawn-and-landscaping.com" style="color: #22C55E; text-decoration: none;">floralawn-and-landscaping.com</a><br>
+                    📧 <a href="mailto:esckoofficial@gmail.com" style="color: #475569; text-decoration: none;">esckoofficial@gmail.com</a><br>
+                    🌐 <a href="https://fallcleanups.com" style="color: #22C55E; text-decoration: none;">fallcleanups.com</a><br>
                     📍 45 Vernon St, Pawtucket, RI 02860
                   </p>
                 </td>
@@ -126,10 +126,10 @@ export async function POST(request) {
     try {
       await sendEmail({
         to: customerEmail,
-        subject: `Invoice #${invoiceNumber} - Flora Lawn & Landscaping`,
-        text: `Invoice #${invoiceNumber}\n\nDear ${customerName},\n\nPlease find your invoice for ${formattedServiceType} completed on ${formattedJobDate}.\n\nAmount Due: $${parseFloat(amountDue).toFixed(2)}\n\nPlease remit payment within 30 days. For questions, contact us at (401) 389-0913.\n\nThank you for your business!\n\nFlora Lawn & Landscaping`,
+        subject: `Invoice #${invoiceNumber} - Fall Cleanups Services`,
+        text: `Invoice #${invoiceNumber}\n\nDear ${customerName},\n\nPlease find your invoice for ${formattedServiceType} completed on ${formattedJobDate}.\n\nAmount Due: $${parseFloat(amountDue).toFixed(2)}\n\nPlease remit payment within 30 days. For questions, contact us at (401) 389-0913.\n\nThank you for your business!\n\nFall Cleanups Services`,
         html: emailContent,
-        replyTo: 'floralawncareri@gmail.com'
+        replyTo: 'esckoofficial@gmail.com'
       });
       
       console.log('Invoice email sent successfully to:', customerEmail);

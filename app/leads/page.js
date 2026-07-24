@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
@@ -152,7 +152,7 @@ export default function LeadsPage() {
           sendEmail: true,
           sendSMS: false,
           type: 'review',
-          subject: 'Help us grow! 🌿 - Flora Lawn & Landscaping',
+          subject: 'Help us grow! 🌿 - Fall Cleanups Services',
           customerData: {
             customer_name: selectedLeadForReview.customer_name,
             customer_email: selectedLeadForReview.customer_email,
@@ -177,7 +177,7 @@ export default function LeadsPage() {
     }
   };
 
-  const REVIEW_TEMPLATE = (name) => `Hi ${name}, will you help us with a review in our google profile? Flora Lawn & Landscaping Inc would love your feedback. Post a review to our profile: https://g.page/r/CQjJ-AbEL4N2EBE/review - Thank you very much!`;
+  const REVIEW_TEMPLATE = (name) => `Hi ${name}, will you help us with a review in our google profile? Fall Cleanups Services would love your feedback. Post a review to our profile: https://g.page/r/CQjJ-AbEL4N2EBE/review - Thank you very much!`;
 
   const filtered = leads.filter(l =>
     !search ||
@@ -223,7 +223,7 @@ export default function LeadsPage() {
       <div style={{ background: 'linear-gradient(135deg, #0f172a, #1e293b)', borderBottom: '2px solid #22c55e', padding: '24px 32px' }}>
         <div style={{ maxWidth: 1100, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-            <img src="https://floralawn-and-landscaping.com/flora-logo-final.png" alt="Flora Lawn" style={{ width: 44, height: 44, objectFit: 'contain' }} />
+            <img src="https://fallcleanups.com/flora-logo-final.png" alt="Fall Cleanups Services" style={{ width: 44, height: 44, objectFit: 'contain' }} />
             <div>
               <h1 style={{ margin: 0, color: '#fff', fontSize: 24, fontWeight: 900, fontStyle: 'italic' }}>Lead Pipeline</h1>
               <p style={{ margin: 0, color: '#64748b', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Review · Schedule · Scratch</p>

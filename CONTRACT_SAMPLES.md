@@ -1,4 +1,4 @@
-# Contract Samples for Lawn Care Services
+﻿# Contract Samples for Lawn Care Services
 
 This document contains sample contract templates that can be sent to customers. Use these as a starting point and customize based on your specific agreements.
 
@@ -124,7 +124,7 @@ When filling out contracts, replace these placeholders:
 ---
 
 For questions or to customize contracts, contact:
-**Flora Lawn & Landscaping Inc.**
+**Fall Cleanups Services**
 Phone: (401) 389-0913
-Email: floralawncareri@gmail.com
+Email: esckoofficial@gmail.com
 

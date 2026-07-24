@@ -35,7 +35,7 @@ import {
 
 const stats = [
   { value: "4.9★", label: "Google Rating", sub: "102 Reviews" },
-  { value: "500+", label: "Happy Clients", sub: "Across RI & MA" },
+  { value: "500+", label: "Happy Clients", sub: "Rhode Island" },
   { value: "10+", label: "Years Serving", sub: "Since 2014" },
   { value: "100%", label: "Satisfaction", sub: "Guaranteed" },
 ];
@@ -165,7 +165,7 @@ export default function HomePage() {
               </h1>
 
               <p className="text-lg md:text-xl text-slate-400 mb-10 max-w-lg leading-relaxed font-medium">
-                Professional mowing, mulching, cleanups & landscaping across Rhode Island and Southern Massachusetts. Results you can see, service you can trust.
+                Professional mowing, mulching, cleanups & landscaping across Rhode Island. Results you can see, service you can trust.
               </p>
 
               {/* Address Search */}
@@ -394,7 +394,7 @@ export default function HomePage() {
                   <img src={`/images/${svc.slug}.jpg`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" alt={svc.title} />
                   <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-slate-950/20 to-transparent" />
                   <div className="absolute top-4 left-4 bg-white/15 backdrop-blur-md px-3 py-1.5 rounded-full text-[9px] font-black text-white uppercase tracking-[0.2em] border border-white/20">
-                    RI & MA
+                    Rhode Island
                   </div>
                 </div>
                 <div className="p-6">

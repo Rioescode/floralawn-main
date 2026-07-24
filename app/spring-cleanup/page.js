@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect } from 'react';
 import { supabase, supabaseAdmin } from '@/lib/supabase';
@@ -883,7 +883,7 @@ export default function SpringCleanupFunnel() {
                   {smsPreferences.subscribe && (
                     <div className="mt-3 p-2 bg-blue-50 rounded-lg border border-blue-200">
                       <p className="text-xs text-blue-700">
-                        📱 By checking the text message box, you consent to receive text messages from Flora Lawn & Landscaping. 
+                        📱 By checking the text message box, you consent to receive text messages from Fall Cleanups Services. 
                         Message and data rates may apply. Reply STOP to opt-out.
                       </p>
                     </div>
@@ -938,8 +938,8 @@ export default function SpringCleanupFunnel() {
                     </div>
                     <div>
                       <h3 className="font-bold text-gray-800 mb-1">Email</h3>
-                      <a href="mailto:floralawncareri@gmail.com" className="text-green-600 hover:text-green-700 block">floralawncareri@gmail.com</a>
-                      <a href="mailto:riyardworks@gmail.com" className="text-green-600 hover:text-green-700 block">riyardworks@gmail.com</a>
+                      <a href="mailto:esckoofficial@gmail.com" className="text-green-600 hover:text-green-700 block">esckoofficial@gmail.com</a>
+                      <a href="mailto:FallCleanupsServices@gmail.com" className="text-green-600 hover:text-green-700 block">FallCleanupsServices@gmail.com</a>
                     </div>
                   </div>
                 </div>

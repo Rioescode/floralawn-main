@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
+﻿import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 
 const supabase = createClient(
@@ -44,20 +44,20 @@ export async function POST(request) {
         try {
           const { sendEmail } = await import('@/libs/resend');
           
-          let emailSubject = subject || `Service Update - Flora Lawn`;
+          let emailSubject = subject || `Service Update - Fall Cleanups Services`;
           let emailHtml = '';
 
           if (type === 'review') {
-            emailSubject = subject || `Help us grow! 🌿 - Flora Lawn & Landscaping`;
+            emailSubject = subject || `Help us grow! 🌿 - Fall Cleanups Services`;
             emailHtml = `
               <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e5e7eb; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
                 <div style="background-color: #0f172a; padding: 40px 20px; text-align: center;">
-                  <img src="https://floralawn-and-landscaping.com/flora-logo-final.png" alt="Flora Lawn" style="width: 80px; height: 80px; margin-bottom: 20px;">
+                  <img src="https://fallcleanups.com/flora-logo-final.png" alt="Fall Cleanups Services" style="width: 80px; height: 80px; margin-bottom: 20px;">
                   <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: 800; letter-spacing: -0.025em;">How did we do?</h1>
                 </div>
                 <div style="padding: 40px 32px;">
                   <p style="font-size: 18px; line-height: 1.6; color: #1e293b; margin-top: 0;">Hi ${appointment.customer_name || 'there'},</p>
-                  <p style="font-size: 16px; line-height: 1.6; color: #475569;">Thank you for choosing <strong>Flora Lawn & Landscaping Inc</strong>. We hope you're loving the way your property looks!</p>
+                  <p style="font-size: 16px; line-height: 1.6; color: #475569;">Thank you for choosing <strong>Fall Cleanups Services</strong>. We hope you're loving the way your property looks!</p>
                   <p style="font-size: 16px; line-height: 1.6; color: #475569;">Would you mind taking 30 seconds to share your experience with us? Your feedback helps us grow and continue providing great service to our community.</p>
                   
                   <div style="text-align: center; margin: 40px 0;">
@@ -69,14 +69,14 @@ export async function POST(request) {
                   <p style="font-size: 14px; line-height: 1.6; color: #94a3b8; text-align: center;">If you had any issues with your service, please reply to this email so we can make it right immediately.</p>
                 </div>
                 <div style="background-color: #f8fafc; padding: 32px; text-align: center; border-top: 1px solid #e5e7eb;">
-                  <p style="margin: 0; font-size: 14px; font-weight: 700; color: #1e293b;">Flora Lawn & Landscaping Inc</p>
+                  <p style="margin: 0; font-size: 14px; font-weight: 700; color: #1e293b;">Fall Cleanups Services</p>
                   <p style="margin: 4px 0 0; font-size: 12px; color: #64748b;">Professional Lawn Care & Landscaping Services</p>
-                  <p style="margin: 16px 0 0; font-size: 12px; color: #94a3b8;">(401) 389-0913 • floralawncareri@gmail.com</p>
+                  <p style="margin: 16px 0 0; font-size: 12px; color: #94a3b8;">(401) 389-0913 • esckoofficial@gmail.com</p>
                 </div>
               </div>
             `;
           } else {
-            emailSubject = subject || `Service Update - ${appointment.service_type || 'Flora Lawn'}`;
+            emailSubject = subject || `Service Update - ${appointment.service_type || 'Fall Cleanups Services'}`;
             emailHtml = `
               <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden;">
                 <div style="background-color: #22C55E; padding: 20px; text-align: center;">
@@ -89,7 +89,7 @@ export async function POST(request) {
                     ${appointment.service_type ? `<p style="margin: 0;"><strong>Service:</strong> ${appointment.service_type}</p>` : ''}
                     ${appointment.date ? `<p style="margin: 5px 0 0;"><strong>Date:</strong> ${new Date(appointment.date).toLocaleDateString()}</p>` : ''}
                   </div>
-                  <p>Thank you for choosing Flora Lawn and Landscaping!</p>
+                  <p>Thank you for choosing Fall Cleanups Services!</p>
                 </div>
               </div>
             `;
@@ -100,7 +100,7 @@ export async function POST(request) {
             subject: emailSubject,
             text: message || 'Your service has been completed successfully!',
             html: emailHtml,
-            replyTo: 'floralawncareri@gmail.com' // Add reply-to for better deliverability
+            replyTo: 'esckoofficial@gmail.com' // Add reply-to for better deliverability
           });
 
           results.emailSent = true;

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
@@ -20,7 +20,7 @@ export default function ReferralTermsPage() {
             <section className="mb-8">
               <h2 className="text-2xl font-semibold text-gray-900 mb-4">1. Program Overview</h2>
               <p className="text-gray-700 mb-4">
-                Flora Lawn & Landscaping Inc ("we," "us," or "our") offers a referral program that allows existing customers 
+                Fall Cleanups Services ("we," "us," or "our") offers a referral program that allows existing customers 
                 to earn rewards by referring new customers to our services. By participating in this program, you agree to 
                 these Terms and Conditions.
               </p>
@@ -29,7 +29,7 @@ export default function ReferralTermsPage() {
             <section className="mb-8">
               <h2 className="text-2xl font-semibold text-gray-900 mb-4">2. Eligibility</h2>
               <ul className="list-disc pl-6 text-gray-700 space-y-2 mb-4">
-                <li>You must be an active customer of Flora Lawn & Landscaping Inc to participate</li>
+                <li>You must be an active customer of Fall Cleanups Services to participate</li>
                 <li>You must be at least 18 years old</li>
                 <li>You must have a valid account with us</li>
                 <li>Referrals must be new customers who have not previously used our services</li>
@@ -298,7 +298,7 @@ export default function ReferralTermsPage() {
             <section className="mb-8">
               <h2 className="text-2xl font-semibold text-gray-900 mb-4">11. Limitation of Liability</h2>
               <p className="text-gray-700 mb-4">
-                To the maximum extent permitted by law, Flora Lawn & Landscaping Inc shall not be liable for any indirect, 
+                To the maximum extent permitted by law, Fall Cleanups Services shall not be liable for any indirect, 
                 incidental, special, or consequential damages arising from your participation in the referral program. Our 
                 total liability shall not exceed the value of the rewards you have earned.
               </p>
@@ -316,7 +316,7 @@ export default function ReferralTermsPage() {
               <h2 className="text-2xl font-semibold text-gray-900 mb-4">13. Disputes</h2>
               <p className="text-gray-700 mb-4">
                 If you have any questions or disputes regarding the referral program, please contact us at 
-                <a href="mailto:floralawncareri@gmail.com" className="text-green-600 hover:underline"> floralawncareri@gmail.com</a> 
+                <a href="mailto:esckoofficial@gmail.com" className="text-green-600 hover:underline"> esckoofficial@gmail.com</a> 
                 or call us at <a href="tel:4013890913" className="text-green-600 hover:underline">(401) 389-0913</a>. 
                 We will work with you to resolve any issues in good faith.
               </p>
@@ -336,16 +336,16 @@ export default function ReferralTermsPage() {
                 If you have any questions about these Terms and Conditions or the referral program, please contact us:
               </p>
               <div className="bg-gray-50 p-4 rounded-lg">
-                <p className="text-gray-700"><strong>Flora Lawn & Landscaping Inc</strong></p>
+                <p className="text-gray-700"><strong>Fall Cleanups Services</strong></p>
                 <p className="text-gray-700">45 Vernon St, Pawtucket, RI 02860</p>
                 <p className="text-gray-700">Phone: <a href="tel:4013890913" className="text-green-600 hover:underline">(401) 389-0913</a></p>
-                <p className="text-gray-700">Email: <a href="mailto:floralawncareri@gmail.com" className="text-green-600 hover:underline">floralawncareri@gmail.com</a></p>
+                <p className="text-gray-700">Email: <a href="mailto:esckoofficial@gmail.com" className="text-green-600 hover:underline">esckoofficial@gmail.com</a></p>
               </div>
             </section>
 
             <div className="mt-8 pt-6 border-t border-gray-200">
               <p className="text-sm text-gray-500">
-                By participating in the Flora Lawn & Landscaping Referral Program, you acknowledge that you have read, 
+                By participating in the Fall Cleanups Services Referral Program, you acknowledge that you have read, 
                 understood, and agree to be bound by these Terms and Conditions.
               </p>
             </div>

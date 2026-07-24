@@ -1,11 +1,11 @@
-# Fix Supabase Auth Title - "Sign in to continue to..."
+﻿# Fix Supabase Auth Title - "Sign in to continue to..."
 
 ## Problem
 When users sign in with Google OAuth, they see:
 "Sign in to continue to gkfyapscbtcvrvtrvfus.supabase.co"
 
 Instead of:
-"Sign in to continue to Flora Lawn and Landscaping"
+"Sign in to continue to Fall Cleanups Services"
 
 ## Solution
 This is controlled by Supabase Dashboard settings. Follow these steps:
@@ -16,7 +16,7 @@ This is controlled by Supabase Dashboard settings. Follow these steps:
 2. Select your project
 3. Go to **Authentication** → **URL Configuration**
 4. Set **Site URL** to your actual domain:
-   - Production: `https://floralawn-and-landscaping.com` (or your actual domain)
+   - Production: `https://fallcleanups.com` (or your actual domain)
    - Development: `http://localhost:3000`
 5. Click **Save**
 
@@ -25,8 +25,8 @@ This is controlled by Supabase Dashboard settings. Follow these steps:
 In the same **URL Configuration** section:
 
 1. Add your redirect URLs to **Redirect URLs**:
-   - `https://floralawn-and-landscaping.com/auth/callback`
-   - `https://floralawn-and-landscaping.com/**` (wildcard for all paths)
+   - `https://fallcleanups.com/auth/callback`
+   - `https://fallcleanups.com/**` (wildcard for all paths)
    - `http://localhost:3000/auth/callback` (for development)
 
 2. Click **Save**
@@ -38,7 +38,7 @@ If you want to customize the Google OAuth consent screen:
 1. Go to [Google Cloud Console](https://console.cloud.google.com/)
 2. Select your project
 3. Go to **APIs & Services** → **OAuth consent screen**
-4. Update **Application name** to "Flora Lawn and Landscaping"
+4. Update **Application name** to "Fall Cleanups Services"
 5. Update **Application home page** to your domain
 6. Save changes
 

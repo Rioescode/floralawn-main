@@ -1,10 +1,10 @@
-'use client';
+﻿'use client';
 
 import { QRCodeSVG } from 'qrcode.react';
 import Image from 'next/image';
 
 export default function QRGeneratorPage() {
-  const websiteUrl = "https://floralawn-and-landscaping.com/contact";
+  const websiteUrl = "https://fallcleanups.com/contact";
   const phoneNumber = "401-389-0913";
 
   return (

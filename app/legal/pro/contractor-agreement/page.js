@@ -1,4 +1,4 @@
-// Professional contractor agreement
+﻿// Professional contractor agreement
 // (Create new file with professional-specific terms) 
 
 import Navigation from "@/components/Navigation";
@@ -6,8 +6,8 @@ import Footer from "@/components/Footer";
 import { businessInfo } from "@/utils/business-info";
 
 export const metadata = {
-  title: 'Professional Service Agreement | RIYardworks',
-  description: 'Terms and conditions for service providers working with RIYardworks.',
+  title: 'Professional Service Agreement | FallCleanupsServices',
+  description: 'Terms and conditions for service providers working with FallCleanupsServices.',
 };
 
 export default function ContractorAgreement() {

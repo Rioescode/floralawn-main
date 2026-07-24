@@ -36,7 +36,7 @@ export async function generateMetadata({ params }) {
   const canonicalUrl = `${baseUrl}/${params.city}`;
 
   return {
-    title: `Premium Lawn Care & Landscaping in ${cityName}, RI | Flora Lawn`,
+    title: `Premium Lawn Care & Landscaping in ${cityName}, RI | Fall Cleanups Services`,
     description: `The top-rated local choice for lawn maintenance in ${cityName}, Rhode Island. Professional mowing, fertilization, and cleanup services. 2025 Neighborhood Favourite winner!`,
     alternates: { canonical: canonicalUrl }
   };
@@ -136,7 +136,7 @@ export default function LocationPage({ params }) {
                   <div className="inline-block bg-green-100 text-green-700 px-4 py-1.5 rounded-full text-sm font-black uppercase tracking-widest mb-6 italic">Established Professionals</div>
                   <h2 className="text-4xl md:text-5xl font-black text-slate-900 mb-8 leading-tight tracking-tight">The Local Choice for {cityName} Homeowners</h2>
                   <p className="text-xl text-slate-600 leading-relaxed mb-10 font-medium border-l-4 border-green-500 pl-8 italic">
-                    "Flora Lawn & Landscaping combines over 6 years of New England experience with modern, tech-driven service to deliver a worry-free property maintenance experience in {cityName}."
+                    "Fall Cleanups Services combines over 6 years of New England experience with modern, tech-driven service to deliver a worry-free property maintenance experience in {cityName}."
                   </p>
                   
                   <div className="space-y-6">
@@ -229,7 +229,7 @@ export default function LocationPage({ params }) {
            <div className="space-y-6">
               {[
                 {q: "How do I get a quote for my property?", a: "We provide same-day digital quotes. Contact us via phone or our online form with your address, and we'll analyze your property size immediately."},
-                {q: "Do you have local experience in my neighborhood?", a: `Absolutely. Flora Lawn & Landscaping has been serving all corners of ${cityName} for over 6 years with a focus on high-quality, reliable maintenance.`},
+                {q: "Do you have local experience in my neighborhood?", a: `Absolutely. Fall Cleanups Services has been serving all corners of ${cityName} for over 6 years with a focus on high-quality, reliable maintenance.`},
                 {q: "What if it rains on my service day?", a: "We monitor local weather closely. If conditions are unsafe for your turf, we automatically reschedule to the next clear window and notify you via text."}
               ].map((faq, i) => (
                 <div key={i} className="bg-slate-50 border border-slate-100 p-8 rounded-3xl hover:border-green-200 hover:bg-white transition-all">

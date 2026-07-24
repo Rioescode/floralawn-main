@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+﻿import { NextResponse } from 'next/server';
 import { sendEmail } from '@/libs/resend';
 import { generalApiLimiter } from '@/lib/rate-limiter';
 
@@ -9,12 +9,12 @@ const createEmailTemplate = (name, unsubscribeUrl, accountUrl, content) => `
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Flora Lawn & Landscaping</title>
+  <title>Fall Cleanups Services</title>
 </head>
 <body style="margin: 0; padding: 0; background-color: #f3f4f6; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
   <!-- Preheader text -->
   <div style="display: none; font-size: 1px; color: #fefefe; line-height: 1px; font-family: Arial, sans-serif; max-height: 0px; max-width: 0px; opacity: 0; overflow: hidden;">
-    ${content.preheader || 'Special offer from Flora Lawn & Landscaping'}
+    ${content.preheader || 'Special offer from Fall Cleanups Services'}
   </div>
   
   <!-- Email Container -->
@@ -83,16 +83,16 @@ const createEmailTemplate = (name, unsubscribeUrl, accountUrl, content) => `
                     <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin: 0 auto; text-align: left;">
                       <tr>
                         <td style="padding: 0; vertical-align: middle; padding-right: 14px; border-right: 1px solid #e5e7eb; width: 60px;">
-                          <img src="https://floralawn-and-landscaping.com/flora-logo-final.png" alt="Flora Lawn" style="width: 56px; height: 56px; object-fit: contain; display: block;">
+                          <img src="https://fallcleanups.com/flora-logo-final.png" alt="Fall Cleanups Services" style="width: 56px; height: 56px; object-fit: contain; display: block;">
                         </td>
                         <td style="padding: 0; vertical-align: middle; padding-left: 14px;">
                           <p style="margin: 0; font-size: 14px; font-weight: 800; color: #1f2937; line-height: 1.3;">Rafael Escobar</p>
-                          <p style="margin: 0; font-size: 11px; font-weight: 600; color: #22C55E; text-transform: uppercase; letter-spacing: 0.05em;">Owner &middot; Flora Lawn &amp; Landscaping Inc</p>
+                          <p style="margin: 0; font-size: 11px; font-weight: 600; color: #22C55E; text-transform: uppercase; letter-spacing: 0.05em;">Owner &middot; Fall Cleanups Services</p>
                           <div style="height: 6px;"></div>
                           <p style="margin: 0; font-size: 12px; color: #6b7280; line-height: 1.8;">
                             📞 <a href="tel:4013890913" style="color: #6b7280; text-decoration: none;">(401) 389-0913</a><br>
-                            📧 <a href="mailto:floralawncareri@gmail.com" style="color: #6b7280; text-decoration: none;">floralawncareri@gmail.com</a><br>
-                            🌐 <a href="https://floralawn-and-landscaping.com" style="color: #22C55E; text-decoration: none;">floralawn-and-landscaping.com</a><br>
+                            📧 <a href="mailto:esckoofficial@gmail.com" style="color: #6b7280; text-decoration: none;">esckoofficial@gmail.com</a><br>
+                            🌐 <a href="https://fallcleanups.com" style="color: #22C55E; text-decoration: none;">fallcleanups.com</a><br>
                             📍 45 Vernon Street, Pawtucket, RI 02860
                           </p>
                         </td>
@@ -276,7 +276,7 @@ const emailTemplates = {
         headerIcon: '🎁',
         headerTitle: 'Happy Holidays!',
         headerSubtitle: 'Special holiday discount for you',
-        intro: 'Happy Holidays from Flora Lawn & Landscaping! We\'re grateful for your business this year and want to show our appreciation.',
+        intro: 'Happy Holidays from Fall Cleanups Services! We\'re grateful for your business this year and want to show our appreciation.',
         body: `
           ${createDiscountCard('Holiday Special', '25% OFF', 'HOLIDAY25', 'Any service when you book before the end of the month!')}
           
@@ -294,7 +294,7 @@ const emailTemplates = {
             </tr>
           </table>
         `,
-        closing: 'Thank you for choosing Flora Lawn & Landscaping!'
+        closing: 'Thank you for choosing Fall Cleanups Services!'
       }
     )
   },
@@ -346,7 +346,7 @@ export async function POST(request) {
     let failed = 0;
     const errors = [];
 
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://floralawn-and-landscaping.com';
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://fallcleanups.com';
     
     // Send emails to all subscribers
     for (const subscriber of subscribers) {
@@ -371,7 +371,7 @@ export async function POST(request) {
           subject: emailTemplate.subject,
           text: textVersion,
           html: html,
-          replyTo: 'floralawncareri@gmail.com'
+          replyTo: 'esckoofficial@gmail.com'
         });
 
         sent++;

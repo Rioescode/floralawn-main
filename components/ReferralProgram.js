@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
@@ -336,23 +336,23 @@ export default function ReferralProgram({ userId, customerId }) {
   const shareOnFacebook = () => {
     const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
     const referralLink = `${baseUrl}/?ref=${referralCode}`;
-    const text = encodeURIComponent(`Check out Flora Lawn & Landscaping! Use my referral code ${referralCode} for special offers!`);
+    const text = encodeURIComponent(`Check out Fall Cleanups Services! Use my referral code ${referralCode} for special offers!`);
     window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(referralLink)}&quote=${text}`, '_blank');
   };
 
   const shareOnTwitter = () => {
     const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
     const referralLink = `${baseUrl}/?ref=${referralCode}`;
-    const text = encodeURIComponent(`Check out Flora Lawn & Landscaping! Use my referral code ${referralCode} for special offers! ${referralLink}`);
+    const text = encodeURIComponent(`Check out Fall Cleanups Services! Use my referral code ${referralCode} for special offers! ${referralLink}`);
     window.open(`https://twitter.com/intent/tweet?text=${text}`, '_blank');
   };
 
   const shareViaEmail = () => {
     const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
     const referralLink = `${baseUrl}/?ref=${referralCode}`;
-    const subject = encodeURIComponent('Check out Flora Lawn & Landscaping!');
+    const subject = encodeURIComponent('Check out Fall Cleanups Services!');
     const body = encodeURIComponent(
-      `Hi!\n\nI wanted to share Flora Lawn & Landscaping with you. They provide excellent lawn care services!\n\n` +
+      `Hi!\n\nI wanted to share Fall Cleanups Services with you. They provide excellent lawn care services!\n\n` +
       `Use my referral code ${referralCode} when you sign up for special offers.\n\n` +
       `Visit: ${referralLink}\n\n` +
       `Thanks!`

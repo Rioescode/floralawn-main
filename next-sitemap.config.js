@@ -1,6 +1,6 @@
-/** @type {import('next-sitemap').IConfig} */
+﻿/** @type {import('next-sitemap').IConfig} */
 // Use environment variable or default domain - don't import config.js (ES modules)
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.SITE_URL || 'https://floralawn-and-landscaping.com';
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.SITE_URL || 'https://fallcleanups.com';
 
 module.exports = {
   siteUrl: siteUrl,

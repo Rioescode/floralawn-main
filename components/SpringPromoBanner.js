@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { 
   SparklesIcon, 
@@ -193,7 +193,7 @@ export default function SpringPromoBanner() {
                 className="flex-grow text-center lg:text-left bg-white/5 backdrop-blur-md border border-white/5 p-4 rounded-3xl min-h-[80px] flex items-center"
               >
                 <p className="text-sm lg:text-base font-bold text-slate-300 leading-tight">
-                   Special Update: <span className="text-white font-black italic uppercase tracking-tight underline decoration-white/20 underline-offset-4 decoration-2">Flora Lawn</span> is offering 
+                   Special Update: <span className="text-white font-black italic uppercase tracking-tight underline decoration-white/20 underline-offset-4 decoration-2">Fall Cleanups Services</span> is offering 
                   <span className={`inline-flex items-center gap-2 mx-2 ${promo.theme.accentBg} ${promo.theme.accentText} px-3 py-1 rounded-lg font-black italic text-xs uppercase shadow-xl transform rotate-2 animate-pulse`}>
                     {promo.accent}
                   </span>

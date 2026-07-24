@@ -28,10 +28,10 @@ export async function generateMetadata({ params }) {
   const cityName = location?.city || params.city;
   
   return {
-    title: `Reliable Junk Removal & Property Hauling in ${cityName}, RI | Flora Lawn`,
+    title: `Reliable Junk Removal & Property Hauling in ${cityName}, RI | Fall Cleanups Services`,
     description: `Same-day junk removal in ${cityName}. We haul furniture, debris, appliances, and more. Eco-friendly disposal and professional property cleanouts in ${cityName}, Rhode Island.`,
     alternates: {
-      canonical: `https://riyardworks.com/junk-removal-services/${params.city}`
+      canonical: `https://fallcleanups.com/junk-removal-services/${params.city}`
     }
   };
 }
@@ -193,7 +193,7 @@ export default function JunkRemovalCityPage({ params }) {
                  <div className="p-8 bg-slate-900 text-white rounded-[2.5rem] shadow-xl">
                     <p className="font-bold text-orange-500 uppercase mb-4 tracking-tighter">Did you know?</p>
                     <p className="text-lg leading-relaxed font-medium">
-                       Flora Lawn & Landscaping prioritizes local {cityName} donation centers and recycling facilities to minimize landfill impact by up to 60%.
+                       Fall Cleanups Services prioritizes local {cityName} donation centers and recycling facilities to minimize landfill impact by up to 60%.
                     </p>
                  </div>
               </div>

@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+﻿import { NextResponse } from 'next/server';
 import { sendEmail } from '@/libs/resend';
 import { supabaseAdmin } from '@/lib/supabase';
 
@@ -12,7 +12,7 @@ export async function POST(request) {
     }
 
     const adminEmail = 'esckoofficial@gmail.com';
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://floralawn-and-landscaping.com';
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://fallcleanups.com';
 
     // Calculate discount if present in breakdown
     const discountItem = breakdown?.find(item => item.name.includes('DISCOUNT'));
@@ -102,16 +102,16 @@ export async function POST(request) {
             <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="width: 100%;">
               <tr>
                 <td style="padding: 0; vertical-align: middle; padding-right: 16px; border-right: 1px solid #e2e8f0; width: 68px;">
-                  <img src="https://floralawn-and-landscaping.com/flora-logo-final.png" alt="Flora Lawn" style="width: 64px; height: 64px; object-fit: contain; display: block;">
+                  <img src="https://fallcleanups.com/flora-logo-final.png" alt="Fall Cleanups Services" style="width: 64px; height: 64px; object-fit: contain; display: block;">
                 </td>
                 <td style="padding: 0; vertical-align: middle; padding-left: 16px;">
                   <p style="margin: 0; font-size: 15px; font-weight: 800; color: #0f172a; line-height: 1.3;">Rafael Escobar</p>
-                  <p style="margin: 0; font-size: 12px; font-weight: 600; color: #22c55e; text-transform: uppercase; letter-spacing: 0.05em;">Owner &middot; Flora Lawn &amp; Landscaping Inc</p>
+                  <p style="margin: 0; font-size: 12px; font-weight: 600; color: #22c55e; text-transform: uppercase; letter-spacing: 0.05em;">Owner &middot; Fall Cleanups Services</p>
                   <div style="height: 8px;"></div>
                   <p style="margin: 0; font-size: 12px; color: #475569; line-height: 1.8;">
                     📞 <a href="tel:4013890913" style="color: #475569; text-decoration: none;">(401) 389-0913</a><br>
-                    📧 <a href="mailto:floralawncareri@gmail.com" style="color: #475569; text-decoration: none;">floralawncareri@gmail.com</a><br>
-                    🌐 <a href="https://floralawn-and-landscaping.com" style="color: #22c55e; text-decoration: none;">floralawn-and-landscaping.com</a><br>
+                    📧 <a href="mailto:esckoofficial@gmail.com" style="color: #475569; text-decoration: none;">esckoofficial@gmail.com</a><br>
+                    🌐 <a href="https://fallcleanups.com" style="color: #22c55e; text-decoration: none;">fallcleanups.com</a><br>
                     📍 45 Vernon St, Pawtucket, RI 02860
                   </p>
                 </td>
@@ -120,7 +120,7 @@ export async function POST(request) {
           </div>
         </div>
         <div style="background-color: #f8fafc; padding: 20px; text-align: center; font-size: 10px; color: #94a3b8;">
-          Flora Lawn &amp; Landscaping • (401) 389-0913
+          Fall Cleanups Services &amp; Landscaping • (401) 389-0913
         </div>
       </div>
     `;
@@ -192,7 +192,7 @@ export async function POST(request) {
               <a href="mailto:${email}" style="display: block; text-align: center; background-color: #0f172a; color: #ffffff; padding: 20px; border-radius: 15px; text-decoration: none; font-weight: 900; text-transform: uppercase; font-size: 14px; letter-spacing: 0.1em; border-bottom: 4px solid #22c55e;">Reply to Inbound Lead</a>
           </div>
           <div style="background-color: #f8fafc; padding: 25px; text-align: center; border-top: 1px solid #f1f5f9;">
-              <p style="color: #94a3b8; font-size: 10px; font-weight: 700; margin: 0; text-transform: uppercase; letter-spacing: 0.1em;">Flora Lawn CRM • AI Operations</p>
+              <p style="color: #94a3b8; font-size: 10px; font-weight: 700; margin: 0; text-transform: uppercase; letter-spacing: 0.1em;">Fall Cleanups Services CRM • AI Operations</p>
           </div>
       </div>
     `;
@@ -200,7 +200,7 @@ export async function POST(request) {
     // Send both emails
     await sendEmail({
       to: email,
-      subject: 'Reviewing Your Quote - Flora Lawn & Landscaping',
+      subject: 'Reviewing Your Quote - Fall Cleanups Services',
       text: `Hi ${name}, we've received your quote for ${address}. ${savingsAmount > 0 ? `YOU SAVED $${savingsAmount}! ` : ''}Total: $${price}. We will review and confirm shortly.`,
       html: customerHtml,
       replyTo: adminEmail

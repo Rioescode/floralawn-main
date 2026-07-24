@@ -1,4 +1,4 @@
-import Anthropic from '@anthropic-ai/sdk';
+﻿import Anthropic from '@anthropic-ai/sdk';
 import { NextResponse } from 'next/server';
 
 export async function POST(request) {
@@ -16,11 +16,11 @@ export async function POST(request) {
 
     // Company information (Branded Flora Elite)
     const companyInfo = {
-      name: 'Flora Lawn & Landscaping Inc.',
+      name: 'Fall Cleanups Services',
       address: '45 Vernon St, Pawtucket, RI 02860',
       phone: '(401) 389-0913',
-      email: 'floralawncareri@gmail.com',
-      logo: 'https://floralawn-and-landscaping.com/flora-logo-final.png'
+      email: 'esckoofficial@gmail.com',
+      logo: 'https://fallcleanups.com/flora-logo-final.png'
     };
 
     const enhancedPrompt = `${prompt}

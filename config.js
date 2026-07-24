@@ -2,12 +2,12 @@ import themes from "daisyui/src/theming/themes";
 
 const config = {
   // REQUIRED
-  appName: "RIYardworks",
+  appName: "Fall Cleanups Services",
   // REQUIRED: a short description of your app for SEO tags (can be overwritten)
   appDescription:
-    "Professional lawn care and landscaping services across Rhode Island. Quality service, affordable prices, and customer satisfaction guaranteed.",
+    "Professional fall cleanup and outdoor maintenance services across Rhode Island. Reliable, affordable, and satisfaction guaranteed.",
   // REQUIRED (no https://, not trialing slash at the end, just the naked domain)
-  domainName: "riyardworks.com",
+  domainName: "fallcleanups.com",
   stripe: {
     // Create multiple plans in your Stripe dashboard, then add them here. You can add as many plans as you want, just make sure to add the priceId
     plans: [
@@ -67,15 +67,15 @@ const config = {
   resend: {
     // REQUIRED — Email 'From' field to be used when sending magic login links
     // Using verified domain for better inbox delivery
-    fromEmail: "noreply@riyardworks.com", // ✅ Verified domain - should go to inbox
+    fromEmail: "noreply@fallcleanups.com", // ✅ Verified domain - should go to inbox
     
-    fromName: "Flora Lawn & Landscaping",
+    fromName: "Fall Cleanups Services",
     // For service completion emails
-    fromAdmin: "Flora Lawn & Landscaping <noreply@riyardworks.com>", // ✅ Verified domain
+    fromAdmin: "Fall Cleanups Services <noreply@fallcleanups.com>", // ✅ Verified domain
     // REQUIRED — Email 'To' field to be used when sending magic login links
-    supportEmail: "floralawncareri@gmail.com",
+    supportEmail: "esckoofficial@gmail.com",
     // REQUIRED — Reply-To field for customer support emails
-    replyToEmail: "floralawncareri@gmail.com",
+    replyToEmail: "esckoofficial@gmail.com",
   },
   colors: {
     // REQUIRED — The DaisyUI theme to use (added to the main layout.js). Leave blank for default (light & dark mode). If you any other theme than light/dark, you need to add it in config.tailwind.js in daisyui.themes.

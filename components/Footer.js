@@ -42,7 +42,7 @@ const Footer = () => {
               <div className="bg-white px-5 py-3 rounded-2xl shadow-2xl inline-block mb-10">
                  <Image
                    src="/flora-logo-final.png"
-                   alt="Flora Lawn"
+                   alt="Fall Cleanups Services"
                    width={400}
                    height={133}
                    className="h-24 w-auto brightness-100"
@@ -52,7 +52,7 @@ const Footer = () => {
                 Rhode Island's <span className="text-green-500 underline decoration-white/20 underline-offset-8">Property Standard</span>
               </h3>
               <p className="text-lg font-medium italic max-w-xl leading-relaxed">
-                Professional lawn care and landscaping services across Rhode Island and Massachusetts. We provide reliable mowing, seasonal cleanups, and property maintenance for every home.
+                Professional fall cleanup and outdoor maintenance services across Rhode Island and Massachusetts. We provide reliable leaf removal, seasonal cleanups, and property care for every home.
               </p>
            </div>
            
@@ -162,7 +162,7 @@ const Footer = () => {
                  </div>
                  <div className="flex gap-4 pt-4">
                     {[
-                       { i: EnvelopeIcon, h: 'mailto:floralawncareri@gmail.com' },
+                       { i: EnvelopeIcon, h: 'mailto:esckoofficial@gmail.com' },
                        { i: ChatBubbleLeftRightIcon, h: '/contact' }
                     ].map((soc, i) => (
                        <a key={i} href={soc.h} className="w-12 h-12 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center text-white hover:bg-green-600 hover:border-green-600 transition-all shadow-xl">
@@ -177,7 +177,7 @@ const Footer = () => {
         {/* BOTTOM LEGAL & COPYRIGHT */}
         <div className="pt-12 flex flex-col md:flex-row justify-between items-center gap-8">
            <div className="flex gap-8 order-2 md:order-1">
-              <p className="text-xs font-black uppercase tracking-widest text-slate-600">© 2025 Flora Lawn & Landscaping Inc.</p>
+              <p className="text-xs font-black uppercase tracking-widest text-slate-600">© 2025 Fall Cleanups Services</p>
               <div className="flex gap-6">
                  <a href="/privacy-policy" className="text-[10px] font-black uppercase tracking-widest hover:text-white transition-colors">Privacy</a>
                  <a href="/terms-of-service" className="text-[10px] font-black uppercase tracking-widest hover:text-white transition-colors">Terms</a>

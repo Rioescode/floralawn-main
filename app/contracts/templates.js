@@ -1,4 +1,4 @@
-// Contract Templates for Lawn Care Services
+﻿// Contract Templates for Lawn Care Services
 // These templates can be used when sending contracts to customers
 
 export const CONTRACT_TEMPLATES = {
@@ -7,7 +7,7 @@ export const CONTRACT_TEMPLATES = {
     content: `
 SERVICE CONFIRMATION
 
-Thank you for choosing Flora Lawn & Landscaping! This document confirms the services we'll be providing for your property.
+Thank you for choosing Fall Cleanups Services! This document confirms the services we'll be providing for your property.
 
 CUSTOMER INFORMATION:
 Name: [CUSTOMER_NAME]
@@ -58,9 +58,9 @@ SATISFACTION GUARANTEE:
 QUESTIONS OR CONCERNS?
 We're here to help! Please don't hesitate to reach out:
 Phone: (401) 389-0913
-Email: floralawncareri@gmail.com
+Email: esckoofficial@gmail.com
 
-Thank you for choosing Flora Lawn & Landscaping!
+Thank you for choosing Fall Cleanups Services!
 
 Confirmation Date: [CONTRACT_DATE]
 Service Start Date: [START_DATE]
@@ -72,7 +72,7 @@ Service Start Date: [START_DATE]
     content: `
 SERVICE CONFIRMATION
 
-Thank you for choosing Flora Lawn & Landscaping! This document confirms all the services we'll be providing to keep your property looking great.
+Thank you for choosing Fall Cleanups Services! This document confirms all the services we'll be providing to keep your property looking great.
 
 CUSTOMER INFORMATION:
 Name: [CUSTOMER_NAME]
@@ -137,9 +137,9 @@ QUALITY GUARANTEE:
 QUESTIONS OR CONCERNS?
 We're here to help! Please don't hesitate to reach out:
 Phone: (401) 389-0913
-Email: floralawncareri@gmail.com
+Email: esckoofficial@gmail.com
 
-Thank you for choosing Flora Lawn & Landscaping!
+Thank you for choosing Fall Cleanups Services!
 
 Confirmation Date: [CONTRACT_DATE]
 Service Start Date: [START_DATE]
@@ -151,7 +151,7 @@ Service Start Date: [START_DATE]
     content: `
 SERVICE CONFIRMATION
 
-Thank you for choosing Flora Lawn & Landscaping! This document confirms the seasonal services we'll be providing for your property.
+Thank you for choosing Fall Cleanups Services! This document confirms the seasonal services we'll be providing for your property.
 
 CUSTOMER INFORMATION:
 Name: [CUSTOMER_NAME]
@@ -268,9 +268,9 @@ Customer Signature: _________________________ Date: ___________
 
 Print Name: [CUSTOMER_NAME]
 
-Contractor: Flora Lawn & Landscaping Inc.
+Contractor: Fall Cleanups Services
 Phone: (401) 389-0913
-Email: floralawncareri@gmail.com
+Email: esckoofficial@gmail.com
 
 Contract Date: [CONTRACT_DATE]
 Season: [SEASON_YEAR]
@@ -282,7 +282,7 @@ Season: [SEASON_YEAR]
     content: `
 SERVICE CONFIRMATION
 
-Thank you for choosing Flora Lawn & Landscaping! This document confirms the services we'll be providing for your commercial property.
+Thank you for choosing Fall Cleanups Services! This document confirms the services we'll be providing for your commercial property.
 
 CLIENT INFORMATION:
 Business Name: [BUSINESS_NAME]
@@ -377,7 +377,7 @@ TERMS AND CONDITIONS:
 8. COMMUNICATION
    - Primary contact: [ACCOUNT_MANAGER]
    - Phone: (401) 389-0913
-   - Email: floralawncareri@gmail.com
+   - Email: esckoofficial@gmail.com
    - Regular service reports provided
    - Online portal for account management
 
@@ -401,10 +401,10 @@ Authorized Signature: _________________________ Date: ___________
 Print Name: [CONTACT_NAME]
 Title: [TITLE]
 
-Contractor: Flora Lawn & Landscaping Inc.
+Contractor: Fall Cleanups Services
 License #: [LICENSE_NUMBER]
 Phone: (401) 389-0913
-Email: floralawncareri@gmail.com
+Email: esckoofficial@gmail.com
 
 Contract Date: [CONTRACT_DATE]
 Contract Term: [START_DATE] to [END_DATE]
@@ -418,7 +418,7 @@ SERVICE CONFIRMATION
 
 Hi [CUSTOMER_NAME]!
 
-Thank you for choosing Flora Lawn & Landscaping. Here's a summary of the services we'll be providing:
+Thank you for choosing Fall Cleanups Services. Here's a summary of the services we'll be providing:
 
 Customer: [CUSTOMER_NAME]
 Address: [PROPERTY_ADDRESS]
@@ -442,7 +442,7 @@ SERVICE DETAILS:
 
 Questions? Call (401) 389-0913
 
-Thank you for choosing Flora Lawn & Landscaping!
+Thank you for choosing Fall Cleanups Services!
     `.trim()
   }
 };

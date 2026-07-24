@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect } from 'react';
 import emailjs from '@emailjs/browser';
@@ -116,7 +116,7 @@ export default function CareersPage() {
 
       // Send email notification
       const templateParams = {
-        to_name: 'Flora Lawn & Landscaping',
+        to_name: 'Fall Cleanups Services',
         applicant_name: `${formData.firstName} ${formData.lastName}`,
         applicant_email: formData.email,
         applicant_phone: formData.phone,

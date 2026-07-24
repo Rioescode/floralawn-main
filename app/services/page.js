@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { motion } from 'framer-motion';
 import Navigation from '@/components/Navigation';
@@ -29,7 +29,7 @@ export default function ServicesPage() {
               <div>
                 <h2 className="text-2xl font-semibold text-green-600 mb-6">Professional Lawn Care & Landscaping</h2>
                 <p className="text-gray-600 mb-6">
-                  At Flora Lawn and Landscaping Inc, we provide comprehensive lawn care services to keep your property looking its best year-round. Our team of experienced professionals uses commercial-grade equipment and proven techniques to deliver exceptional results.
+                  At Fall Cleanups Services, we provide comprehensive lawn care services to keep your property looking its best year-round. Our team of experienced professionals uses commercial-grade equipment and proven techniques to deliver exceptional results.
                 </p>
                 <p className="text-gray-600 mb-6">
                   Whether you need regular maintenance or a one-time service, we tailor our approach to meet your specific needs and budget.
@@ -57,7 +57,7 @@ export default function ServicesPage() {
               <div className="relative h-80 md:h-auto rounded-xl overflow-hidden shadow-lg">
                 <Image
                   src="/images/2024-09-18.jpg"
-                  alt="Professional lawn care service by Flora Lawn and Landscaping Inc"
+                  alt="Professional lawn care service by Fall Cleanups Services"
                   fill
                   className="object-cover"
                   priority

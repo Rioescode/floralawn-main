@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
@@ -97,7 +97,7 @@ export default function Navigation() {
             <Link href="/" className="flex items-center shrink-0">
               <Image
                 src="/flora-logo-final.png"
-                alt="Flora Lawn & Landscaping"
+                alt="Fall Cleanups Services"
                 width={180}
                 height={54}
                 className="h-12 w-auto"
@@ -129,7 +129,7 @@ export default function Navigation() {
                 <div className="absolute top-full left-0 pt-3 opacity-0 invisible group-hover/services:opacity-100 group-hover/services:visible transition-all duration-200 pointer-events-none group-hover/services:pointer-events-auto">
                   <div className="bg-white rounded-3xl shadow-2xl shadow-slate-200/80 border border-slate-100 p-5 min-w-[480px] grid grid-cols-2 gap-1">
                     <div className="col-span-2 pb-3 mb-2 border-b border-slate-100">
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">All Services — RI & MA</p>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">All Services</p>
                     </div>
                     {services.map((svc) => (
                       <Link

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
@@ -86,7 +86,7 @@ Use code: SPRING15
 Let's make your lawn the envy of the neighborhood!
 
 Best regards,
-Flora Lawn & Landscaping Team`
+Fall Cleanups Services Team`
     },
     mulch_season: {
       name: 'Mulch Season',
@@ -116,7 +116,7 @@ Use code: MULCH20
 Transform your landscaping today!
 
 Best regards,
-Flora Lawn & Landscaping Team`
+Fall Cleanups Services Team`
     },
     summer_maintenance: {
       name: 'Summer Maintenance',
@@ -149,7 +149,7 @@ Use code: SUMMER10
 Keep your lawn looking great all season!
 
 Best regards,
-Flora Lawn & Landscaping Team`
+Fall Cleanups Services Team`
     },
     fall_cleanup: {
       name: 'Fall Cleanup',
@@ -182,7 +182,7 @@ Use code: FALL15
 Prepare your yard for a beautiful spring!
 
 Best regards,
-Flora Lawn & Landscaping Team`
+Fall Cleanups Services Team`
     },
     holiday_coupon: {
       name: 'Holiday Coupon',
@@ -192,7 +192,7 @@ Flora Lawn & Landscaping Team`
       months: ['December', 'January'],
       content: `Hi [Name],
 
-Happy Holidays from Flora Lawn & Landscaping! We're grateful for your business this year.
+Happy Holidays from Fall Cleanups Services! We're grateful for your business this year.
 
 🎁 Special Holiday Offer:
 Get 25% OFF any service when you book before [Date]!
@@ -207,10 +207,10 @@ Perfect for:
 
 📞 Call us today: (401) 389-0913
 
-Thank you for choosing Flora Lawn & Landscaping!
+Thank you for choosing Fall Cleanups Services!
 
 Best regards,
-Flora Lawn & Landscaping Team`
+Fall Cleanups Services Team`
     },
     seasonal_reminder: {
       name: 'Seasonal Reminder',
@@ -234,7 +234,7 @@ Don't wait - schedule now to ensure availability!
 We look forward to serving you!
 
 Best regards,
-Flora Lawn & Landscaping Team`
+Fall Cleanups Services Team`
     }
   };
 

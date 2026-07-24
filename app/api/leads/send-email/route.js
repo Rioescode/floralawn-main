@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+﻿import { NextResponse } from 'next/server';
 import { sendEmail } from '@/libs/resend';
 
 export async function POST(request) {
@@ -14,7 +14,7 @@ export async function POST(request) {
 
     const emailHtml = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #22C55E;">Hello from Flora Lawn & Landscaping!</h2>
+        <h2 style="color: #22C55E;">Hello from Fall Cleanups Services!</h2>
         <p>Hi ${leadName || 'there'},</p>
         <div style="background-color: #f0f9ff; padding: 15px; border-radius: 8px; margin: 20px 0; white-space: pre-wrap;">
           ${message.replace(/\n/g, '<br>')}
@@ -23,9 +23,9 @@ export async function POST(request) {
         <p>If you have any questions, please don't hesitate to contact us.</p>
         <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
         <p style="color: #6b7280; font-size: 12px;">
-          Flora Lawn & Landscaping Inc<br>
+          Fall Cleanups Services<br>
           Phone: (401) 389-0913<br>
-          Email: floralawncareri@gmail.com
+          Email: esckoofficial@gmail.com
         </p>
       </div>
     `;
@@ -35,7 +35,7 @@ export async function POST(request) {
       subject,
       text: message,
       html: emailHtml,
-      replyTo: 'floralawncareri@gmail.com'
+      replyTo: 'esckoofficial@gmail.com'
     });
 
     return NextResponse.json({ success: true, message: 'Email sent successfully' });

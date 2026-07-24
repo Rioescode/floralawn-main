@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from 'react';
 import Navigation from "@/components/Navigation";
@@ -98,7 +98,7 @@ export default function ServicePage({ city, service, state = "RI" }) {
               <div>
                 <h2 className="text-2xl font-semibold text-green-600 mb-6">{serviceData.title} Services in {city}, {state}</h2>
                 <p className="text-gray-600 mb-6">
-                  Flora Lawn & Landscaping Inc provides professional {serviceData.title.toLowerCase()} services in {city} and throughout {state}. Our experienced team delivers reliable, high-quality service for both residential and commercial properties.
+                  Fall Cleanups Services provides professional {serviceData.title.toLowerCase()} services in {city} and throughout {state}. Our experienced team delivers reliable, high-quality service for both residential and commercial properties.
                 </p>
                 <p className="text-gray-600 mb-6">
                   {serviceData.description}
@@ -409,7 +409,7 @@ export default function ServicePage({ city, service, state = "RI" }) {
               <div className="text-center mb-8">
               <h2 className="text-3xl font-bold text-gray-900 mb-4">Ready for Professional {serviceData.title} in {city}?</h2>
               <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-                  Contact Flora Lawn & Landscaping Inc today for a free estimate and let our professionals take care of your lawn and landscaping needs.
+                  Contact Fall Cleanups Services today for a free estimate and let our professionals take care of your lawn and landscaping needs.
                 </p>
               </div>
               

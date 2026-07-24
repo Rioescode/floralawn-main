@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+﻿import { NextResponse } from 'next/server';
 
 export async function POST(req) {
   try {
@@ -23,9 +23,9 @@ export async function POST(req) {
         max_tokens: 300,
         messages: [{
           role: "user",
-          content: `Write a warm, personalized thank you message for ${customerName} who just booked a ${serviceType} service with Flora Lawn & Landscaping Inc in ${city}. This is for a ${bookingType} scheduled for ${date}. Make it very personal, mention their name, service details, and location. Express genuine appreciation and make them feel valued. Include a note about the Flora team confirming details soon.`
+          content: `Write a warm, personalized thank you message for ${customerName} who just booked a ${serviceType} service with Fall Cleanups Services in ${city}. This is for a ${bookingType} scheduled for ${date}. Make it very personal, mention their name, service details, and location. Express genuine appreciation and make them feel valued. Include a note about the Flora team confirming details soon.`
         }],
-        system: "You are writing highly personalized thank you messages for Flora Lawn & Landscaping Inc. Write in a warm, friendly tone that makes customers feel special and valued. Always start with their name. Keep it to 3-4 sentences, mentioning their specific service details and appointment time. End with a note about the Flora team confirming details soon. Never mention any other company names."
+        system: "You are writing highly personalized thank you messages for Fall Cleanups Services Write in a warm, friendly tone that makes customers feel special and valued. Always start with their name. Keep it to 3-4 sentences, mentioning their specific service details and appointment time. End with a note about the Flora team confirming details soon. Never mention any other company names."
       })
     });
 

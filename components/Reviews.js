@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState } from 'react';
 
@@ -45,7 +45,7 @@ const reviews = [
     photoCount: 0,
     rating: 5,
     date: '4 weeks ago',
-    text: 'We are very pleased with Flora Lawn & Landscaping! They have been helping to maintain our yard for two years now and we couldn\'t be happier with their service.',
+    text: 'We are very pleased with Fall Cleanups Services! They have been helping to maintain our yard for two years now and we couldn\'t be happier with their service.',
     response: 'Thank you for the great review! We\'re so happy to hear that you\'ve been pleased with our services. We truly appreciate your trust in us and look forward to continuing to care for your yard!'
   }
 ];
@@ -122,7 +122,7 @@ export default function Reviews() {
               {review.response && (
                 <div className="mt-4 pl-4 border-l-4 border-green-500">
                   <p className="text-sm text-gray-600">
-                    <span className="font-medium text-green-600">Flora Lawn & Landscaping Inc</span>
+                    <span className="font-medium text-green-600">Fall Cleanups Services</span>
                     <br />
                     {review.response}
                   </p>

@@ -1,5 +1,5 @@
-export const businessInfo = {
-  name: process.env.NEXT_PUBLIC_APP_NAME || 'Flora Lawn & Landscaping Inc',
+﻿export const businessInfo = {
+  name: process.env.NEXT_PUBLIC_APP_NAME || 'Fall Cleanups Services',
   email: 'esckoofficial@gmail.com',
   phone: '(401) 389-0913',
   address: {
@@ -18,8 +18,8 @@ export const businessInfo = {
     sunday: 'Closed'
   },
   social: {
-    facebook: 'https://facebook.com/floralawnandlandscaping',
-    instagram: 'https://instagram.com/floralawnandlandscaping',
+    facebook: 'https://facebook.com/fallcleanupsservices',
+    instagram: 'https://instagram.com/fallcleanupsservices',
   },
   services: {
     residential: [
@@ -46,7 +46,7 @@ export const businessInfo = {
     "Woonsocket",
     "Newport"
   ],
-  description: "Flora Lawn & Landscaping Inc is Rhode Island's premier provider of professional lawn care, landscaping, and property maintenance. Based in Pawtucket, we serve homeowners across RI and SE Massachusetts with reliable, high-quality outdoor services.",
+  description: "Fall Cleanups Services is Rhode Island's premier provider of professional lawn care, landscaping, and property maintenance. Based in Pawtucket, we serve homeowners across RI and SE Massachusetts with reliable, high-quality outdoor services.",
   shortDescription: "Rhode Island's trusted lawn care & landscaping experts"
 };
 

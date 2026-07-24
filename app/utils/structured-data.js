@@ -1,4 +1,4 @@
-export function generateStructuredData({ type, name, description, areaServed, serviceType }) {
+﻿export function generateStructuredData({ type, name, description, areaServed, serviceType }) {
   return {
     "@context": "https://schema.org",
     "@type": type,
@@ -16,7 +16,7 @@ export function generateStructuredData({ type, name, description, areaServed, se
     },
     "provider": {
       "@type": "LocalBusiness",
-      "name": "Flora Lawn & Landscaping Inc",
+      "name": "Fall Cleanups Services",
       "description": "Professional lawn care and landscaping services in Rhode Island",
       "address": {
         "@type": "PostalAddress",
@@ -27,7 +27,7 @@ export function generateStructuredData({ type, name, description, areaServed, se
         "addressCountry": "US"
       },
       "telephone": "(401) 389-0913",
-      "email": "floralawncareri@gmail.com",
+      "email": "esckoofficial@gmail.com",
       "areaServed": "Rhode Island",
       "openingHours": [
         "Mo-Fr 07:00-18:00",
@@ -41,7 +41,7 @@ export function generateStructuredData({ type, name, description, areaServed, se
       "serviceType": serviceType,
       "provider": {
         "@type": "LocalBusiness",
-        "name": "Flora Lawn & Landscaping Inc"
+        "name": "Fall Cleanups Services"
       }
     }
   };
@@ -51,7 +51,7 @@ export const generateBusinessStructuredData = () => {
   return {
     "@context": "https://schema.org",
     "@type": "LocalBusiness",
-    "name": "Flora Lawn & Landscaping Inc",
+    "name": "Fall Cleanups Services",
     "image": [
       "https://floralawn.com/flora-logo-final.png"
     ],
@@ -91,7 +91,7 @@ export const generateBusinessStructuredData = () => {
         "closes": "16:00"
       }
     ],
-    "email": "floralawncareri@gmail.com",
+    "email": "esckoofficial@gmail.com",
     "sameAs": [
       "https://www.facebook.com/floralawn",
       "https://www.instagram.com/floralawn"

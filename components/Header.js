@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
@@ -74,11 +74,11 @@ const Header = () => {
           <Link
             className="flex items-center gap-2 shrink-0"
             href="/"
-            title="Flora Lawn & Landscaping homepage"
+            title="Fall Cleanups Services homepage"
           >
             <Image
               src="/flora-logo-final.png"
-              alt="Flora Lawn & Landscaping logo"
+              alt="Fall Cleanups Services logo"
               className="h-12 w-auto"
               priority={true}
               width={200}
@@ -145,12 +145,12 @@ const Header = () => {
           <div className="flex items-center justify-between">
             <Link
               className="flex items-center gap-2 shrink-0"
-              title="Flora Lawn & Landscaping homepage"
+              title="Fall Cleanups Services homepage"
               href="/"
             >
               <Image
                 src="/flora-logo-final.png"
-                alt="Flora Lawn & Landscaping logo"
+                alt="Fall Cleanups Services logo"
                 className="h-10 w-auto"
                 priority={true}
                 width={160}

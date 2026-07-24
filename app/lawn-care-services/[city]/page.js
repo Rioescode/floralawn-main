@@ -27,10 +27,10 @@ export async function generateMetadata({ params }) {
   const cityName = location?.city || params.city;
   
   return {
-    title: `Expert Lawn Care Maintenance & Health Plans in ${cityName}, RI | Flora Lawn`,
+    title: `Expert Lawn Care Maintenance & Health Plans in ${cityName}, RI | Fall Cleanups Services`,
     description: `The #1 rated lawn care team in ${cityName}, Rhode Island. Professional fertilization, weed control, and seasonal maintenance plans built for New England soil. Free quotes!`,
     alternates: {
-      canonical: `https://riyardworks.com/lawn-care-services/${params.city}`
+      canonical: `https://fallcleanups.com/lawn-care-services/${params.city}`
     }
   };
 }

@@ -1,4 +1,4 @@
-export const lawnServices = [
+﻿export const lawnServices = [
   {
     title: "Lawn Mowing",
     slug: "lawn-mowing",
@@ -7,12 +7,12 @@ export const lawnServices = [
       "Expert Lawn Mowing Services in {city}, RI",
       "Professional Lawn Mowing for {city} Homeowners",
       "Reliable {city} Lawn Mowing & Maintenance",
-      "Flora Lawn: Your Local {city} Mowing Team",
+      "Fall Cleanups Services: Your Local {city} Mowing Team",
       "Premium Weekly Lawn Mowing in {city}"
     ],
     description: "Professional lawn mowing services with precise cutting heights, crisp edging, and meticulous cleanup.",
     includes: ["Precision grass cutting", "String trimming", "Power edging", "Hard surface cleanup"],
-    metaDescription: "Professional lawn mowing in {city}, RI by Flora Lawn. Expert grass cutting, trimming & power edging. Reliable weekly service. Get your free estimate today!",
+    metaDescription: "Professional lawn mowing in {city}, RI by Fall Cleanups Services. Expert grass cutting, trimming & power edging. Reliable weekly service. Get your free estimate today!",
     subheading: "Reliable weekly or bi-weekly lawn maintenance from our local expert team",
     serviceContent: {
       benefits: [
@@ -70,7 +70,7 @@ export const lawnServices = [
     ],
     description: "Complete lawn health programs including professional fertilization, weed control, and vital soil treatments.",
     includes: ["Custom fertilization", "Pre-emergent weed control", "Targeted pest management", "Soil health analysis"],
-    metaDescription: "Expert lawn care in {city}, RI. Professional fertilization, weed control & seasonal maintenance by Flora Lawn. Licensed local experts. Request a free quote!",
+    metaDescription: "Expert lawn care in {city}, RI. Professional fertilization, weed control & seasonal maintenance by Fall Cleanups Services. Licensed local experts. Request a free quote!",
     subheading: "Customized lawn health plans tailored to your specific {city} soil and grass type",
     serviceContent: {
       benefits: [
@@ -122,13 +122,13 @@ export const lawnServices = [
     h1Variations: [
       "Expert Landscaping Design & Service in {city}, RI",
       "Professional Property Landscaping for {city} Homes",
-      "Flora Lawn: {city} Premium Landscape Maintenance",
+      "Fall Cleanups Services: {city} Premium Landscape Maintenance",
       "Transform Your {city} Curb Appeal with Local Landscaping",
       "Top-Rated Landscaping Contractors in {city}, RI"
     ],
     description: "Full-service landscaping including professional design, planting, and meticulous maintenance.",
     includes: ["Custom landscape design", "Professional planting", "Premium hardscaping", "Ongoing maintenance"],
-    metaDescription: "Professional landscaping in {city}, RI by Flora Lawn. Expert design, installation & maintenance. Transform your outdoor space today. Get a free estimate!",
+    metaDescription: "Professional landscaping in {city}, RI by Fall Cleanups Services. Expert design, installation & maintenance. Transform your outdoor space today. Get a free estimate!",
     subheading: "Transform your outdoor space with our local landscaping professionals",
     serviceContent: {
       benefits: [
@@ -181,12 +181,12 @@ export const lawnServices = [
       "Premium Mulch Installation in {city}, RI",
       "Professional Garden Bed Mulching in {city}",
       "Expert Mulch Delivery & Install in {city}",
-      "Flora Lawn: {city} Mulch & Bed Maintenance",
+      "Fall Cleanups Services: {city} Mulch & Bed Maintenance",
       "Enhance Your {city} Curb Appeal with New Mulch"
     ],
     description: "High-quality mulch installation to protect your plants and beautify your garden beds.",
     includes: ["Premium natural mulch", "Professional bed preparation", "Expert installation", "Clean edge-to-edge finish"],
-    metaDescription: "Professional mulch installation in {city}, RI. High-quality materials & expert installation by Flora Lawn. Improve soil health & curb appeal. Book now!",
+    metaDescription: "Professional mulch installation in {city}, RI. High-quality materials & expert installation by Fall Cleanups Services. Improve soil health & curb appeal. Book now!",
     h1: "Professional Mulch Installation in {city}",
     subheading: "Protect your landscape and boost curb appeal with premium mulch",
     serviceContent: {
@@ -239,13 +239,13 @@ export const lawnServices = [
     h1Variations: [
       "Reliable Leaf Removal in {city}, RI",
       "Professional Fall Leaf Cleanup in {city}",
-      "Flora Lawn: Your {city} Leaf Removal Experts",
+      "Fall Cleanups Services: Your {city} Leaf Removal Experts",
       "Keep Your {city} Lawn Healthy with Expert Leaf Mulching",
       "Comprehensive Leaf Vacuuming & Removal in {city}"
     ],
     description: "Efficient leaf removal and mulching services to protect your lawn through the fall and winter.",
     includes: ["Blowing and raking", "Leaf mulching/vacuuming", "Gutter cleaning options", "Complete debris disposal"],
-    metaDescription: "Professional leaf removal in {city}, RI. Efficient fall cleanup services by Flora Lawn. Protect your grass from leaf rot. Book your cleanup today!",
+    metaDescription: "Professional leaf removal in {city}, RI. Efficient fall cleanup services by Fall Cleanups Services. Protect your grass from leaf rot. Book your cleanup today!",
     h1: "Professional Leaf Removal Services in {city}",
     subheading: "Fast and reliable leaf cleanup for properties of all sizes in {city}",
     serviceContent: {
@@ -298,13 +298,13 @@ export const lawnServices = [
     h1Variations: [
       "Professional Hedge Trimming in {city}, RI",
       "Expert Shrub & Hedge Care in {city}",
-      "Flora Lawn: {city} Hedge Shaping & Maintenance",
+      "Fall Cleanups Services: {city} Hedge Shaping & Maintenance",
       "Keep Your {city} Landscape Neat with Professional Trimming",
       "Top-Rated Shrub Pruning Services in {city}"
     ],
     description: "Professional hedge trimming and shrub pruning to maintain shape, health, and curb appeal.",
     includes: ["Precision trimming", "Pruning for plant health", "Consistent shaping", "Debris removal"],
-    metaDescription: "Professional hedge trimming in {city}, RI. Expert shrub care & maintenance by Flora Lawn. Keep your landscape sharp and healthy. Get a free quote today!",
+    metaDescription: "Professional hedge trimming in {city}, RI. Expert shrub care & maintenance by Fall Cleanups Services. Keep your landscape sharp and healthy. Get a free quote today!",
     h1: "Expert Hedge Trimming Services in {city}",
     subheading: "Expert shaping and pruning for all your garden shrubs and hedges",
     serviceContent: {
@@ -357,13 +357,13 @@ export const lawnServices = [
     h1Variations: [
       "Comprehensive Spring Cleanup in {city}, RI",
       "Expert Spring Property Re-Opening in {city}",
-      "Flora Lawn: {city} Post-Winter Lawn Recovery",
+      "Fall Cleanups Services: {city} Post-Winter Lawn Recovery",
       "Get Your {city} Yard Ready for Summer with Our Cleanup",
       "Professional Spring Trimming & Bed Prep in {city}"
     ],
     description: "Complete post-winter cleanup including debris removal, first mow, and bed preparation to kickstart your summer.",
     includes: ["Debris & stick removal", "Dethatching options", "Initial mow & edge", "Landscape bed preparation"],
-    metaDescription: "Professional spring cleanup in {city}, RI. Get your property ready for the growing season with expert care from Flora Lawn. Request a free estimate!",
+    metaDescription: "Professional spring cleanup in {city}, RI. Get your property ready for the growing season with expert care from Fall Cleanups Services. Request a free estimate!",
     h1: "Spring Cleanup Services in {city}",
     subheading: "Kickstart your {city} property's beauty with a deep spring cleanup",
     serviceContent: {
@@ -416,13 +416,13 @@ export const lawnServices = [
     h1Variations: [
       "Expert Fall Yard Cleanup in {city}, RI",
       "Professional Post-Season Leaf & Bed Cleanup in {city}",
-      "Flora Lawn: Prepare Your {city} Property for Winter",
+      "Fall Cleanups Services: Prepare Your {city} Property for Winter",
       "Late Season Maintenance & Cleanup in {city}",
-      "Flora Lawn {city}: Comprehensive Fall Leaf Removal"
+      "Fall Cleanups Services {city}: Comprehensive Fall Leaf Removal"
     ],
     description: "Final property cleanup to ensure your lawn and gardens are protected through the harsh Rhode Island winter.",
     includes: ["Final mowing & leaf removal", "Perennial cut-down", "Winterizing shrubs", "Stick & debris disposal"],
-    metaDescription: "Professional fall cleanup in {city}, RI. Protect your lawn from winter rot with expert cleanup from Flora Lawn. Book your late-season service today!",
+    metaDescription: "Professional fall cleanup in {city}, RI. Protect your lawn from winter rot with expert cleanup from Fall Cleanups Services. Book your late-season service today!",
     h1: "Fall Cleanup Services in {city}",
     subheading: "Professional winter-prep and leaf removal for your {city} property",
     serviceContent: {
@@ -476,12 +476,12 @@ export const lawnServices = [
       "Expert Lawn Aeration in {city}, RI",
       "Professional Core Aeration for {city} Lawns",
       "Breathe Life into Your {city} Grass with Aeration",
-      "Flora Lawn: {city} Compaction Relief & Root Support",
+      "Fall Cleanups Services: {city} Compaction Relief & Root Support",
       "Spring & Fall Aeration Programs in {city}"
     ],
     description: "Professional core aeration to improve lawn health, relieve compaction, and encourage deep root growth.",
     includes: ["Precision core aeration", "Targeted compaction relief", "Thatch management", "Soil health consultation"],
-    metaDescription: "Professional lawn aeration in {city}, RI. Improve soil health, drainage & grass growth with expert core aeration by Flora Lawn. Request a free estimate today!",
+    metaDescription: "Professional lawn aeration in {city}, RI. Improve soil health, drainage & grass growth with expert core aeration by Fall Cleanups Services. Request a free estimate today!",
     h1: "Professional Lawn Aeration in {city}",
     subheading: "Revitalize your {city} lawn with professional core aeration",
     serviceContent: {
@@ -534,13 +534,13 @@ export const lawnServices = [
     h1Variations: [
       "Professional Overseeding Services in {city}, RI",
       "Thick, Green Lawns in {city} with Expert Seeding",
-      "Flora Lawn: {city} Lawn Overseeding & Repair",
+      "Fall Cleanups Services: {city} Lawn Overseeding & Repair",
       "Restore Your {city} Lawn with Premium Grass Seed",
       "Late Summer & Fall Overseeding in {city}"
     ],
     description: "Professional seeding using premium grass varieties to thicken your lawn and improve resistance.",
     includes: ["Premium grass seed", "Soil preparation", "Consistent seeding", "Starter fertilization"],
-    metaDescription: "Professional lawn overseeding in {city}, RI. Thicken your grass naturally with premium seed and expert application by Flora Lawn. Request your free quote!",
+    metaDescription: "Professional lawn overseeding in {city}, RI. Thicken your grass naturally with premium seed and expert application by Fall Cleanups Services. Request your free quote!",
     subheading: "Expert overseeding to thicken your {city} lawn and crowd out weeds",
     serviceContent: {
       benefits: [
@@ -592,13 +592,13 @@ export const lawnServices = [
     h1Variations: [
       "Expert Garden Maintenance in {city}, RI",
       "Professional Flower Bed Care in {city}",
-      "Flora Lawn: {city} Garden & Landscape Upkeep",
+      "Fall Cleanups Services: {city} Garden & Landscape Upkeep",
       "Keep Your {city} Gardens Thriving with Expert Care",
       "Complete Bed Weeding & Maintenance in {city}"
     ],
     description: "Personalized care for your flower beds and ornamental plantings to ensure season-long beauty.",
     includes: ["Detailed weeding", "Deadheading & pruning", "Bed edging & mulching", "Organic plant feeding"],
-    metaDescription: "Professional garden maintenance in {city}, RI by Flora Lawn. Expert weeding, pruning & bed care. Keep your landscape beautiful year-round. Get a free quote!",
+    metaDescription: "Professional garden maintenance in {city}, RI by Fall Cleanups Services. Expert weeding, pruning & bed care. Keep your landscape beautiful year-round. Get a free quote!",
     subheading: "Beautiful, weed-free garden beds maintained by our local experts",
     serviceContent: {
       benefits: [
@@ -650,15 +650,15 @@ export const lawnServices = [
     h1Variations: [
       "Reliable Snow Removal & Plowing in {city}, RI",
       "Professional 24/7 Winter Maintenance in {city}",
-      "Flora Lawn: {city} Snow Plowing & De-Icing",
+      "Fall Cleanups Services: {city} Snow Plowing & De-Icing",
       "Stay Safe with Expert Snow Clearing in {city}",
       "Top-Rated {city} Residential & Commercial Snow Removal"
     ],
     description: "Reliable, 24/7 snow removal and ice management services to keep your property safe and accessible.",
     includes: ["Expert snow plowing", "Driveway & sidewalk clearing", "Sanding & salting", "24/7 emergency response"],
-    metaDescription: "Professional snow removal in {city}, RI. Reliable 24/7 plowing, de-icing & sidewalk clearing by Flora Lawn. Residential & commercial service. Book your winter care!",
+    metaDescription: "Professional snow removal in {city}, RI. Reliable 24/7 plowing, de-icing & sidewalk clearing by Fall Cleanups Services. Residential & commercial service. Book your winter care!",
     h1: "Snow Removal Services in {city}",
-    subheading: "Keep your property safe and accessible with Flora Lawn's expert snow removal"
+    subheading: "Keep your property safe and accessible with Fall Cleanups Services's expert snow removal"
   },
   {
     title: "Small Tree Trimming",
@@ -667,12 +667,12 @@ export const lawnServices = [
     h1Variations: [
       "Expert Small Tree Trimming in {city}, RI",
       "Professional Tree Care & Pruning for {city} Homes",
-      "Flora Lawn: {city} Ornamental Tree & Shrub Shaping",
+      "Fall Cleanups Services: {city} Ornamental Tree & Shrub Shaping",
       "Precision Tree Trimming Services in {city}, RI"
     ],
     description: "Expert pruning and trimming for ornamental and small trees to maintain shape, health, and property safety.",
     includes: ["Targeted pruning", "Deadwood removal", "Ornamental shaping", "Full debris cleanup"],
-    metaDescription: "Professional small tree trimming in {city}, RI by Flora Lawn. Expert pruning, shaping & debris removal. Keep your property safe and beautiful. Get a free quote!",
+    metaDescription: "Professional small tree trimming in {city}, RI by Fall Cleanups Services. Expert pruning, shaping & debris removal. Keep your property safe and beautiful. Get a free quote!",
     subheading: "Expert pruning for small trees and ornamental plantings"
   },
   {
@@ -682,12 +682,12 @@ export const lawnServices = [
     h1Variations: [
       "Precision Garden Bed Edging in {city}, RI",
       "Deep Definition Spade Edging for {city} Homes",
-      "Flora Lawn: {city} Commercial-Grade Garden Edging",
+      "Fall Cleanups Services: {city} Commercial-Grade Garden Edging",
       "Enhance Your {city} Curb Appeal with Professional Edging"
     ],
     description: "Transform your landscape with professional spade-edged definition for a clean, commercial-grade finish.",
     includes: ["Spade-edged deep definition", "Old mulch removal", "Trench preparation", "Clean debris disposal"],
-    metaDescription: "Professional garden bed edging in {city}, RI. Achieve deep, clean definition for your landscape with Flora Lawn. Commercial-grade results. Book now!",
+    metaDescription: "Professional garden bed edging in {city}, RI. Achieve deep, clean definition for your landscape with Fall Cleanups Services. Commercial-grade results. Book now!",
     subheading: "Sharp, clean definition for your garden beds and tree rings"
   },
   {
@@ -697,12 +697,12 @@ export const lawnServices = [
     h1Variations: [
       "Custom Lawn & Landscape Jobs in {city}, RI",
       "Tailored Outdoor Projects for {city} Properties",
-      "Flora Lawn: Your {city} Specialized Property Service",
+      "Fall Cleanups Services: Your {city} Specialized Property Service",
       "Bespoke Outdoor Maintenance Solutions in {city}, RI"
     ],
     description: "Have a unique project? Our team handles custom requests from brush clearing to site prep with professional precision.",
     includes: ["Bespoke site preparation", "Specialized brush clearing", "Unique planting projects", "Full site recovery"],
-    metaDescription: "Custom lawn and garden services in {city}, RI. Have a unique outdoor project? Flora Lawn handles specialized requests with expert care. Get a custom quote!",
+    metaDescription: "Custom lawn and garden services in {city}, RI. Have a unique outdoor project? Fall Cleanups Services handles specialized requests with expert care. Get a custom quote!",
     subheading: "Professional solutions for your unique landscape and property needs"
   }
 ];

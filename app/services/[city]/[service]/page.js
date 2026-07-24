@@ -62,7 +62,7 @@ export async function generateMetadata({ params }) {
   const canonicalUrl = `${baseUrl}/services/${city}/${service}`;
 
   return {
-    title: `${serviceData.title} in ${formattedCity}, RI | Flora Lawn and Landscaping Inc`,
+    title: `${serviceData.title} in ${formattedCity}, RI | Fall Cleanups Services`,
     description: serviceData.metaDescription.replace('{city}', formattedCity),
     keywords: `${serviceData.title.toLowerCase()}, ${formattedCity} landscaping, ${formattedCity} lawn care, Rhode Island landscaping`,
     // Add canonical URL
@@ -87,7 +87,7 @@ export async function generateMetadata({ params }) {
       url: canonicalUrl,
       locale: 'en_US',
       type: 'website',
-      siteName: 'Flora Lawn and Landscaping Inc',
+      siteName: 'Fall Cleanups Services',
       images: [
         {
           url: `${baseUrl}/images/${serviceData.slug || serviceData.urlPath}.jpg`,

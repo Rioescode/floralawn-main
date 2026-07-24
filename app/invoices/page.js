@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
@@ -246,15 +246,15 @@ export default function InvoiceMakerPage() {
       <div style="font-family: 'Inter', system-ui, -apple-system, sans-serif; color: #1e293b; line-height: 1.5; padding: 40px; background: white; border-radius: 24px;">
         <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 40px; border-bottom: 4px solid #10b981; padding-bottom: 30px;">
           <div>
-            <img src="https://floralawn-and-landscaping.com/flora-logo-final.png" style="max-height: 70px; margin-bottom: 16px;">
+            <img src="https://fallcleanups.com/flora-logo-final.png" style="max-height: 70px; margin-bottom: 16px;">
             <h1 style="font-size: 36px; font-weight: 900; font-style: italic; margin: 0; color: #065f46; text-transform: uppercase;">${docType}</h1>
             <p style="font-size: 14px; font-weight: 800; color: #64748b; margin-top: 4px;"># ${invoiceData.invoice_number}</p>
           </div>
           <div style="text-align: right; font-size: 13px; color: #64748b;">
-            <p style="font-size: 18px; font-weight: 900; color: #0f172a; margin-bottom: 4px;">Flora Lawn & Landscaping Inc.</p>
+            <p style="font-size: 18px; font-weight: 900; color: #0f172a; margin-bottom: 4px;">Fall Cleanups Services</p>
             <p>45 Vernon St, Pawtucket, RI 02860</p>
             <p>(401) 389-0913</p>
-            <p>floralawncareri@gmail.com</p>
+            <p>esckoofficial@gmail.com</p>
             <div style="margin-top: 20px; font-weight: 800; color: #0f172a;">
               <p>DATE: ${new Date(invoiceData.invoice_date).toLocaleDateString()}</p>
               <p>DUE: ${new Date(invoiceData.due_date).toLocaleDateString()}</p>
@@ -315,7 +315,7 @@ export default function InvoiceMakerPage() {
         ` : ''}
 
         <div style="margin-top: 80px; padding-top: 30px; border-top: 1px solid #f1f5f9; text-align: center;">
-          <p style="font-size: 12px; font-weight: 900; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.1em; font-style: italic;">Thank you for choosing Flora Lawn & Landscaping — Rhode Island's Finest</p>
+          <p style="font-size: 12px; font-weight: 900; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.1em; font-style: italic;">Thank you for choosing Fall Cleanups Services — Rhode Island's Finest</p>
         </div>
       </div>
     `;

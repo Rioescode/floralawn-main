@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
@@ -66,7 +66,7 @@ export default function UnsubscribePage() {
               <h1 className="text-2xl font-bold text-gray-900 mb-2">Successfully Unsubscribed</h1>
               <p className="text-gray-600 mb-6">{message}</p>
               <p className="text-sm text-gray-500">
-                You will no longer receive marketing emails from Flora Lawn & Landscaping.
+                You will no longer receive marketing emails from Fall Cleanups Services.
                 You may still receive important service-related communications.
               </p>
             </>
@@ -83,8 +83,8 @@ export default function UnsubscribePage() {
               <p className="text-gray-600 mb-6">{message}</p>
               <p className="text-sm text-gray-500">
                 If you continue to receive emails, please contact us directly at{' '}
-                <a href="mailto:floralawncareri@gmail.com" className="text-green-600 hover:underline">
-                  floralawncareri@gmail.com
+                <a href="mailto:esckoofficial@gmail.com" className="text-green-600 hover:underline">
+                  esckoofficial@gmail.com
                 </a>
               </p>
             </>

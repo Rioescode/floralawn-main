@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { motion } from 'framer-motion';
 import Navigation from "@/components/Navigation";
@@ -55,7 +55,7 @@ export default function AboutPage() {
                 transition={{ delay: 0.2 }}
                 className="text-xl text-slate-400 max-w-xl font-medium italic mb-12 leading-relaxed px-4 md:px-10"
               >
-                Flora Lawn & Landscaping is built on a commitment to our Rhode Island neighbors. We combine local family-owned values with professional property standards.
+                Fall Cleanups Services is built on a commitment to our Rhode Island neighbors. We combine local family-owned values with professional property standards.
               </motion.p>
               
               <div className="grid grid-cols-2 gap-6 px-4 md:px-10">
@@ -103,7 +103,7 @@ export default function AboutPage() {
               <h2 className="text-4xl md:text-5xl font-black text-slate-900 italic tracking-tighter mb-10 uppercase">Driven By <span className="text-green-600">Our Mission</span></h2>
               <div className="space-y-8">
                  <p className="text-xl text-slate-600 font-semibold italic leading-relaxed">
-                    Based in Pawtucket, Flora Lawn & Landscaping was built on a simple premise: provide homeowner transparency through high-speed communication and meticulous outdoor work.
+                    Based in Pawtucket, Fall Cleanups Services was built on a simple premise: provide homeowner transparency through high-speed communication and meticulous outdoor work.
                  </p>
                  <p className="text-lg text-slate-500 font-medium">
                     We saw a gap in the local market for landscaping teams that actually show up, respond quickly, and treat every yard like their own. Today, we're proud to be the neighborhood's preferred choice for reliable, recurring lawn care and cleanup.

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect } from 'react';
 import { supabase, supabaseAdmin } from '@/lib/supabase';
@@ -2455,7 +2455,7 @@ Flora Landscaping`
                             <button
                               onClick={() => {
                                 setSelectedAppointment(apt);
-                                setCompletionMessage(`Your ${apt.service_type} service has been completed successfully! Thank you for choosing Flora Lawn and Landscaping.`);
+                                setCompletionMessage(`Your ${apt.service_type} service has been completed successfully! Thank you for choosing Fall Cleanups Services.`);
                                 setShowMarkDoneModal(true);
                               }}
                               className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center gap-1"

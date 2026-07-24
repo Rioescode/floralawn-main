@@ -1,9 +1,9 @@
-import Navigation from "@/components/Navigation";
+﻿import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
 import { businessInfo } from "@/utils/business-info";
 
 export const metadata = {
-  title: 'Liability Waiver | RIYardworks',
+  title: 'Liability Waiver | FallCleanupsServices',
   description: 'Customer liability waiver and release of claims for lawn care and landscaping services.',
 };
 

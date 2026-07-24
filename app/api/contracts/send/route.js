@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
+﻿import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 
 const supabase = createClient(
@@ -115,7 +115,7 @@ export async function POST(request) {
     const confirmationContent = `
 SERVICE CONFIRMATION
 
-Thank you for choosing Flora Lawn & Landscaping!
+Thank you for choosing Fall Cleanups Services!
 
 Customer Information:
 Name: ${contract.customer_name}
@@ -149,18 +149,18 @@ SATISFACTION GUARANTEE:
 QUESTIONS OR CONCERNS?
 We're here to help! Please don't hesitate to reach out:
 Phone: (401) 389-0913
-Email: floralawncareri@gmail.com
+Email: esckoofficial@gmail.com
 
-Thank you for choosing Flora Lawn & Landscaping!
+Thank you for choosing Fall Cleanups Services!
 
 Confirmation Date: ${new Date().toLocaleDateString()}
 Service Start Date: ${contract.start_date ? new Date(contract.start_date).toLocaleDateString() : 'To be determined'}
 
 ---
-Flora Lawn & Landscaping Inc
+Fall Cleanups Services
 📍 45 Vernon St, Pawtucket, RI 02860
 📞 (401) 389-0913
-✉️ floralawncareri@gmail.com
+✉️ esckoofficial@gmail.com
 
 Business Hours:
 Monday - Friday: 7:00 AM - 6:00 PM
@@ -168,8 +168,8 @@ Saturday: 8:00 AM - 4:00 PM
 Sunday: Closed
 
 ---
-You received this email because you requested a service confirmation from Flora Lawn & Landscaping.
-Unsubscribe: ${process.env.NEXT_PUBLIC_SITE_URL || 'https://floralawn-and-landscaping.com'}/unsubscribe?email=${encodeURIComponent(contract.customer_email)}
+You received this email because you requested a service confirmation from Fall Cleanups Services.
+Unsubscribe: ${process.env.NEXT_PUBLIC_SITE_URL || 'https://fallcleanups.com'}/unsubscribe?email=${encodeURIComponent(contract.customer_email)}
     `.trim();
 
     // Send email if requested
@@ -181,7 +181,7 @@ Unsubscribe: ${process.env.NEXT_PUBLIC_SITE_URL || 'https://floralawn-and-landsc
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
             <div style="background-color: #22C55E; color: white; padding: 20px; border-radius: 8px 8px 0 0;">
               <h1 style="margin: 0; font-size: 24px;">Service Confirmation</h1>
-              <p style="margin: 10px 0 0 0; font-size: 14px; opacity: 0.9;">Thank you for choosing Flora Lawn & Landscaping!</p>
+              <p style="margin: 10px 0 0 0; font-size: 14px; opacity: 0.9;">Thank you for choosing Fall Cleanups Services!</p>
             </div>
             
             <div style="background-color: #f9fafb; padding: 20px; border: 1px solid #e5e7eb;">
@@ -248,7 +248,7 @@ Unsubscribe: ${process.env.NEXT_PUBLIC_SITE_URL || 'https://floralawn-and-landsc
               <h2 style="color: #111827; margin-top: 0;">Questions or Concerns?</h2>
               <p style="color: #374151; margin-bottom: 10px;">We're here to help! Please don't hesitate to reach out:</p>
               <p style="color: #374151; margin: 5px 0;"><strong>Phone:</strong> (401) 389-0913</p>
-              <p style="color: #374151; margin: 5px 0;"><strong>Email:</strong> floralawncareri@gmail.com</p>
+              <p style="color: #374151; margin: 5px 0;"><strong>Email:</strong> esckoofficial@gmail.com</p>
             </div>
 
             <div style="background-color: white; padding: 20px; border: 1px solid #e5e7eb; border-top: none;">
@@ -257,16 +257,16 @@ Unsubscribe: ${process.env.NEXT_PUBLIC_SITE_URL || 'https://floralawn-and-landsc
             </div>
 
             <div style="background-color: #22C55E; color: white; padding: 20px; border-radius: 0 0 8px 8px; margin-top: 20px; text-align: center;">
-              <p style="margin: 0; font-size: 18px; font-weight: bold;">Thank you for choosing Flora Lawn & Landscaping!</p>
+              <p style="margin: 0; font-size: 18px; font-weight: bold;">Thank you for choosing Fall Cleanups Services!</p>
             </div>
 
             <!-- Company Info Card -->
             <div style="background-color: #ffffff; border: 2px solid #e5e7eb; border-radius: 8px; padding: 25px; margin-top: 20px;">
-              <h3 style="color: #111827; margin-top: 0; margin-bottom: 15px; font-size: 18px; font-weight: bold;">Flora Lawn & Landscaping Inc</h3>
+              <h3 style="color: #111827; margin-top: 0; margin-bottom: 15px; font-size: 18px; font-weight: bold;">Fall Cleanups Services</h3>
               <div style="color: #374151; line-height: 1.8;">
                 <p style="margin: 5px 0;"><strong>📍 Address:</strong> 45 Vernon St, Pawtucket, RI 02860</p>
                 <p style="margin: 5px 0;"><strong>📞 Phone:</strong> (401) 389-0913</p>
-                <p style="margin: 5px 0;"><strong>✉️ Email:</strong> floralawncareri@gmail.com</p>
+                <p style="margin: 5px 0;"><strong>✉️ Email:</strong> esckoofficial@gmail.com</p>
                 <p style="margin: 10px 0 5px 0;"><strong>🕐 Business Hours:</strong></p>
                 <div style="margin-left: 15px; font-size: 14px;">
                   <p style="margin: 2px 0;">Monday - Friday: 7:00 AM - 6:00 PM</p>
@@ -279,9 +279,9 @@ Unsubscribe: ${process.env.NEXT_PUBLIC_SITE_URL || 'https://floralawn-and-landsc
             <!-- Unsubscribe Footer -->
             <div style="text-align: center; padding: 20px 0; margin-top: 20px; border-top: 1px solid #e5e7eb;">
               <p style="color: #6b7280; font-size: 12px; margin: 0 0 10px 0;">
-                You received this email because you requested a service confirmation from Flora Lawn & Landscaping.
+                You received this email because you requested a service confirmation from Fall Cleanups Services.
               </p>
-              <a href="${process.env.NEXT_PUBLIC_SITE_URL || 'https://floralawn-and-landscaping.com'}/unsubscribe?email=${encodeURIComponent(contract.customer_email)}" 
+              <a href="${process.env.NEXT_PUBLIC_SITE_URL || 'https://fallcleanups.com'}/unsubscribe?email=${encodeURIComponent(contract.customer_email)}" 
                  style="color: #6b7280; text-decoration: underline; font-size: 12px;">
                 Unsubscribe from emails
               </a>
@@ -291,10 +291,10 @@ Unsubscribe: ${process.env.NEXT_PUBLIC_SITE_URL || 'https://floralawn-and-landsc
 
         await sendEmailFunction({
           to: contract.customer_email,
-          subject: 'Service Confirmation - Flora Lawn & Landscaping',
+          subject: 'Service Confirmation - Fall Cleanups Services',
           text: confirmationContent,
           html: emailHtml,
-          replyTo: 'floralawncareri@gmail.com'
+          replyTo: 'esckoofficial@gmail.com'
         });
 
         results.emailSent = true;
@@ -309,7 +309,7 @@ Unsubscribe: ${process.env.NEXT_PUBLIC_SITE_URL || 'https://floralawn-and-landsc
       try {
         const { sendSMS: sendSMSFunction } = await import('@/libs/twilio');
         
-        const smsMessage = `Hi ${contract.customer_name}! Your service confirmation is ready. Services: ${servicesList}. ${contract.service_frequency ? `Frequency: ${contract.service_frequency}. ` : ''}We'll contact you soon to finalize details. Flora Lawn & Landscaping (401) 389-0913`;
+        const smsMessage = `Hi ${contract.customer_name}! Your service confirmation is ready. Services: ${servicesList}. ${contract.service_frequency ? `Frequency: ${contract.service_frequency}. ` : ''}We'll contact you soon to finalize details. Fall Cleanups Services (401) 389-0913`;
 
         await sendSMSFunction(contract.customer_phone, smsMessage);
         results.smsSent = true;

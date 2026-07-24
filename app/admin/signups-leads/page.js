@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect } from 'react';
 import { supabase, supabaseAdmin } from '@/lib/supabase';
@@ -731,7 +731,7 @@ function SignUpsLeadsContent() {
                             onClick={() => {
                               setSelectedLead(lead);
                               setEmailSubject(`Re: Your ${lead.service} Inquiry`);
-                              setEmailMessage(`Hi ${lead.name},\n\nThank you for reaching out to Flora Lawn...`);
+                              setEmailMessage(`Hi ${lead.name},\n\nThank you for reaching out to Fall Cleanups Services...`);
                               setShowEmailModal(true);
                             }}
                             className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs font-bold transition-all"

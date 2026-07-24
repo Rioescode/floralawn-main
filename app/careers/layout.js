@@ -1,10 +1,10 @@
-import { getBaseUrl } from '@/utils/seo-helpers';
+﻿import { getBaseUrl } from '@/utils/seo-helpers';
 
 const baseUrl = getBaseUrl();
 
 export const metadata = {
-  title: 'We\'re Hiring - Landscaping Jobs in Rhode Island | Flora Lawn & Landscaping',
-  description: 'Join Flora Lawn & Landscaping! Hiring landscaping workers in Rhode Island. Full training provided, $17-20/hour starting pay. No experience required. Apply today!',
+  title: 'We\'re Hiring - Landscaping Jobs in Rhode Island | Fall Cleanups Services',
+  description: 'Join Fall Cleanups Services! Hiring landscaping workers in Rhode Island. Full training provided, $17-20/hour starting pay. No experience required. Apply today!',
   keywords: 'landscaping jobs RI, lawn care jobs Rhode Island, landscaping careers, hiring landscapers, landscaping employment RI, lawn care jobs',
   openGraph: {
     title: 'We\'re Hiring - Landscaping Jobs in Rhode Island',
@@ -12,7 +12,7 @@ export const metadata = {
     url: `${baseUrl}/careers`,
     locale: 'en_US',
     type: 'website',
-    siteName: 'Flora Lawn and Landscaping Inc'
+    siteName: 'Fall Cleanups Services'
   },
   alternates: {
     canonical: `${baseUrl}/careers`

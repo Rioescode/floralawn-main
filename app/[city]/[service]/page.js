@@ -51,7 +51,7 @@ export async function generateMetadata({ params }) {
   if (!city || !service) return { title: 'Service Not Found' };
 
   const cityName = city.city;
-  const title = `${service.title} in ${cityName}, RI | Expert ${service.title} by Flora Lawn`;
+  const title = `${service.title} in ${cityName}, RI | Expert ${service.title} by Fall Cleanups Services`;
   const description = service.metaDescription.replace('{city}', cityName);
   const baseUrl = getBaseUrl();
   const canonicalUrl = `${baseUrl}/${params.city}/${params.service}`;
@@ -197,7 +197,7 @@ export default async function ServicePage({ params }) {
                               <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center shrink-0 group-hover:bg-green-500 group-hover:text-white group-hover:scale-110 transition-all font-black text-green-400">{i+1}</div>
                               <div>
                                  <p className="text-lg font-bold leading-tight">{challenge}</p>
-                                 <p className="text-sm text-slate-400 mt-1 font-medium italic">Handled by Flora Lawn's specialized {cityName} protocol.</p>
+                                 <p className="text-sm text-slate-400 mt-1 font-medium italic">Handled by Fall Cleanups Services specialized {cityName} protocol.</p>
                               </div>
                            </div>
                         )) || [
@@ -290,7 +290,7 @@ export default async function ServicePage({ params }) {
            {[
              {q: `How much does ${service.title.toLowerCase()} cost in ${cityName}?`, a: `Costs vary based on property size and condition. For a typical ${cityName} property, we provide custom quotes within 24 hours to ensure you get the best value.`},
              {q: `When is the best time for ${service.title.toLowerCase()} in RI?`, a: `Rhode Island's climate requires specific timing. Generally, late March through October is ideal for ${service.title.toLowerCase()}, but we adjust our techniques monthly based on local weather patterns.`},
-             {q: `Is Flora Lawn available in my part of ${cityName}?`, a: `Yes, we serve the entire ${cityName} area, including all local neighborhoods and surrounding Rhode Island towns.`}
+             {q: `Is Fall Cleanups Services available in my part of ${cityName}?`, a: `Yes, we serve the entire ${cityName} area, including all local neighborhoods and surrounding Rhode Island towns.`}
            ].map((faq, i) => (
              <div key={i} className="bg-slate-50 border border-slate-100 p-10 rounded-[2rem] hover:border-green-300 hover:bg-white transition-all shadow-sm">
                 <h3 className="text-xl font-black text-slate-900 mb-5 flex items-start">

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect } from 'react';
 import Navigation from "@/components/Navigation";
@@ -141,7 +141,7 @@ export default function OffersPage() {
                   Claim Your <span className="bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text text-transparent block md:inline-block">Exclusive Savings</span>
                </h1>
                <p className="text-xl text-slate-400 max-w-2xl font-medium italic mb-10">
-                  Flora Lawn & Landscaping offers high-impact seasonal promotions to ensure your Rhode Island or Massachusetts property stays ahead of the curve.
+                  Fall Cleanups Services offers high-impact seasonal promotions to ensure your Rhode Island or Massachusetts property stays ahead of the curve.
                </p>
             </motion.div>
          </div>
@@ -273,7 +273,7 @@ export default function OffersPage() {
                   </p>
                ))}
                <p className="text-[11px] text-slate-500 font-bold leading-relaxed">
-                  Offers cannot be retroactively applied to invoices already sent. Flora Lawn & Landscaping reserves the right to cancel or modify any offer at any time due to scheduling availability.
+                  Offers cannot be retroactively applied to invoices already sent. Fall Cleanups Services reserves the right to cancel or modify any offer at any time due to scheduling availability.
                </p>
             </div>
          </div>

@@ -1,7 +1,7 @@
-import { getBaseUrl } from '@/utils/seo-helpers';
+﻿import { getBaseUrl } from '@/utils/seo-helpers';
 
 export const metadata = {
-  title: 'Request Service | Flora Lawn and Landscaping Inc',
+  title: 'Request Service | Fall Cleanups Services',
   description: 'Book your lawn care, landscaping, or snow removal service today.',
   alternates: {
     canonical: `${getBaseUrl()}/booking`

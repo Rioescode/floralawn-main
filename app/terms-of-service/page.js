@@ -1,9 +1,9 @@
-import Navigation from "@/components/Navigation";
+﻿import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
 
 export const metadata = {
-  title: 'Terms of Service | Flora Lawn & Landscaping Inc',
-  description: 'Terms and conditions for using Flora Lawn & Landscaping Inc services.',
+  title: 'Terms of Service | Fall Cleanups Services',
+  description: 'Terms and conditions for using Fall Cleanups Services services.',
 };
 
 export default function TermsOfService() {
@@ -12,14 +12,14 @@ export default function TermsOfService() {
       <Navigation />
 
       <main className="max-w-4xl mx-auto px-4 py-16">
-        <h1 className="text-4xl font-bold text-[#6B7280] mb-8">Flora Lawn & Landscaping Inc Terms of Service</h1>
+        <h1 className="text-4xl font-bold text-[#6B7280] mb-8">Fall Cleanups Services Terms of Service</h1>
         
         <div className="prose prose-lg max-w-none">
           <p className="text-sm text-gray-500 mb-8">Last updated February 24, 2025</p>
 
           <h2 className="text-2xl font-semibold text-gray-800 mb-4">AGREEMENT TO OUR LEGAL TERMS</h2>
           <p className="mb-6">
-            We are Flora Lawn & Landscaping Inc ("Company," "we," "us," "our"), 
+            We are Fall Cleanups Services ("Company," "we," "us," "our"), 
             a company registered in Rhode Island, United States at 45 Vernon Street, Pawtucket, RI 02860.
           </p>
 
@@ -29,19 +29,19 @@ export default function TermsOfService() {
           </p>
 
           <p className="mb-6">
-            At Flora Lawn & Landscaping Inc, we make lawn care and landscaping easy. Whether you're looking for regular lawn maintenance, 
+            At Fall Cleanups Services, we make lawn care and landscaping easy. Whether you're looking for regular lawn maintenance, 
             landscaping projects, or seasonal cleanup, our platform connects you with reliable lawn care professionals. 
-            Fast, efficient, and hassle-free—Flora Lawn & Landscaping Inc is your go-to solution for a beautiful outdoor space.
+            Fast, efficient, and hassle-free—Fall Cleanups Services is your go-to solution for a beautiful outdoor space.
           </p>
 
           <p className="mb-6">
-            You can contact us by phone at (401) 389-0913, email at floralawncareri@gmail.com or riyardworks@gmail.com, or by mail to 45 Vernon Street, 
+            You can contact us by phone at (401) 389-0913, email at esckoofficial@gmail.com or FallCleanupsServices@gmail.com, or by mail to 45 Vernon Street, 
             Pawtucket, RI 02860, United States.
           </p>
 
           <p className="mb-6">
             These Legal Terms constitute a legally binding agreement made between you, whether personally or on behalf of an 
-            entity ("you"), and Flora Lawn & Landscaping Inc, concerning your access to and use of the Services. You agree that by accessing 
+            entity ("you"), and Fall Cleanups Services, concerning your access to and use of the Services. You agree that by accessing 
             the Services, you have read, understood, and agreed to be bound by all of these Legal Terms. IF YOU DO NOT AGREE 
             WITH ALL OF THESE LEGAL TERMS, THEN YOU ARE EXPRESSLY PROHIBITED FROM USING THE SERVICES AND YOU MUST DISCONTINUE 
             USE IMMEDIATELY.
@@ -163,7 +163,7 @@ export default function TermsOfService() {
 
           <p className="mb-6">
             If you wish to make any use of the Services, Content, or Marks other than as set out in this section or elsewhere 
-            in our Legal Terms, please address your request to: floralawncareri@gmail.com. If we ever grant you the permission to 
+            in our Legal Terms, please address your request to: esckoofficial@gmail.com. If we ever grant you the permission to 
             post, reproduce, or publicly display any part of our Services or Content, you must identify us as the owners or 
             licensors of the Services, Content, or Marks and ensure that any copyright or proprietary notice appears or is 
             visible on posting, reproducing, or displaying our Content.
@@ -511,7 +511,7 @@ export default function TermsOfService() {
 
           <h2 className="text-2xl font-semibold text-gray-800 mb-4">26. SMS TEXT MESSAGING</h2>
           <p className="mb-4">
-            By providing your mobile phone number and opting in to receive SMS messages, you consent to receive text messages from Flora Lawn & Landscaping Inc regarding service completion notifications, appointment reminders, and marketing communications.
+            By providing your mobile phone number and opting in to receive SMS messages, you consent to receive text messages from Fall Cleanups Services regarding service completion notifications, appointment reminders, and marketing communications.
           </p>
 
           <h3 className="text-xl font-medium text-gray-700 mb-2">Message Frequency</h3>
@@ -527,7 +527,7 @@ export default function TermsOfService() {
 
           <h3 className="text-xl font-medium text-gray-700 mb-2">Consent and Opt-In</h3>
           <p className="mb-4">
-            By providing your phone number and checking the SMS opt-in box on our contact form, booking form, or customer dashboard, you expressly consent to receive automated text messages from Flora Lawn & Landscaping Inc. You are not required to consent to SMS messages as a condition of receiving our services.
+            By providing your phone number and checking the SMS opt-in box on our contact form, booking form, or customer dashboard, you expressly consent to receive automated text messages from Fall Cleanups Services You are not required to consent to SMS messages as a condition of receiving our services.
           </p>
 
           <h3 className="text-xl font-medium text-gray-700 mb-2">Opting Out</h3>
@@ -537,7 +537,7 @@ export default function TermsOfService() {
           <ul className="list-disc pl-6 mb-4 space-y-1">
             <li>Replying "STOP" to any text message from us</li>
             <li>Replying "UNSUBSCRIBE" to any text message from us</li>
-            <li>Contacting us at (401) 389-0913 or floralawncareri@gmail.com</li>
+            <li>Contacting us at (401) 389-0913 or esckoofficial@gmail.com</li>
             <li>Updating your preferences in your customer account dashboard</li>
           </ul>
           <p className="mb-4">
@@ -546,7 +546,7 @@ export default function TermsOfService() {
 
           <h3 className="text-xl font-medium text-gray-700 mb-2">Message and Data Rates</h3>
           <p className="mb-4">
-            Message and data rates may apply to any SMS messages sent or received. The rates are determined by your mobile carrier and the specifics of your mobile plan. Flora Lawn & Landscaping Inc is not responsible for any charges incurred as a result of receiving SMS messages.
+            Message and data rates may apply to any SMS messages sent or received. The rates are determined by your mobile carrier and the specifics of your mobile plan. Fall Cleanups Services is not responsible for any charges incurred as a result of receiving SMS messages.
           </p>
 
           <h3 className="text-xl font-medium text-gray-700 mb-2">Supported Carriers</h3>
@@ -560,7 +560,7 @@ export default function TermsOfService() {
           </p>
           <ul className="list-disc pl-6 mb-6 space-y-1">
             <li>Phone: (401) 389-0913</li>
-            <li>Email: floralawncareri@gmail.com</li>
+            <li>Email: esckoofficial@gmail.com</li>
             <li>Address: 45 Vernon Street, Pawtucket, RI 02860</li>
           </ul>
 
@@ -576,22 +576,22 @@ export default function TermsOfService() {
 
           <h2 className="text-2xl font-semibold text-gray-800 mb-4">29. COMPLIANCE WITH LAWS & REGULATIONS</h2>
           <p className="mb-6">
-            All users and service providers on Flora Lawn & Landscaping Inc must comply with local, state, and federal laws. This includes proper handling, transportation, and disposal of waste materials, ensuring that no hazardous materials or prohibited items are disposed of illegally. Service providers are solely responsible for obtaining any permits, licenses, or certifications required for lawn care and landscaping services in their area.
+            All users and service providers on Fall Cleanups Services must comply with local, state, and federal laws. This includes proper handling, transportation, and disposal of waste materials, ensuring that no hazardous materials or prohibited items are disposed of illegally. Service providers are solely responsible for obtaining any permits, licenses, or certifications required for lawn care and landscaping services in their area.
           </p>
 
           <h2 className="text-2xl font-semibold text-gray-800 mb-4">30. LIABILITY WAIVER</h2>
           <p className="mb-6">
-            Flora Lawn & Landscaping Inc acts as a marketplace platform connecting customers with lawn care and landscaping service providers and does not directly perform landscaping services. By using the platform, both customers and providers acknowledge that Flora Lawn & Landscaping Inc: Is not liable for any damages, injuries, or losses resulting from services provided through the platform. Does not guarantee the quality, legality, or safety of services performed by third-party providers. Is not responsible for disputes between users and providers, including but not limited to pricing disagreements, service quality, or property damage.
+            Fall Cleanups Services acts as a marketplace platform connecting customers with lawn care and landscaping service providers and does not directly perform landscaping services. By using the platform, both customers and providers acknowledge that Fall Cleanups Services: Is not liable for any damages, injuries, or losses resulting from services provided through the platform. Does not guarantee the quality, legality, or safety of services performed by third-party providers. Is not responsible for disputes between users and providers, including but not limited to pricing disagreements, service quality, or property damage.
           </p>
 
           <h2 className="text-2xl font-semibold text-gray-800 mb-4">31. INSURANCE & RISK ACKNOWLEDGMENT</h2>
           <p className="mb-6">
-            All service providers are strongly encouraged—or, if required by law, must maintain appropriate insurance coverage, including: General liability insurance to cover damages or accidents that occur during lawn care and landscaping work. Workers' compensation insurance if they have employees. Vehicle insurance for transport-related activities. Flora Lawn & Landscaping Inc reserves the right to request proof of insurance and deny or suspend accounts that do not meet minimum legal and safety standards.
+            All service providers are strongly encouraged—or, if required by law, must maintain appropriate insurance coverage, including: General liability insurance to cover damages or accidents that occur during lawn care and landscaping work. Workers' compensation insurance if they have employees. Vehicle insurance for transport-related activities. Fall Cleanups Services reserves the right to request proof of insurance and deny or suspend accounts that do not meet minimum legal and safety standards.
           </p>
 
           <h2 className="text-2xl font-semibold text-gray-800 mb-4">32. PROHIBITED CONDUCT & ENFORCEMENT</h2>
           <p className="mb-6">
-            Users who engage in unsafe practices, misrepresentation, or property damage may face account suspension or permanent removal from Flora Lawn & Landscaping Inc. Flora Lawn & Landscaping Inc retains the right to remove any listing, bid, or user account that violates these terms.
+            Users who engage in unsafe practices, misrepresentation, or property damage may face account suspension or permanent removal from Fall Cleanups Services Fall Cleanups Services retains the right to remove any listing, bid, or user account that violates these terms.
           </p>
 
           <h2 className="text-2xl font-semibold text-gray-800 mb-4">33. PLATFORM ABUSE & INTEGRITY</h2>
@@ -601,12 +601,12 @@ export default function TermsOfService() {
 
           <h2 className="text-2xl font-semibold text-gray-800 mb-4">34. ACCOUNT SECURITY & ACCESS</h2>
           <p className="mb-6">
-            Each user is responsible for maintaining the security of their account and credentials. Users must: Keep their login information confidential and ensure no unauthorized access to their account. Notify Flora Lawn & Landscaping Inc immediately if they suspect any unauthorized use of their account. Use only one account unless otherwise authorized by Flora Lawn & Landscaping Inc. Failure to comply with these security measures may result in temporary suspension or permanent account deactivation.
+            Each user is responsible for maintaining the security of their account and credentials. Users must: Keep their login information confidential and ensure no unauthorized access to their account. Notify Fall Cleanups Services immediately if they suspect any unauthorized use of their account. Use only one account unless otherwise authorized by Fall Cleanups Services Failure to comply with these security measures may result in temporary suspension or permanent account deactivation.
           </p>
 
           <h2 className="text-2xl font-semibold text-gray-800 mb-4">35. DATA PRIVACY & PROTECTION</h2>
           <p className="mb-6">
-            Flora Lawn & Landscaping Inc respects the privacy of its users and is committed to protecting personal data in compliance with applicable data protection laws. This includes: Collecting only necessary data for the platform's operation and service provision. Not sharing user data with third parties unless required by law or necessary for the platform's operation. Allowing users to manage their personal information by updating or deleting it as per their preferences through the platform settings. By agreeing to these terms, users confirm their understanding of the data handling practices outlined in our Privacy Policy.
+            Fall Cleanups Services respects the privacy of its users and is committed to protecting personal data in compliance with applicable data protection laws. This includes: Collecting only necessary data for the platform's operation and service provision. Not sharing user data with third parties unless required by law or necessary for the platform's operation. Allowing users to manage their personal information by updating or deleting it as per their preferences through the platform settings. By agreeing to these terms, users confirm their understanding of the data handling practices outlined in our Privacy Policy.
           </p>
 
           <h2 className="text-2xl font-semibold text-gray-800 mb-4">36. DISPUTE RESOLUTION & ARBITRATION</h2>
@@ -633,22 +633,22 @@ export default function TermsOfService() {
 
           <h3 className="text-xl font-medium text-gray-700 mb-2">2. Refunds</h3>
           <p className="mb-4">
-            No payment processing will occur through Flora Lawn & Landscaping Inc, so any refunds related to cancellations or disputes are to be handled directly between the customer and service provider. Refunds for services already performed will be at the discretion of the service provider, and any agreements regarding partial refunds or full refunds should be discussed directly between both parties.
+            No payment processing will occur through Fall Cleanups Services, so any refunds related to cancellations or disputes are to be handled directly between the customer and service provider. Refunds for services already performed will be at the discretion of the service provider, and any agreements regarding partial refunds or full refunds should be discussed directly between both parties.
           </p>
 
           <h3 className="text-xl font-medium text-gray-700 mb-2">3. Dispute Resolution</h3>
           <p className="mb-6">
-            If a customer and service provider cannot agree on a refund or cancellation, Flora Lawn & Landscaping Inc is not responsible for resolving the issue. Both parties are encouraged to work out the issue independently or through external dispute resolution methods such as arbitration (as mentioned previously) or mediation.
+            If a customer and service provider cannot agree on a refund or cancellation, Fall Cleanups Services is not responsible for resolving the issue. Both parties are encouraged to work out the issue independently or through external dispute resolution methods such as arbitration (as mentioned previously) or mediation.
           </p>
 
           <h2 className="text-2xl font-semibold text-gray-800 mb-4">38. PLATFORM AVAILABILITY & SERVICE INTERRUPTIONS</h2>
           <p className="mb-6">
-            Flora Lawn & Landscaping Inc makes reasonable efforts to maintain the platform's availability, but it cannot guarantee uninterrupted access to the platform due to factors beyond our control, including server issues, software updates, or maintenance. Flora Lawn & Landscaping Inc is not liable for any downtime or service interruptions.
+            Fall Cleanups Services makes reasonable efforts to maintain the platform's availability, but it cannot guarantee uninterrupted access to the platform due to factors beyond our control, including server issues, software updates, or maintenance. Fall Cleanups Services is not liable for any downtime or service interruptions.
           </p>
 
           <h2 className="text-2xl font-semibold text-gray-800 mb-4">39. WEBSITE DEVELOPMENT & SEO SERVICES</h2>
           <p className="mb-6">
-            Flora Lawn & Landscaping Inc offers professional website development and SEO services specifically designed for lawn care and landscaping businesses. Our comprehensive package includes:
+            Fall Cleanups Services offers professional website development and SEO services specifically designed for lawn care and landscaping businesses. Our comprehensive package includes:
           </p>
 
           <h3 className="text-xl font-medium text-gray-700 mb-2">Website Development Package</h3>
@@ -687,7 +687,7 @@ export default function TermsOfService() {
           </ul>
 
           <p className="mb-6">
-            For pricing and package details, please contact us at floralawncareri@gmail.com or call (401) 389-0913. Custom packages can be created based on your specific business needs and budget.
+            For pricing and package details, please contact us at esckoofficial@gmail.com or call (401) 389-0913. Custom packages can be created based on your specific business needs and budget.
           </p>
 
           <h2 className="text-2xl font-semibold text-gray-800 mb-4">40. CONTACT US</h2>
@@ -696,12 +696,12 @@ export default function TermsOfService() {
           </p>
 
           <div className="mb-8">
-            <p>Flora Lawn & Landscaping Inc</p>
+            <p>Fall Cleanups Services</p>
             <p>45 Vernon Street</p>
             <p>Pawtucket, RI 02860</p>
             <p>United States</p>
             <p>Phone: (401) 389-0913</p>
-            <p>Email: floralawncareri@gmail.com</p>
+            <p>Email: esckoofficial@gmail.com</p>
           </div>
 
         </div>
