@@ -2083,6 +2083,106 @@ export default function SchedulePage() {
     }
   };
 
+  // Fast track completing a job without message prompts
+  const handleQuickDone = async (customer, day) => {
+    try {
+      // Calculate duration if timer was active
+      let durationMinutes = null;
+      if (customer.job_started_at) {
+        const start = new Date(customer.job_started_at);
+        const end = new Date();
+        durationMinutes = Math.max(0, Math.round((end - start) / (1000 * 60)));
+      }
+
+      // Update customer's last_service date and reset timer
+      const { error: updateError } = await supabase
+        .from('customers')
+        .update({ 
+          last_service: new Date().toISOString().split('T')[0],
+          job_started_at: null,
+          last_job_duration_minutes: durationMinutes
+        })
+        .eq('id', customer.id);
+
+      if (updateError) throw updateError;
+
+      // Update local state
+      setCustomers(prev => prev.map(c => 
+        c.id === customer.id ? { ...c, job_started_at: null, last_job_duration_minutes: durationMinutes, last_service: new Date().toISOString().split('T')[0] } : c
+      ));
+
+      // Create or update appointment record
+      const serviceDate = day ? getDateForDay(day) : new Date().toISOString();
+      const { data: existingAppointment } = await supabase
+        .from('appointments')
+        .select('id')
+        .eq('customer_id', customer.id)
+        .eq('date', serviceDate.split('T')[0])
+        .single();
+
+      if (existingAppointment) {
+        await supabase.from('appointments').update({ status: 'completed', updated_at: new Date().toISOString(), duration_minutes: durationMinutes }).eq('id', existingAppointment.id);
+      } else {
+        await supabase.from('appointments').insert({
+          customer_id: customer.id, customer_name: customer.name, customer_email: customer.email, customer_phone: customer.phone,
+          service_type: customer.service_type || 'lawn_mowing', date: serviceDate, status: 'completed', city: customer.address?.split(',')[1]?.trim() || '',
+          street_address: customer.address?.split(',')[0] || '', notes: `Completed on ${day || 'schedule'}`, duration_minutes: durationMinutes
+        });
+      }
+
+      // Create completed_job record
+      try {
+        const appointmentId = existingAppointment?.id || null;
+        const amountDue = customer.price || 0;
+        if (appointmentId) {
+          const { data: existingJob } = await supabaseAdmin.from('completed_jobs').select('id').eq('appointment_id', appointmentId).single();
+          if (!existingJob) {
+            await supabaseAdmin.from('completed_jobs').insert({
+              appointment_id: appointmentId, customer_id: customer.user_id || null, customer_name: customer.name, customer_email: customer.email || '',
+              customer_phone: customer.phone || null, customer_address: customer.address || null, service_type: customer.service_type || 'lawn_mowing',
+              service_description: customer.notes || `Completed on ${day || 'schedule'}`, job_date: serviceDate, completed_date: new Date().toISOString(),
+              amount_due: amountDue, amount_paid: 0, payment_status: 'unpaid', duration_minutes: durationMinutes
+            });
+          }
+        } else {
+          await supabaseAdmin.from('completed_jobs').insert({
+            appointment_id: null, customer_id: customer.user_id || null, customer_name: customer.name, customer_email: customer.email || '',
+            customer_phone: customer.phone || null, customer_address: customer.address || null, service_type: customer.service_type || 'lawn_mowing',
+            service_description: customer.notes || `Completed on ${day || 'schedule'}`, job_date: serviceDate, completed_date: new Date().toISOString(),
+            amount_due: amountDue, amount_paid: 0, payment_status: 'unpaid', duration_minutes: durationMinutes
+          });
+        }
+      } catch (jobError) { console.error('Error creating completed job:', jobError); }
+
+      // Award loyalty points
+      try {
+        if (customer.id && customer.price) {
+          const pointsToAward = Math.max(10, Math.floor(customer.price));
+          await fetch('/api/loyalty', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'earn', userId: customer.user_id, customerId: customer.id, points: pointsToAward, serviceId: existingAppointment?.id, serviceType: customer.service_type || 'Service', serviceDate: serviceDate, description: `Completed ${customer.service_type || 'service'}` })
+          });
+        }
+      } catch (e) {}
+
+      // Mark as completed in local state
+      toggleCustomerCompletion(day, customer.id);
+      
+      // Archive daily
+      try {
+        await fetch('/api/archive-daily-completions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ date: new Date().toISOString().split('T')[0] }) });
+      } catch (e) {}
+
+      setSuccessMessage('Job Quick Done!');
+      setShowSuccessModal(true);
+      setTimeout(() => setShowSuccessModal(false), 2000);
+    } catch (error) {
+      console.error('Quick Done error:', error);
+      alert('Failed to quick-mark job as done. Please try again.');
+    }
+  };
+
   // Move incomplete customers to next day (temporary for current session)
   const moveIncompleteToNextDay = (currentDay) => {
     const dayCustomers = schedule[currentDay] || [];
@@ -7357,18 +7457,31 @@ function CustomerCard({
               </button>
             )}
             {day && !isCompleted && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setSelectedCustomerForDone({ ...customer, day });
-                  setCompletionMessage(`Hi ${customer.name},\n\nYour ${customer.service_type?.replace('_', ' ') || 'service'} has been successfully completed today. Your property is looking great!\n\nThank you for choosing Flora Lawn & Landscaping!`);
-                  setShowMarkDoneModal(true);
-                }}
-                className="px-3 py-1.5 text-[11px] font-medium text-blue-400 bg-blue-500/10 rounded-lg border border-blue-500/20 hover:bg-blue-500/20 transition-all flex items-center gap-1"
-              >
-                <CheckCircleIcon className="h-3.5 w-3.5" />
-                Mark Done {activeJobTimers[customer.id] ? `(${activeJobTimers[customer.id]})` : ''}
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleQuickDone(customer, day);
+                  }}
+                  title="Mark as done instantly without popup"
+                  className="px-3 py-1.5 text-[11px] font-medium text-green-400 bg-green-500/10 rounded-lg border border-green-500/20 hover:bg-green-500/20 transition-all flex items-center gap-1"
+                >
+                  <CheckIcon className="h-3.5 w-3.5" />
+                  Quick Done
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedCustomerForDone({ ...customer, day });
+                    setCompletionMessage(`Your ${customer.service_type?.replace('_', ' ') || 'service'} has been completed successfully! Thank you for choosing Fall Cleanups Services.`);
+                    setShowMarkDoneModal(true);
+                  }}
+                  className="px-3 py-1.5 text-[11px] font-medium text-blue-400 bg-blue-500/10 rounded-lg border border-blue-500/20 hover:bg-blue-500/20 transition-all flex items-center gap-1"
+                >
+                  <CheckCircleIcon className="h-3.5 w-3.5" />
+                  Mark Done {activeJobTimers[customer.id] ? `(${activeJobTimers[customer.id]})` : ''}
+                </button>
+              </div>
             )}
             {day && !isCompleted && customer.job_started_at && !customer.work_started_at && (
               <button

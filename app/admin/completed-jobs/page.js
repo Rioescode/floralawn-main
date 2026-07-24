@@ -37,6 +37,8 @@ export default function CompletedJobsPage() {
   const [sendingInvoice, setSendingInvoice] = useState(false);
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [invoiceData, setInvoiceData] = useState(null);
+  const [editingDateJobId, setEditingDateJobId] = useState(null);
+  const [editingDateValue, setEditingDateValue] = useState('');
   const router = useRouter();
 
   useEffect(() => {
@@ -143,6 +145,35 @@ export default function CompletedJobsPage() {
     });
 
     setFilteredJobs(filtered);
+  };
+
+  const updateJobDate = async (jobId, newDate) => {
+    try {
+      if (!newDate) return;
+      
+      const { error } = await supabaseAdmin
+        .from('completed_jobs')
+        .update({ 
+          job_date: new Date(newDate).toISOString(),
+          completed_date: new Date(newDate).toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', jobId);
+
+      if (error) throw error;
+
+      // Update local state
+      setCompletedJobs(prev => prev.map(job => 
+        job.id === jobId 
+          ? { ...job, job_date: new Date(newDate).toISOString(), completed_date: new Date(newDate).toISOString() }
+          : job
+      ));
+      
+      setEditingDateJobId(null);
+    } catch (error) {
+      console.error('Error updating job date:', error);
+      alert('Failed to update date. Please try again.');
+    }
   };
 
   const updatePayment = async (jobId, amountPaid) => {
@@ -435,9 +466,44 @@ export default function CompletedJobsPage() {
                 ) : (
                   filteredJobs.map((job) => (
                     <tr key={job.id} className="hover:bg-gray-50">
-                      <td className="px-3 py-3 whitespace-nowrap">
-                        <div className="text-xs font-medium text-gray-900">{format(parseISO(job.job_date), 'MMM dd')}</div>
-                        <div className="text-xs text-gray-500">{format(parseISO(job.job_date), 'yyyy')}</div>
+                      <td className="px-3 py-3 whitespace-nowrap group relative">
+                        {editingDateJobId === job.id ? (
+                          <div className="flex flex-col gap-1 z-10 relative">
+                            <input
+                              type="date"
+                              value={editingDateValue}
+                              onChange={(e) => setEditingDateValue(e.target.value)}
+                              className="px-2 py-1 text-xs border border-green-500 rounded focus:outline-none focus:ring-1 focus:ring-green-500"
+                              autoFocus
+                            />
+                            <div className="flex gap-1">
+                              <button
+                                onClick={() => updateJobDate(job.id, editingDateValue)}
+                                className="px-2 py-1 text-[10px] bg-green-500 text-white rounded hover:bg-green-600"
+                              >
+                                Save
+                              </button>
+                              <button
+                                onClick={() => setEditingDateJobId(null)}
+                                className="px-2 py-1 text-[10px] bg-gray-500 text-white rounded hover:bg-gray-600"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div 
+                            className="cursor-pointer p-1 -m-1 rounded hover:bg-gray-200 transition-colors"
+                            onClick={() => {
+                              setEditingDateJobId(job.id);
+                              setEditingDateValue(job.job_date ? job.job_date.split('T')[0] : '');
+                            }}
+                            title="Click to edit date"
+                          >
+                            <div className="text-xs font-medium text-gray-900 border-b border-dashed border-gray-300 inline-block">{format(parseISO(job.job_date), 'MMM dd')}</div>
+                            <div className="text-xs text-gray-500">{format(parseISO(job.job_date), 'yyyy')}</div>
+                          </div>
+                        )}
                       </td>
                       <td className="px-3 py-3">
                         <div className="text-sm font-medium text-gray-900">{job.customer_name}</div>
