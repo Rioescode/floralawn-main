@@ -2094,22 +2094,42 @@ export default function SchedulePage() {
         durationMinutes = Math.max(0, Math.round((end - start) / (1000 * 60)));
       }
 
-      // Update customer's last_service date and reset timer
-      const { error: updateError } = await supabase
-        .from('customers')
-        .update({ 
-          last_service: new Date().toISOString().split('T')[0],
-          job_started_at: null,
-          last_job_duration_minutes: durationMinutes
-        })
-        .eq('id', customer.id);
+      // Update either customer or lead based on the type
+      if (customer.status === 'confirmed' || customer.day === 'One-time Job') {
+        // It's a lead/inquiry being completed
+        const { error: leadError } = await supabase
+          .from('contact_leads')
+          .update({ status: 'completed' })
+          .eq('id', customer.id);
 
-      if (updateError) throw updateError;
+        if (leadError) throw leadError;
+      } else {
+        // It's a regular active customer
+        const { error: updateError } = await supabase
+          .from('customers')
+          .update({ 
+            last_service: new Date().toISOString().split('T')[0],
+            job_started_at: null,
+            work_started_at: null,
+            last_job_duration_minutes: durationMinutes,
+            service_count: (customer.service_count || 0) + 1
+          })
+          .eq('id', customer.id);
 
-      // Update local state
-      setCustomers(prev => prev.map(c => 
-        c.id === customer.id ? { ...c, job_started_at: null, last_job_duration_minutes: durationMinutes, last_service: new Date().toISOString().split('T')[0] } : c
-      ));
+        if (updateError) throw updateError;
+
+        // Update local state
+        setCustomers(prev => prev.map(c => 
+          c.id === customer.id ? { 
+            ...c, 
+            job_started_at: null, 
+            work_started_at: null,
+            last_job_duration_minutes: durationMinutes, 
+            last_service: new Date().toISOString().split('T')[0],
+            service_count: (c.service_count || 0) + 1
+          } : c
+        ));
+      }
 
       // Create or update appointment record
       const serviceDate = day ? getDateForDay(day) : new Date().toISOString();
