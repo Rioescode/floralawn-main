@@ -1839,7 +1839,7 @@ export default function SchedulePage() {
         const { error: updateError } = await supabase
           .from('customers')
           .update({ 
-            last_service: new Date().toISOString().split('T')[0],
+            last_service: completionDate,
             job_started_at: null,
             work_started_at: null,
             last_job_duration_minutes: durationMinutes,
@@ -1858,15 +1858,15 @@ export default function SchedulePage() {
             work_started_at: null,
             last_job_duration_minutes: durationMinutes,
             last_drive_duration_minutes: driveDurationMinutes,
-            last_service: new Date().toISOString().split('T')[0],
+            last_service: completionDate,
             service_count: (c.service_count || 0) + 1
           } : c
         ));
       }
 
       // Create or update appointment record with completed status
-      const today = new Date().toISOString().split('T')[0];
-      const serviceDate = customer.day ? getDateForDay(customer.day) : new Date().toISOString();
+      const today = completionDate;
+      const serviceDate = new Date(completionDate + 'T12:00:00').toISOString();
       
       // Check if appointment exists
       const { data: existingAppointment } = await supabase

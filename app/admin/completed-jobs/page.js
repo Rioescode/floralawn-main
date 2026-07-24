@@ -154,8 +154,8 @@ export default function CompletedJobsPage() {
       const { error } = await supabaseAdmin
         .from('completed_jobs')
         .update({ 
-          job_date: new Date(newDate).toISOString(),
-          completed_date: new Date(newDate).toISOString(),
+          job_date: new Date(newDate + 'T12:00:00').toISOString(),
+          completed_date: new Date(newDate + 'T12:00:00').toISOString(),
           updated_at: new Date().toISOString()
         })
         .eq('id', jobId);
@@ -165,7 +165,7 @@ export default function CompletedJobsPage() {
       // Update local state
       setCompletedJobs(prev => prev.map(job => 
         job.id === jobId 
-          ? { ...job, job_date: new Date(newDate).toISOString(), completed_date: new Date(newDate).toISOString() }
+          ? { ...job, job_date: new Date(newDate + 'T12:00:00').toISOString(), completed_date: new Date(newDate + 'T12:00:00').toISOString() }
           : job
       ));
       
