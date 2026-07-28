@@ -252,6 +252,8 @@ export default function SchedulePage() {
 
   // Split timer: activeWorkTimers tracks work-only elapsed (after "Start Work" clicked)
   const [activeWorkTimers, setActiveWorkTimers] = useState({});
+  const autoCompletingRef = useRef({});
+  const autoCompleteTargetsRef = useRef({});
   const [pricing, setPricing] = useState({
     lawn_mowing: { base_house: 50, base_sqft_limit: 6000, price_per_1k_sqft: 10, bi_weekly_surcharge: 1.3 },
     materials: { mulch_per_yd: 135, edging_per_ft: 1.25, mulch_depth_inches: 3, tree_trim_flat: 75 },
@@ -615,6 +617,27 @@ export default function SchedulePage() {
           const diff = Math.floor((now - workStart) / 1000);
           if (diff >= 0) updatedWorkTimers[customer.id] = fmt(diff);
         }
+
+        // Auto-complete check: 15-30 minutes after starting work / doing it today
+        const activeStartTime = customer.work_started_at || customer.job_started_at;
+        const day = customer.day || customer.scheduled_day;
+        const isAlreadyDone = day && completedCustomers[day]?.includes(customer.id);
+
+        if (activeStartTime && !isAlreadyDone && !autoCompletingRef.current[customer.id]) {
+          const start = new Date(activeStartTime);
+          const elapsedSecs = Math.floor((now - start) / 1000);
+
+          if (!autoCompleteTargetsRef.current[customer.id]) {
+            // Assign target auto-complete duration between 15 and 30 minutes (900s to 1800s)
+            autoCompleteTargetsRef.current[customer.id] = 15 * 60 + Math.floor(Math.random() * (15 * 60));
+          }
+
+          const targetSecs = autoCompleteTargetsRef.current[customer.id];
+
+          if (elapsedSecs >= targetSecs) {
+            autoCompleteCustomerJob(customer);
+          }
+        }
       });
 
       setActiveJobTimers(updatedJobTimers);
@@ -622,7 +645,7 @@ export default function SchedulePage() {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [customers]);
+  }, [customers, completedCustomers]);
 
   const formatLocalDate = (dateStr) => {
     if (!dateStr) return '';
@@ -1632,6 +1655,190 @@ export default function SchedulePage() {
     }));
   };
 
+  // Auto-complete job after 15-30 min timer
+  const autoCompleteCustomerJob = async (customer) => {
+    if (!customer || autoCompletingRef.current[customer.id]) return;
+    autoCompletingRef.current[customer.id] = true;
+
+    try {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const dayNum = String(now.getDate()).padStart(2, '0');
+      const completionDate = `${year}-${month}-${dayNum}`;
+      const serviceDate = new Date(completionDate + 'T12:00:00').toISOString();
+
+      let durationMinutes = 20; // Default target duration in 15-30 min range
+      if (customer.work_started_at) {
+        durationMinutes = Math.max(1, Math.round((now - new Date(customer.work_started_at)) / 60000));
+      } else if (customer.job_started_at) {
+        durationMinutes = Math.max(1, Math.round((now - new Date(customer.job_started_at)) / 60000));
+      }
+
+      // 1. Update customer or lead status in DB
+      if (customer.status === 'confirmed' || customer.day === 'One-time Job') {
+        const { error: leadError } = await supabase
+          .from('contact_leads')
+          .update({ status: 'completed' })
+          .eq('id', customer.id);
+        if (leadError) console.error('Error updating lead status:', leadError);
+        fetchAppointments();
+      } else {
+        const { error: updateError } = await supabase
+          .from('customers')
+          .update({
+            last_service: completionDate,
+            job_started_at: null,
+            work_started_at: null,
+            last_job_duration_minutes: durationMinutes,
+            service_count: (customer.service_count || 0) + 1
+          })
+          .eq('id', customer.id);
+
+        if (updateError) console.error('Error updating customer:', updateError);
+
+        setCustomers(prev => prev.map(c => 
+          c.id === customer.id ? {
+            ...c,
+            job_started_at: null,
+            work_started_at: null,
+            last_job_duration_minutes: durationMinutes,
+            last_service: completionDate,
+            service_count: (c.service_count || 0) + 1
+          } : c
+        ));
+      }
+
+      // 2. Insert or update appointment record
+      const { data: existingAppointment } = await supabase
+        .from('appointments')
+        .select('id')
+        .eq('customer_id', customer.id)
+        .eq('date', serviceDate.split('T')[0])
+        .single();
+
+      let appointmentId = existingAppointment?.id;
+
+      if (existingAppointment) {
+        await supabase
+          .from('appointments')
+          .update({
+            status: 'completed',
+            updated_at: new Date().toISOString(),
+            duration_minutes: durationMinutes
+          })
+          .eq('id', existingAppointment.id);
+      } else {
+        const { data: newApt } = await supabase
+          .from('appointments')
+          .insert({
+            customer_id: customer.id,
+            customer_name: customer.name,
+            customer_email: customer.email,
+            customer_phone: customer.phone,
+            service_type: customer.service_type || 'lawn_mowing',
+            date: serviceDate,
+            status: 'completed',
+            city: customer.address?.split(',')[1]?.trim() || '',
+            street_address: customer.address?.split(',')[0] || '',
+            notes: `Auto-completed on ${customer.day || 'schedule'}. Duration: ${durationMinutes} mins`,
+            duration_minutes: durationMinutes
+          })
+          .select('id')
+          .single();
+        if (newApt) appointmentId = newApt.id;
+      }
+
+      // 3. Create completed_jobs record
+      try {
+        const amountDue = customer.price || 0;
+        await supabaseAdmin
+          .from('completed_jobs')
+          .insert({
+            appointment_id: appointmentId || null,
+            customer_id: customer.user_id || null,
+            customer_name: customer.name,
+            customer_email: customer.email || '',
+            customer_phone: customer.phone || null,
+            customer_address: customer.address || null,
+            service_type: customer.service_type || 'lawn_mowing',
+            service_description: customer.notes || `Auto-completed on ${customer.day || 'schedule'}`,
+            job_date: serviceDate,
+            completed_date: new Date().toISOString(),
+            amount_due: amountDue,
+            amount_paid: 0,
+            payment_status: 'unpaid',
+            duration_minutes: durationMinutes
+          });
+      } catch (jobErr) {
+        console.error('Error inserting completed_job:', jobErr);
+      }
+
+      // 4. Update local schedule state (mark completed for the day)
+      if (customer.day) {
+        toggleCustomerCompletion(customer.day, customer.id);
+      }
+
+      // 5. EMAIL VS PHONE RULE:
+      // "if has email send anemail if dontes have email only phone dont do anything just makr complete and date so cnakeep track"
+      const hasEmail = !!(customer.email && typeof customer.email === 'string' && customer.email.trim() !== '' && customer.email.includes('@'));
+
+      if (hasEmail) {
+        try {
+          const appointmentData = {
+            id: `customer-${customer.id}`,
+            customer_name: customer.name,
+            customer_email: customer.email,
+            customer_phone: customer.phone,
+            service_type: customer.service_type || 'lawn_mowing',
+            date: serviceDate,
+            city: customer.address?.split(',')[1]?.trim() || '',
+            street_address: customer.address?.split(',')[0] || ''
+          };
+
+          const completionMsg = `Your ${customer.service_type?.replace(/_/g, ' ') || 'service'} has been completed successfully! Thank you for choosing Flora Lawn & Landscaping.`;
+
+          await fetch('/api/customers/send-message', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              appointmentId: appointmentData.id,
+              message: completionMsg,
+              sendEmail: true,
+              sendSMS: false, // Explicitly NO SMS
+              type: 'completed',
+              recipientName: customer.name,
+              customerData: appointmentData
+            })
+          });
+          console.log(`Auto-completed job for ${customer.name} and sent email to ${customer.email}`);
+        } catch (emailErr) {
+          console.error('Error sending auto-completion email:', emailErr);
+        }
+      } else {
+        console.log(`Auto-completed job for ${customer.name} (Phone only / No email). Marked complete on date ${completionDate} without sending email.`);
+      }
+
+      // 6. Archive completions
+      try {
+        await fetch('/api/archive-daily-completions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ date: completionDate })
+        });
+      } catch (archiveErr) {
+        console.error('Error archiving completion:', archiveErr);
+      }
+
+      delete autoCompleteTargetsRef.current[customer.id];
+
+    } catch (err) {
+      console.error('Error in auto-completing customer job:', err);
+    } finally {
+      autoCompletingRef.current[customer.id] = false;
+    }
+  };
+
   const startJob = async (customerId) => {
     try {
       const now = new Date().toISOString();
@@ -1651,19 +1858,27 @@ export default function SchedulePage() {
     }
   };
 
-  // Start the work-only clock (tap after arriving on site)
+  // Start the work-only clock (tap after arriving on site / confirming doing today)
   const startWork = async (customerId) => {
     try {
       const now = new Date().toISOString();
+      const customer = customers.find(c => c.id === customerId);
+      const updates = { work_started_at: now };
+      if (!customer?.job_started_at) {
+        updates.job_started_at = now;
+      }
       const { error } = await supabaseAdmin
         .from('customers')
-        .update({ work_started_at: now })
+        .update(updates)
         .eq('id', customerId);
 
       if (error) throw error;
 
+      // Assign target auto-completion duration (15 to 30 minutes in seconds)
+      autoCompleteTargetsRef.current[customerId] = 15 * 60 + Math.floor(Math.random() * (15 * 60));
+
       setCustomers(prev => prev.map(c =>
-        c.id === customerId ? { ...c, work_started_at: now } : c
+        c.id === customerId ? { ...c, ...updates } : c
       ));
     } catch (error) {
       console.error('Error starting work timer:', error);
@@ -7503,13 +7718,13 @@ function CustomerCard({
                 </button>
               </div>
             )}
-            {day && !isCompleted && customer.job_started_at && !customer.work_started_at && (
+            {day && !isCompleted && !customer.work_started_at && (
               <button
                 onClick={(e) => { e.stopPropagation(); startWork && startWork(customer.id); }}
                 className="px-3 py-1.5 text-[11px] font-medium text-violet-400 bg-violet-500/10 rounded-lg border border-violet-500/20 hover:bg-violet-500/20 transition-all flex items-center gap-1"
-                title="Start work timer (job only, no drive time)"
+                title="Start work timer (auto-completes in 15-30 mins with date & email)"
               >
-                🔨 Start Work
+                🔨 Start Work / Doing Today
               </button>
             )}
             {day && !isCompleted && !customer.job_started_at && (
