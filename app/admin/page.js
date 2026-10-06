@@ -648,6 +648,10 @@ export default function AdminDashboard() {
                 <GiftIcon className="w-4 h-4" />
                 Loyalty
               </Link>
+              <Link href="/leads/analytics" className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-100 text-emerald-800 rounded-full text-sm font-medium hover:bg-emerald-200 transition-colors">
+                <ChartBarIcon className="w-4 h-4" />
+                Lead Demand
+              </Link>
               <Link href="/schedule" className="flex items-center gap-1.5 px-3 py-1.5 bg-cyan-100 text-cyan-700 rounded-full text-sm font-medium hover:bg-cyan-200 transition-colors">
                 <CalendarIcon className="w-4 h-4" />
                 Schedule

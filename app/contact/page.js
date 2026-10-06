@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import emailjs from '@emailjs/browser';
 import Navigation from "@/components/Navigation";
+import LeafSeason, { LeafGround } from "@/components/LeafSeason";
 import { businessInfo } from "@/utils/business-info";
 import Footer from "@/components/Footer";
 import Link from "next/link";
@@ -54,6 +55,7 @@ function ContactForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showMessageHelper, setShowMessageHelper] = useState(true);
   const [referralCode, setReferralCode] = useState('');
+  const [selectedPackage, setSelectedPackage] = useState(null);
   
   // Media Upload State
   const [mediaFiles, setMediaFiles] = useState([]);
@@ -86,6 +88,18 @@ function ContactForm() {
     }
     if (ref) setReferralCode(ref.toUpperCase());
     if (promo) setFormData(prev => ({ ...prev, promoCode: promo.toUpperCase() }));
+
+    const pkgName = searchParams.get('package');
+    const pkgServices = (searchParams.get('services') || '').split(',').map(s => s.trim()).filter(Boolean);
+    if (pkgName || pkgServices.length) {
+      const name = pkgName || 'Custom Plan';
+      setSelectedPackage({ name, services: pkgServices });
+      const intro = `I'm interested in the ${name}${pkgServices.length ? ` (${pkgServices.join(', ')})` : ''}. Please send me a quote for my property.`;
+      setFormData(prev => (prev.message ? prev : { ...prev, message: intro }));
+      setShowMessageHelper(false);
+    } else {
+      setSelectedPackage(null);
+    }
   }, [searchParams]);
 
   useEffect(() => {
@@ -303,13 +317,17 @@ function ContactForm() {
           `Edging measurement: ${mulchAssessment.edgingMeasurement || (mulchAssessment.knowsEdgingMeasurement === 'no' ? 'Will provide photo' : 'Not specified')}\n\n`;
       }
 
+      const packageContext = selectedPackage
+        ? `[PACKAGE: ${selectedPackage.name}]${selectedPackage.services.length ? `\nIncludes: ${selectedPackage.services.join(', ')}` : ''}\n\n`
+        : '';
+
       const templateParams = {
         user_name: formData.name,
         user_email: formData.email,
         user_phone: formData.phone,
         user_address: `${formData.address}${formData.state ? `, ${formData.state}` : ''}${formData.zipCode ? ` ${formData.zipCode}` : ''}`,
         service_type: formData.service.toLowerCase().replace(/\s+/g, '_'),
-        message: `[PREFERS: ${estimatePreference === 'meet_person' ? 'Meet In Person' : 'Walk Around & Email Pricing'}]\n\n` + cleanupContext + mulchContext + formData.message,
+        message: `[PREFERS: ${estimatePreference === 'meet_person' ? 'Meet In Person' : 'Walk Around & Email Pricing'}]\n\n` + packageContext + cleanupContext + mulchContext + formData.message,
         to_name: process.env.NEXT_PUBLIC_APP_NAME,
         reply_to: formData.email,
         promo_code: formData.promoCode || 'NONE',
@@ -366,7 +384,9 @@ function ContactForm() {
             state: formData.state,
             zipCode: formData.zipCode,
             service: formData.service,
-            message: formData.message,
+            message: packageContext + formData.message,
+            packageName: selectedPackage?.name || null,
+            packageServices: selectedPackage?.services || [],
             sendSMS: smsPreferences.subscribe,
             hasMedia: mediaFiles.length > 0,
             mediaUrls: uploadedUrls,
@@ -399,6 +419,7 @@ function ContactForm() {
         setSubmissionStep('Success!');
         // Clear form
         setFormData({ name: '', email: '', phone: '', address: '', city: '', state: '', zipCode: '', service: '', message: '', promoCode: '', preferredMeetingDate: '' });
+        setSelectedPackage(null);
         
         // Smooth scroll to success message
         setTimeout(() => {
@@ -431,16 +452,50 @@ function ContactForm() {
       <Navigation />
       
       {/* ELITE HERO */}
-      <section className="relative pt-44 pb-32 overflow-hidden bg-slate-950">
-         <div className="absolute inset-0 bg-[url('/images/landscaping-service-image.jpg')] bg-cover opacity-20 scale-105" />
-         <div className="absolute inset-0 bg-gradient-to-b from-slate-950 via-slate-950/60 to-slate-950" />
-         <div className="max-w-7xl mx-auto px-4 relative z-10 text-center">
-            <h1 className="text-4xl md:text-8xl font-black text-white tracking-tight leading-[1.2] italic mb-8 uppercase">
-               Priority <span className="bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text text-transparent block md:inline-block pb-2">Quote Request</span>
-            </h1>
-            <p className="text-xl text-slate-400 max-w-2xl mx-auto font-medium italic">
-               Request your free estimate below. Our team provides 1-6 hour digital quotes for RI & MA homeowners.
+      <section className="relative pt-36 pb-28 md:pt-44 md:pb-36 overflow-hidden bg-[#1c0a0e]">
+         <img
+            src="/images/fall-house-hero.jpg"
+            alt="Home with red and gold maple trees and a freshly cleaned lawn"
+            className="absolute inset-0 w-full h-full object-cover"
+         />
+         <div className="absolute inset-0 bg-gradient-to-b from-[#1c0a0e]/90 via-[#1c0a0e]/65 to-[#1c0a0e]" />
+         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_0%,rgba(28,10,14,0.65)_75%)]" />
+         <LeafSeason className="z-[1]" />
+         <LeafGround className="z-[2]" />
+
+         <div className="max-w-5xl mx-auto px-4 relative z-10 text-center">
+            <p className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#6b1d2a]/80 border border-yellow-300/30 text-yellow-200 text-[11px] font-black uppercase tracking-[0.25em] mb-7 backdrop-blur">
+               🍁 Free Fall Quotes · RI &amp; MA
             </p>
+            <h1 className="text-5xl md:text-8xl font-black text-white tracking-tighter leading-[0.95]">
+               Get Your
+               <span className="block bg-gradient-to-r from-yellow-200 via-yellow-300 to-yellow-500 bg-clip-text text-transparent pb-2">
+                  Fall Quote
+               </span>
+            </h1>
+            {selectedPackage ? (
+               <p className="mt-6 text-lg md:text-xl text-stone-200 font-medium">
+                  Quoting your <span className="font-black text-yellow-300">{selectedPackage.name}</span>. Fill in your address below and we&apos;ll size it to your yard.
+               </p>
+            ) : (
+               <p className="mt-6 text-lg md:text-xl text-stone-200 max-w-2xl mx-auto font-medium">
+                  Leaf cleanup, aeration, overseeding and more. Tell us about your yard and we&apos;ll send a free quote within 1–6 hours.
+               </p>
+            )}
+            <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
+               <span className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-white/10 border border-white/15 backdrop-blur text-sm font-bold text-white">
+                  <ClockIcon className="w-5 h-5 text-yellow-300" /> Reply in 1–6 hours
+               </span>
+               <span className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-white/10 border border-white/15 backdrop-blur text-sm font-bold text-white">
+                  <ShieldCheckIcon className="w-5 h-5 text-yellow-300" /> Free, no obligation
+               </span>
+               <a
+                  href="tel:4013890913"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-yellow-400 hover:bg-yellow-300 text-stone-900 text-sm font-black transition-colors"
+               >
+                  <PhoneIcon className="w-5 h-5" /> (401) 389-0913
+               </a>
+            </div>
          </div>
       </section>
 
@@ -606,6 +661,34 @@ function ContactForm() {
                            <input type="hidden" name="state" value={formData.state} />
                            <input type="hidden" name="zipCode" value={formData.zipCode} />
                         </div>
+
+                        {selectedPackage && (
+                           <div className="relative overflow-hidden rounded-[2rem] bg-[#1c0a0e] text-white p-6 border-2 border-red-800">
+                              <div className="flex items-start justify-between gap-4">
+                                 <div>
+                                    <p className="text-[10px] font-black uppercase tracking-[0.25em] text-yellow-300">🍁 Selected Package</p>
+                                    <h3 className="text-2xl font-black tracking-tight mt-1">{selectedPackage.name}</h3>
+                                 </div>
+                                 <button
+                                    type="button"
+                                    onClick={() => setSelectedPackage(null)}
+                                    className="text-[10px] font-black uppercase tracking-widest text-white/50 hover:text-white px-3 py-1.5 rounded-full border border-white/15"
+                                 >
+                                    Remove
+                                 </button>
+                              </div>
+                              {selectedPackage.services.length > 0 && (
+                                 <div className="mt-4 flex flex-wrap gap-2">
+                                    {selectedPackage.services.map(s => (
+                                       <span key={s} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 text-sm font-bold">
+                                          <CheckBadgeIcon className="w-4 h-4 text-yellow-300" /> {s}
+                                       </span>
+                                    ))}
+                                 </div>
+                              )}
+                              <p className="mt-4 text-xs font-bold text-white/60">Free quote, sized to your yard. We confirm the price before any work starts.</p>
+                           </div>
+                        )}
 
                         {/* SERVICE SELECTION */}
                         <div>

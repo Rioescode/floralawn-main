@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase, supabaseAdmin } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import CustomerMap from '@/app/components/CustomerMap';
 import { sendNotification } from '@/lib/notifications';
 import {
@@ -109,10 +110,18 @@ export default function SchedulePage() {
   const [sendEmail, setSendEmail] = useState(true);
   const [sendSMS, setSendSMS] = useState(false);
   const [markingDone, setMarkingDone] = useState(false);
-  const [completionDate, setCompletionDate] = useState(new Date().toISOString().split('T')[0]);
+  const [completionDate, setCompletionDate] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  });
+  const [bulkCompleting, setBulkCompleting] = useState(false);
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [selectedCustomerForReview, setSelectedCustomerForReview] = useState(null);
-  const [isUnassignedExpanded, setIsUnassignedExpanded] = useState(true);
+  const [isUnassignedExpanded, setIsUnassignedExpanded] = useState(false);
+  const [dayJobFilter, setDayJobFilter] = useState('remaining'); // remaining | done | all
+  const [statsExpanded, setStatsExpanded] = useState(false);
+  const [routeFocusId, setRouteFocusId] = useState(null);
+  const routeSwipeX = useRef(0);
 
   // Email Preview Modal State
   const [showEmailModal, setShowEmailModal] = useState(false);
@@ -465,9 +474,12 @@ export default function SchedulePage() {
   };
 
   // Helper functions for localStorage persistence
-  const getTodayKey = () => {
-    const today = new Date();
-    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  const getTodayKey = (date = new Date()) => {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  };
+
+  const localNoonISO = (dateStr = getTodayKey()) => {
+    return new Date(`${dateStr}T12:00:00`).toISOString();
   };
 
   // Returns the ISO date of the Monday that starts the current 3-week cycle's Week 1
@@ -690,7 +702,8 @@ export default function SchedulePage() {
 
   // Function to get date for a day string (e.g., "Tuesday Week 2")
   const getDateForDay = (dayString) => {
-    if (!dayString) return new Date().toISOString();
+    const today = getTodayKey();
+    if (!dayString) return localNoonISO(today);
     
     const parts = dayString.split(' ');
     const dayName = parts[0]; // "Tuesday"
@@ -699,29 +712,23 @@ export default function SchedulePage() {
     const dayOrder = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     const dayIndex = dayOrder.indexOf(dayName);
     
-    if (dayIndex === -1) return new Date().toISOString();
+    if (dayIndex === -1) return localNoonISO(today);
     
     const now = new Date();
     const currentDay = now.getDay();
     const currentWeek = getCurrentWeek();
+
+    if (week === currentWeek && dayIndex === currentDay) {
+      return localNoonISO(today);
+    }
     
-    // Calculate days difference
     let daysDiff = dayIndex - currentDay;
-    
-    // Adjust for week difference
     if (week !== currentWeek) {
       daysDiff += week === 'Week 1' ? -7 : 7;
     }
     
-    // If day is in the past, move to next occurrence
-    if (daysDiff < 0) {
-      daysDiff += 14; // Move to next bi-weekly cycle
-    }
-    
-    const targetDate = new Date(now);
-    targetDate.setDate(now.getDate() + daysDiff);
-    
-    return targetDate.toISOString();
+    const targetDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + daysDiff);
+    return localNoonISO(getTodayKey(targetDate));
   };
 
   // Function to get current day name
@@ -730,11 +737,40 @@ export default function SchedulePage() {
     return days[new Date().getDay()];
   };
 
-  // Set initial week based on current date
+  // Land on today's route immediately
   useEffect(() => {
     const currentWeek = getCurrentWeek();
     setSelectedWeek(currentWeek);
+    setSelectedDay(`${getCurrentDayName()} ${currentWeek}`);
   }, []);
+
+  const getRemainingForDay = useCallback((day) => {
+    if (!day) return [];
+    const completedIds = completedCustomers[day] || [];
+    return [...(schedule[day] || [])]
+      .filter(c => !completedIds.includes(c.id) && !c.maintenance_paused)
+      .sort((a, b) => {
+        const aRun = !!activeJobTimers[a.id];
+        const bRun = !!activeJobTimers[b.id];
+        if (aRun !== bRun) return aRun ? -1 : 1;
+        return (a.route_order || 999) - (b.route_order || 999);
+      });
+  }, [completedCustomers, schedule, activeJobTimers]);
+
+  useEffect(() => {
+    if (!selectedDay) return;
+    const remaining = getRemainingForDay(selectedDay);
+    if (remaining.length === 0) {
+      setRouteFocusId(null);
+      return;
+    }
+    setRouteFocusId(prev => remaining.some(c => c.id === prev) ? prev : remaining[0].id);
+  }, [selectedDay, getRemainingForDay]);
+
+  useEffect(() => {
+    if (!routeFocusId) return;
+    document.getElementById(`chip-${routeFocusId}`)?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+  }, [routeFocusId]);
 
   // Load completed customers from appointments table — only for the current bi-weekly cycle
   const loadCompletedCustomersFromDB = async () => {
@@ -1629,12 +1665,13 @@ export default function SchedulePage() {
   };
 
   const selectAllDayCustomers = (day) => {
-    const dayCustomers = schedule[day] || [];
-    const allSelected = selectedDayCustomers[day]?.length === dayCustomers.length;
+    const remaining = (schedule[day] || []).filter(c => !(completedCustomers[day] || []).includes(c.id) && !c.maintenance_paused);
+    const current = selectedDayCustomers[day] || [];
+    const allSelected = remaining.length > 0 && remaining.length === current.length && remaining.every(c => current.includes(c.id));
     
     setSelectedDayCustomers(prev => ({
       ...prev,
-      [day]: allSelected ? [] : dayCustomers.map(c => c.id)
+      [day]: allSelected ? [] : remaining.map(c => c.id)
     }));
   };
 
@@ -1763,7 +1800,7 @@ export default function SchedulePage() {
             customer_address: customer.address || null,
             service_type: customer.service_type || 'lawn_mowing',
             service_description: customer.notes || `Auto-completed on ${customer.day || 'schedule'}`,
-            job_date: serviceDate,
+            job_date: completionDate,
             completed_date: new Date().toISOString(),
             amount_due: amountDue,
             amount_paid: 0,
@@ -2080,16 +2117,15 @@ export default function SchedulePage() {
       }
 
       // Create or update appointment record with completed status
-      const today = completionDate;
-      const serviceDate = new Date(completionDate + 'T12:00:00').toISOString();
+      const serviceDate = localNoonISO(completionDate);
       
       // Check if appointment exists
       const { data: existingAppointment } = await supabase
         .from('appointments')
         .select('id')
         .eq('customer_id', customer.id)
-        .eq('date', serviceDate.split('T')[0])
-        .single();
+        .eq('date', completionDate)
+        .maybeSingle();
 
       if (existingAppointment) {
         // Update existing appointment
@@ -2115,7 +2151,7 @@ export default function SchedulePage() {
             customer_email: customer.email,
             customer_phone: customer.phone,
             service_type: customer.service_type || 'lawn_mowing',
-            date: serviceDate,
+            date: completionDate,
             status: 'completed',
             city: customer.address?.split(',')[1]?.trim() || '',
             street_address: customer.address?.split(',')[0] || '',
@@ -2154,7 +2190,7 @@ export default function SchedulePage() {
                 customer_address: customer.address || null,
                 service_type: customer.service_type || 'lawn_mowing',
                 service_description: customer.notes || `Completed on ${customer.day || 'schedule'}`,
-                job_date: serviceDate,
+                job_date: completionDate,
                 completed_date: new Date().toISOString(),
                 amount_due: amountDue,
                 amount_paid: 0,
@@ -2179,7 +2215,7 @@ export default function SchedulePage() {
               customer_address: customer.address || null,
               service_type: customer.service_type || 'lawn_mowing',
               service_description: customer.notes || `Completed on ${customer.day || 'schedule'}`,
-              job_date: serviceDate,
+              job_date: completionDate,
               completed_date: new Date().toISOString(),
               amount_due: amountDue,
               amount_paid: 0,
@@ -2299,19 +2335,19 @@ export default function SchedulePage() {
   };
 
   // Fast track completing a job without message prompts
-  const handleQuickDone = async (customer, day) => {
+  const handleQuickDone = async (customer, day, options = {}) => {
+    const silent = options.silent === true;
+    const localDate = getTodayKey();
+    const serviceDate = localNoonISO(localDate);
     try {
-      // Calculate duration if timer was active
       let durationMinutes = null;
-      if (customer.job_started_at) {
-        const start = new Date(customer.job_started_at);
-        const end = new Date();
-        durationMinutes = Math.max(0, Math.round((end - start) / (1000 * 60)));
+      if (customer.work_started_at) {
+        durationMinutes = Math.max(0, Math.round((Date.now() - new Date(customer.work_started_at).getTime()) / (1000 * 60)));
+      } else if (customer.job_started_at) {
+        durationMinutes = Math.max(0, Math.round((Date.now() - new Date(customer.job_started_at).getTime()) / (1000 * 60)));
       }
 
-      // Update either customer or lead based on the type
       if (customer.status === 'confirmed' || customer.day === 'One-time Job') {
-        // It's a lead/inquiry being completed
         const { error: leadError } = await supabase
           .from('contact_leads')
           .update({ status: 'completed' })
@@ -2319,11 +2355,10 @@ export default function SchedulePage() {
 
         if (leadError) throw leadError;
       } else {
-        // It's a regular active customer
         const { error: updateError } = await supabase
           .from('customers')
           .update({ 
-            last_service: new Date().toISOString().split('T')[0],
+            last_service: localDate,
             job_started_at: null,
             work_started_at: null,
             last_job_duration_minutes: durationMinutes,
@@ -2333,39 +2368,35 @@ export default function SchedulePage() {
 
         if (updateError) throw updateError;
 
-        // Update local state
         setCustomers(prev => prev.map(c => 
           c.id === customer.id ? { 
             ...c, 
             job_started_at: null, 
             work_started_at: null,
             last_job_duration_minutes: durationMinutes, 
-            last_service: new Date().toISOString().split('T')[0],
+            last_service: localDate,
             service_count: (c.service_count || 0) + 1
           } : c
         ));
       }
 
-      // Create or update appointment record
-      const serviceDate = day ? getDateForDay(day) : new Date().toISOString();
       const { data: existingAppointment } = await supabase
         .from('appointments')
         .select('id')
         .eq('customer_id', customer.id)
-        .eq('date', serviceDate.split('T')[0])
-        .single();
+        .eq('date', localDate)
+        .maybeSingle();
 
       if (existingAppointment) {
         await supabase.from('appointments').update({ status: 'completed', updated_at: new Date().toISOString(), duration_minutes: durationMinutes }).eq('id', existingAppointment.id);
       } else {
         await supabase.from('appointments').insert({
           customer_id: customer.id, customer_name: customer.name, customer_email: customer.email, customer_phone: customer.phone,
-          service_type: customer.service_type || 'lawn_mowing', date: serviceDate, status: 'completed', city: customer.address?.split(',')[1]?.trim() || '',
-          street_address: customer.address?.split(',')[0] || '', notes: `Completed on ${day || 'schedule'}`, duration_minutes: durationMinutes
+          service_type: customer.service_type || 'lawn_mowing', date: localDate, status: 'completed', city: customer.address?.split(',')[1]?.trim() || '',
+          street_address: customer.address?.split(',')[0] || '', notes: `Completed on ${localDate}`, duration_minutes: durationMinutes
         });
       }
 
-      // Create completed_job record
       try {
         const appointmentId = existingAppointment?.id || null;
         const amountDue = customer.price || 0;
@@ -2375,7 +2406,7 @@ export default function SchedulePage() {
             await supabaseAdmin.from('completed_jobs').insert({
               appointment_id: appointmentId, customer_id: customer.user_id || null, customer_name: customer.name, customer_email: customer.email || '',
               customer_phone: customer.phone || null, customer_address: customer.address || null, service_type: customer.service_type || 'lawn_mowing',
-              service_description: customer.notes || `Completed on ${day || 'schedule'}`, job_date: serviceDate, completed_date: new Date().toISOString(),
+              service_description: customer.notes || `Completed on ${localDate}`, job_date: localDate, completed_date: new Date().toISOString(),
               amount_due: amountDue, amount_paid: 0, payment_status: 'unpaid', duration_minutes: durationMinutes
             });
           }
@@ -2383,13 +2414,12 @@ export default function SchedulePage() {
           await supabaseAdmin.from('completed_jobs').insert({
             appointment_id: null, customer_id: customer.user_id || null, customer_name: customer.name, customer_email: customer.email || '',
             customer_phone: customer.phone || null, customer_address: customer.address || null, service_type: customer.service_type || 'lawn_mowing',
-            service_description: customer.notes || `Completed on ${day || 'schedule'}`, job_date: serviceDate, completed_date: new Date().toISOString(),
+            service_description: customer.notes || `Completed on ${localDate}`, job_date: localDate, completed_date: new Date().toISOString(),
             amount_due: amountDue, amount_paid: 0, payment_status: 'unpaid', duration_minutes: durationMinutes
           });
         }
       } catch (jobError) { console.error('Error creating completed job:', jobError); }
 
-      // Award loyalty points
       try {
         if (customer.id && customer.price) {
           const pointsToAward = Math.max(10, Math.floor(customer.price));
@@ -2401,20 +2431,60 @@ export default function SchedulePage() {
         }
       } catch (e) {}
 
-      // Mark as completed in local state
       toggleCustomerCompletion(day, customer.id);
+      const remainingAfter = getRemainingForDay(day).filter(c => c.id !== customer.id);
+      const currentIdx = getRemainingForDay(day).findIndex(c => c.id === customer.id);
+      const nextStop = (currentIdx >= 0 ? getRemainingForDay(day)[currentIdx + 1] : null) || remainingAfter[0] || null;
+      setRouteFocusId(nextStop ? nextStop.id : null);
       
-      // Archive daily
       try {
-        await fetch('/api/archive-daily-completions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ date: new Date().toISOString().split('T')[0] }) });
+        await fetch('/api/archive-daily-completions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ date: localDate }) });
       } catch (e) {}
 
-      setSuccessMessage('Job Quick Done!');
-      setShowSuccessModal(true);
-      setTimeout(() => setShowSuccessModal(false), 2000);
+      if (!silent) {
+        setSuccessMessage(`Done — ${localDate}`);
+        setShowSuccessModal(true);
+        setTimeout(() => setShowSuccessModal(false), 2000);
+      }
     } catch (error) {
       console.error('Quick Done error:', error);
-      alert('Failed to quick-mark job as done. Please try again.');
+      if (!silent) alert('Failed to quick-mark job as done. Please try again.');
+      throw error;
+    }
+  };
+
+  const handleBulkQuickDone = async (day) => {
+    const selectedIds = selectedDayCustomers[day] || [];
+    const jobs = selectedIds
+      .map(id => (schedule[day] || []).find(c => c.id === id))
+      .filter(c => c && !(completedCustomers[day] || []).includes(c.id) && !c.maintenance_paused);
+
+    if (jobs.length === 0) {
+      alert('Select unfinished jobs first (checkboxes), then hit Done.');
+      return;
+    }
+
+    if (!confirm(`Mark ${jobs.length} job${jobs.length === 1 ? '' : 's'} done for today (${getTodayKey()})?`)) return;
+
+    setBulkCompleting(true);
+    let ok = 0;
+    const failed = [];
+    try {
+      for (const customer of jobs) {
+        try {
+          await handleQuickDone(customer, day, { silent: true });
+          ok += 1;
+        } catch (e) {
+          failed.push(customer.name || 'Unknown');
+        }
+      }
+      clearDaySelection(day);
+      setSuccessMessage(failed.length ? `${ok} done, ${failed.length} failed` : `${ok} jobs marked done — ${getTodayKey()}`);
+      setShowSuccessModal(true);
+      setTimeout(() => setShowSuccessModal(false), 2500);
+      if (failed.length) alert(`Failed: ${failed.join(', ')}`);
+    } finally {
+      setBulkCompleting(false);
     }
   };
 
@@ -3684,11 +3754,23 @@ export default function SchedulePage() {
       if (e.key === 'Escape' && searchTerm) {
         clearSearch();
       }
+      const tag = e.target?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      if (!selectedDay || (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight')) return;
+      const remaining = getRemainingForDay(selectedDay);
+      if (remaining.length === 0) return;
+      const idx = Math.max(0, remaining.findIndex(c => c.id === routeFocusId));
+      e.preventDefault();
+      if (e.key === 'ArrowRight') {
+        setRouteFocusId(remaining[Math.min(remaining.length - 1, idx + 1)].id);
+      } else {
+        setRouteFocusId(remaining[Math.max(0, idx - 1)].id);
+      }
     };
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [searchTerm]);
+  }, [searchTerm, selectedDay, routeFocusId, getRemainingForDay]);
 
   // Function to highlight search terms in text
   const highlightSearchTerm = (text, searchTerm) => {
@@ -3856,9 +3938,9 @@ export default function SchedulePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#0f1117] flex items-center justify-center">
+      <div className="min-h-screen bg-[#0b1220] flex items-center justify-center">
         <div className="relative">
-          <div className="animate-spin rounded-full h-16 w-16 border-4 border-white/10 border-t-green-500"></div>
+          <div className="animate-spin rounded-full h-16 w-16 border-4 border-white/10 border-t-amber-400"></div>
           <div className="absolute inset-0 flex items-center justify-center">
             <span className="text-lg">🌿</span>
           </div>
@@ -3868,11 +3950,11 @@ export default function SchedulePage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0f1117] text-white">
+    <div className="min-h-screen bg-[#0b1220] text-white">
       {/* Ambient glow effects */}
       <div className="fixed inset-0 pointer-events-none z-0">
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-green-500/10 rounded-full blur-[120px]"></div>
-        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-[120px]"></div>
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-amber-500/12 rounded-full blur-[120px]"></div>
+        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-sky-500/10 rounded-full blur-[120px]"></div>
       </div>
 
       <div className="relative z-10 max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 pb-24 lg:pb-6">
@@ -3882,7 +3964,7 @@ export default function SchedulePage() {
           <div>
             <div className="flex items-center gap-3">
               <h1 className="text-3xl sm:text-4xl font-black tracking-tight">
-                <span className="bg-gradient-to-r from-green-400 via-emerald-400 to-teal-400 bg-clip-text text-transparent">Schedule</span>
+                <span className="bg-gradient-to-r from-amber-300 via-orange-400 to-sky-400 bg-clip-text text-transparent">Schedule</span>
               </h1>
               <button 
                 onClick={(e) => {
@@ -3903,15 +3985,29 @@ export default function SchedulePage() {
               </button>
             </div>
             <p className="text-sm text-gray-400 mt-1">
-              {getCurrentDayName()}, {getCurrentWeek()} &bull; {customers.length} active customers
+              {getCurrentDayName()}, {getCurrentWeek()} &bull; {customers.length} active
+              {selectedDay && selectedDay !== `${getCurrentDayName()} ${getCurrentWeek()}` && (
+                <button
+                  onClick={() => {
+                    const week = getCurrentWeek();
+                    setSelectedWeek(week);
+                    setSelectedDay(`${getCurrentDayName()} ${week}`);
+                    setViewMode('schedule');
+                    setDayJobFilter('remaining');
+                  }}
+                  className="ml-2 text-amber-400 font-bold hover:text-amber-300"
+                >
+                  Jump to Today →
+                </button>
+              )}
             </p>
           </div>
           
           {/* Mobile View Toggle - Fixed Bottom Bar */}
-          <div className="fixed bottom-0 left-0 right-0 bg-[#161922]/95 backdrop-blur-2xl border-t border-white/10 p-2.5 px-6 flex items-center justify-around z-[100] lg:hidden shadow-[0_-10px_40px_rgba(0,0,0,0.4)]">
+          <div className="fixed bottom-0 left-0 right-0 bg-[#10182a]/95 backdrop-blur-2xl border-t border-amber-500/15 p-2.5 px-6 flex items-center justify-around z-[100] lg:hidden shadow-[0_-10px_40px_rgba(0,0,0,0.4)]">
             <button
               onClick={() => setViewMode('schedule')}
-              className={`flex flex-col items-center gap-1.5 p-1 transition-all ${viewMode === 'schedule' ? 'text-green-400 scale-110' : 'text-gray-500'}`}
+              className={`flex flex-col items-center gap-1.5 p-1 transition-all ${viewMode === 'schedule' ? 'text-amber-400 scale-110' : 'text-gray-500'}`}
             >
               <CalendarDaysIcon className="h-6 w-6" />
               <span className="text-[9px] font-black uppercase tracking-widest">Jobs</span>
@@ -3959,14 +4055,14 @@ export default function SchedulePage() {
               onClick={() => setViewMode('schedule')}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 ${
                 viewMode === 'schedule'
-                  ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-lg shadow-green-500/25'
+                  ? 'bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-lg shadow-amber-500/25'
                   : 'text-gray-400 hover:text-white'
               }`}
             >
               <CalendarDaysIcon className="h-4 w-4" />
               Schedule
               <span className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-black ${
-                viewMode === 'schedule' ? 'bg-white text-green-600' : 'bg-white/10 text-gray-400'
+                viewMode === 'schedule' ? 'bg-white text-amber-600' : 'bg-white/10 text-gray-400'
               }`}>
                 {customers.length}
               </span>
@@ -4042,7 +4138,7 @@ export default function SchedulePage() {
           {/* Add Customer Button - Floats on Mobile */}
           <button
             onClick={openAddCustomerModal}
-            className="fixed bottom-24 right-6 lg:static flex items-center gap-2 px-6 py-5 lg:px-4 lg:py-2.5 rounded-full lg:rounded-2xl text-sm font-bold bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-2xl shadow-green-500/40 lg:shadow-green-500/25 hover:scale-105 transition-all duration-200 active:scale-95 z-[90]"
+            className="fixed bottom-24 right-6 lg:static flex items-center gap-2 px-6 py-5 lg:px-4 lg:py-2.5 rounded-full lg:rounded-2xl text-sm font-bold bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-2xl shadow-amber-500/40 lg:shadow-amber-500/25 hover:scale-105 transition-all duration-200 active:scale-95 z-[90]"
           >
             <PlusIcon className="h-6 w-6 lg:h-4 lg:w-4" />
             <span className="hidden lg:inline">Add Customer</span>
@@ -4051,73 +4147,59 @@ export default function SchedulePage() {
         </div>
 
         {/* === COMMAND CENTER === */}
-        <div className="bg-white/[0.03] backdrop-blur-xl rounded-3xl border border-white/[0.08] overflow-hidden mb-6">
+        <div className="sticky top-16 sm:top-20 z-30 bg-[#0b1220]/95 backdrop-blur-xl rounded-3xl border border-amber-500/15 overflow-hidden mb-4 shadow-2xl shadow-black/40">
           
-          {/* Top bar: Big earnings + week toggle */}
-          <div className="p-4 sm:p-5">
-            <div className="flex items-start justify-between gap-4">
-              {/* Monthly hero number */}
-              <div>
-                <p className="text-[10px] text-gray-500 uppercase tracking-widest font-semibold mb-1">Monthly Revenue</p>
-                <div className="flex items-baseline gap-3">
-                  <span className="text-3xl sm:text-4xl font-black bg-gradient-to-r from-green-400 to-emerald-300 bg-clip-text text-transparent">
-                    ${earnings.grandTotal.toFixed(0)}
-                  </span>
-                  <div className="flex gap-3 text-xs">
-                    <span className="text-gray-500">
-                      <span className="text-green-400 font-bold">${(selectedWeek === 'Week 1' ? earnings.week1 : earnings.week2).toFixed(0)}</span> this week
+          {/* Compact earnings + week toggle */}
+          <div className="px-4 py-3">
+            <div className="flex items-center justify-between gap-3">
+              <button
+                type="button"
+                onClick={() => setStatsExpanded(!statsExpanded)}
+                className="flex items-center gap-3 min-w-0 text-left"
+              >
+                <div className="min-w-0">
+                  <p className="text-[10px] text-gray-500 uppercase tracking-widest font-semibold">
+                    {selectedDay ? selectedDay.split(' ')[0] : 'This week'}
+                  </p>
+                  <div className="flex items-baseline gap-2 flex-wrap">
+                    <span className="text-2xl font-black bg-gradient-to-r from-amber-300 to-orange-400 bg-clip-text text-transparent">
+                      ${selectedDay
+                        ? (earnings.daily[selectedDay]?.total || 0).toFixed(0)
+                        : (selectedWeek === 'Week 1' ? earnings.week1 : selectedWeek === 'Week 2' ? earnings.week2 : earnings.grandTotal).toFixed(0)
+                      }
                     </span>
-                    <span className="text-gray-600">•</span>
-                    <span className="text-gray-500">
-                      <span className="text-white font-semibold">{DAYS_OF_WEEK.filter(d => d.includes(selectedWeek)).reduce((t, d) => t + (schedule[d]?.length || 0), 0)}</span> customers
-                    </span>
+                    {selectedDay && (
+                      <span className="text-xs text-gray-500">
+                        <span className="text-sky-400 font-bold">{(schedule[selectedDay] || []).filter(c => !(completedCustomers[selectedDay] || []).includes(c.id) && !c.maintenance_paused).length}</span> left
+                        <span className="text-gray-600"> · </span>
+                        <span className="text-amber-400 font-bold">{completedCustomers[selectedDay]?.length || 0}</span> done
+                      </span>
+                    )}
+                    {!selectedDay && (
+                      <span className="text-xs text-gray-500">${earnings.grandTotal.toFixed(0)}/mo</span>
+                    )}
                   </div>
                 </div>
-                {/* Inline breakdown */}
-                <div className="flex flex-wrap gap-x-6 gap-y-2 mt-3 pt-3 border-t border-white/5">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                    <span className="text-[11px] text-gray-400">
-                      Weekly <span className="text-white font-bold">${DAYS_OF_WEEK.filter(d => d.includes(selectedWeek)).reduce((t, d) => t + (schedule[d] || []).filter(c => c.frequency === 'weekly').reduce((s, c) => s + parseFloat(c.price || 0), 0), 0).toFixed(0)}</span>
-                      <span className="text-gray-600 ml-1">({DAYS_OF_WEEK.filter(d => d.includes(selectedWeek)).reduce((t, d) => t + (schedule[d] || []).filter(c => c.frequency === 'weekly').length, 0)})</span>
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-blue-500"></div>
-                    <span className="text-[11px] text-gray-400">
-                      Bi-Weekly <span className="text-white font-bold">${DAYS_OF_WEEK.filter(d => d.includes(selectedWeek)).reduce((t, d) => t + (schedule[d] || []).filter(c => c.frequency === 'bi_weekly').reduce((s, c) => s + parseFloat(c.price || 0), 0), 0).toFixed(0)}</span>
-                      <span className="text-gray-600 ml-1">({DAYS_OF_WEEK.filter(d => d.includes(selectedWeek)).reduce((t, d) => t + (schedule[d] || []).filter(c => c.frequency === 'bi_weekly').length, 0)})</span>
-                    </span>
-                  </div>
-                  <button 
-                    onClick={() => setShowUnpaidModal(true)}
-                    className="flex items-center gap-2 hover:bg-white/5 px-2 py-0.5 rounded-lg transition-all group"
-                  >
-                    <div className="w-2 h-2 rounded-full bg-red-500 group-hover:scale-125 transition-transform"></div>
-                    <span className="text-[11px] text-gray-400">
-                      Unpaid <span className="text-red-400 font-black group-hover:text-red-300 transition-colors">${(selectedWeek === 'Week 1' ? paymentStats.week1.unpaid : paymentStats.week2.unpaid).toFixed(0)}</span>
-                    </span>
-                  </button>
-                  <div className="flex items-center gap-2 px-2 py-0.5">
-                    <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
-                    <span className="text-[11px] text-gray-400">
-                      Paid <span className="text-emerald-400 font-black">${(selectedWeek === 'Week 1' ? paymentStats.week1.paid : paymentStats.week2.paid).toFixed(0)}</span>
-                    </span>
-                  </div>
-                </div>
-              </div>
+                <ChevronDownIcon className={`h-4 w-4 text-gray-600 shrink-0 transition-transform ${statsExpanded ? 'rotate-180' : ''}`} />
+              </button>
 
               {/* Week Toggle - compact */}
               <div className="flex bg-white/5 rounded-xl p-0.5 border border-white/10 shrink-0">
               {['Week 1', 'Week 2', 'Week 3'].map(week => (
                   <button
                     key={week}
-                    onClick={() => { setSelectedWeek(week); setSelectedDay(null); }}
+                    onClick={() => {
+                      setSelectedWeek(week);
+                      setSelectedDay(prev => {
+                        if (!prev) return `${getCurrentDayName()} ${week}`;
+                        return `${prev.split(' ')[0]} ${week}`;
+                      });
+                    }}
                     className={`px-3 sm:px-4 py-2 rounded-lg text-xs font-bold transition-all duration-200 ${
                       selectedWeek === week
                         ? week === 'Week 3'
                           ? 'bg-gradient-to-r from-purple-500 to-violet-600 text-white shadow-lg shadow-purple-500/30'
-                          : 'bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-lg shadow-green-500/30'
+                          : 'bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-lg shadow-amber-500/30'
                         : 'text-gray-500 hover:text-white'
                     }`}
                   >
@@ -4126,6 +4208,25 @@ export default function SchedulePage() {
                 ))}
               </div>
             </div>
+            {statsExpanded && (
+              <div className="flex flex-wrap gap-x-5 gap-y-2 mt-3 pt-3 border-t border-white/5">
+                <span className="text-[11px] text-gray-400">
+                  Monthly <span className="text-white font-bold">${earnings.grandTotal.toFixed(0)}</span>
+                </span>
+                <span className="text-[11px] text-gray-400">
+                  Weekly <span className="text-white font-bold">${DAYS_OF_WEEK.filter(d => d.includes(selectedWeek)).reduce((t, d) => t + (schedule[d] || []).filter(c => c.frequency === 'weekly').reduce((s, c) => s + parseFloat(c.price || 0), 0), 0).toFixed(0)}</span>
+                </span>
+                <span className="text-[11px] text-gray-400">
+                  Bi-Weekly <span className="text-white font-bold">${DAYS_OF_WEEK.filter(d => d.includes(selectedWeek)).reduce((t, d) => t + (schedule[d] || []).filter(c => c.frequency === 'bi_weekly').reduce((s, c) => s + parseFloat(c.price || 0), 0), 0).toFixed(0)}</span>
+                </span>
+                <button type="button" onClick={() => setShowUnpaidModal(true)} className="text-[11px] text-gray-400 hover:text-red-300">
+                  Unpaid <span className="text-red-400 font-black">${(selectedWeek === 'Week 1' ? paymentStats.week1.unpaid : paymentStats.week2.unpaid).toFixed(0)}</span>
+                </button>
+                <span className="text-[11px] text-gray-400">
+                  Paid <span className="text-emerald-400 font-black">${(selectedWeek === 'Week 1' ? paymentStats.week1.paid : paymentStats.week2.paid).toFixed(0)}</span>
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Day bar - full width strip */}
@@ -4160,32 +4261,32 @@ export default function SchedulePage() {
                   }}
                   className={`shrink-0 flex-1 min-w-[70px] py-2 px-2 rounded-xl transition-all duration-200 relative ${
                     isSelected
-                      ? 'bg-gradient-to-b from-green-500/20 to-green-500/5 border border-green-500/30'
+                      ? 'bg-gradient-to-b from-amber-500/25 to-amber-500/5 border border-amber-400/40'
                       : isToday
-                      ? 'bg-white/[0.06] border border-green-500/20'
+                      ? 'bg-white/[0.06] border border-amber-500/25'
                       : count > 0
                       ? 'bg-white/[0.03] hover:bg-white/[0.06] border border-transparent'
                       : 'border border-transparent hover:bg-white/[0.03]'
                   }`}
                 >
-                  <div className={`text-[10px] font-bold uppercase tracking-wider ${isSelected ? 'text-green-400' : isToday ? 'text-green-400' : count > 0 ? 'text-gray-300' : 'text-gray-600'}`}>
-                    {baseDay.slice(0, 3)}
+                  <div className={`text-[10px] font-bold uppercase tracking-wider ${isSelected ? 'text-amber-300' : isToday ? 'text-amber-400' : count > 0 ? 'text-gray-300' : 'text-gray-600'}`}>
+                    {isToday ? 'Today' : baseDay.slice(0, 3)}
                   </div>
                   <div className={`text-sm font-black mt-0.5 ${isSelected ? 'text-white' : count > 0 ? 'text-gray-200' : 'text-gray-700'}`}>
-                    {count}
+                    {count > 0 ? Math.max(0, count - completedCount) : '—'}
                   </div>
                   {dayEarnings && dayEarnings.total > 0 && (
-                    <div className={`text-[9px] font-semibold mt-0.5 ${isSelected ? 'text-green-300' : 'text-gray-600'}`}>
+                    <div className={`text-[9px] font-semibold mt-0.5 ${isSelected ? 'text-amber-200' : 'text-gray-600'}`}>
                       ${dayEarnings.total.toFixed(0)}
                     </div>
                   )}
                   {/* Mini progress bar */}
                   {count > 0 && (
                     <div className="w-full h-0.5 bg-white/5 rounded-full mt-1.5 overflow-hidden">
-                      <div className="h-full bg-green-500 rounded-full transition-all duration-500" style={{ width: `${progress}%` }}></div>
+                      <div className="h-full bg-amber-400 rounded-full transition-all duration-500" style={{ width: `${progress}%` }}></div>
                     </div>
                   )}
-                  {isToday && !isSelected && <span className="absolute top-1 right-1 w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></span>}
+                  {isToday && !isSelected && <span className="absolute top-1 right-1 w-1.5 h-1.5 bg-amber-400 rounded-full animate-pulse"></span>}
                 </button>
               );
             })}
@@ -4197,7 +4298,7 @@ export default function SchedulePage() {
             <input
               id="customer-search"
               type="text"
-              placeholder="Search customers..."
+              placeholder="Search name, phone, address… (⌘K)"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="flex-1 bg-transparent outline-none text-sm text-gray-300 placeholder-gray-700 min-w-0"
@@ -4210,7 +4311,7 @@ export default function SchedulePage() {
             )}
             <div className="w-px h-5 bg-white/10 shrink-0"></div>
             <div className="flex items-center gap-2 flex-1 min-w-0">
-              <MapPinIcon className="h-3.5 w-3.5 text-green-500 shrink-0" />
+              <MapPinIcon className="h-3.5 w-3.5 text-amber-400 shrink-0" />
               {isEditingHomeBase ? (
                 <div className="flex items-center gap-2 flex-1">
                   <input
@@ -4258,6 +4359,18 @@ export default function SchedulePage() {
             </div>
           </div>
         </div>
+
+        {viewMode === 'schedule' && appointments.filter(a => !a.visit_date && a.status === 'pending').length > 0 && (
+          <button
+            onClick={() => { setViewMode('appointments'); setInquiryTab('pending'); }}
+            className="w-full mb-4 px-4 py-3 bg-purple-500/10 border border-purple-500/20 rounded-2xl flex items-center justify-between hover:bg-purple-500/15 transition-all"
+          >
+            <span className="text-sm font-bold text-purple-300">
+              {appointments.filter(a => !a.visit_date && a.status === 'pending').length} new leads waiting
+            </span>
+            <span className="text-xs font-black uppercase tracking-widest text-purple-400">Open →</span>
+          </button>
+        )}
 
         {/* === MAP VIEW === */}
         {viewMode === 'map' && (
@@ -4377,6 +4490,13 @@ export default function SchedulePage() {
                     <PlusIcon className="h-3.5 w-3.5" />
                     Manual Job
                   </button>
+                  <Link
+                    href="/leads/analytics"
+                    className="px-4 py-2 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 rounded-xl text-xs font-bold transition-all flex items-center gap-2 border border-emerald-500/20"
+                  >
+                    <ChartBarIcon className="h-3.5 w-3.5" />
+                    Demand
+                  </Link>
                   <button 
                     onClick={fetchAppointments}
                     className="px-4 py-2 bg-white/5 hover:bg-white/10 rounded-xl text-xs font-bold transition-all flex items-center gap-2 border border-white/5"
@@ -4665,6 +4785,7 @@ export default function SchedulePage() {
                                     day: 'One-time Job'
                                   });
                                   setShowMarkDoneModal(true);
+                                  setCompletionDate(getTodayKey());
                                   const serviceName = apt.service_type || 'service';
                                   setCompletionMessage(`Hi ${apt.customer_name},\n\nGreat news! Your ${serviceName} has been successfully completed today. We took great care with your property and hope you're thrilled with how everything looks!\n\nThank you for choosing Flora Lawn & Landscaping!`);
                                 }}
@@ -5105,58 +5226,34 @@ export default function SchedulePage() {
         )}
 
         {/* === DAILY EARNINGS GOAL BAR === */}
-        <div className="mb-8 p-6 bg-white/[0.03] border border-white/10 rounded-[2.5rem] backdrop-blur-sm">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="text-xl font-black text-white tracking-tight flex items-center gap-2">
-                Daily Progress <span className="text-gray-600 text-sm font-medium">— {selectedDay || 'Today'}</span>
-              </h2>
-              <p className="text-xs text-gray-500 mt-0.5">Keep it up! You're almost at your goal.</p>
-            </div>
-            <div className="text-right">
-              <span className="text-2xl font-black text-green-400">
-                ${earnings.daily[selectedDay]?.total || 0}
+        {viewMode === 'schedule' && selectedDay && (
+        <div className="mb-4 px-4 py-3 bg-white/[0.03] border border-white/10 rounded-2xl backdrop-blur-sm flex items-center justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">Daily goal</span>
+              <span className="text-sm font-black text-green-400">
+                ${(earnings.daily[selectedDay]?.total || 0).toFixed(0)}
+                <span className="text-gray-600 font-bold"> / ${dailyGoal}</span>
               </span>
-              <span className="text-gray-600 text-sm font-bold ml-1">/ ${dailyGoal}</span>
+            </div>
+            <div className="relative h-1.5 bg-white/5 rounded-full overflow-hidden">
+              <div
+                className="absolute inset-y-0 left-0 bg-gradient-to-r from-green-500 to-emerald-400"
+                style={{ width: `${Math.min(100, (((earnings.daily[selectedDay]?.total || 0) / dailyGoal) * 100))}%` }}
+              />
             </div>
           </div>
-          
-          <div className="relative h-4 bg-white/5 rounded-full overflow-hidden border border-white/5">
-            <div 
-              className="absolute inset-y-0 left-0 bg-gradient-to-r from-green-500 to-emerald-400 transition-all duration-1000 ease-out shadow-[0_0_20px_rgba(34,197,94,0.3)]"
-              style={{ width: `${Math.min(100, (((earnings.daily[selectedDay]?.total || 0) / dailyGoal) * 100))}%` }}
-            >
-              <div className="absolute inset-0 bg-[linear-gradient(45deg,rgba(255,255,255,0.15)_25%,transparent_25%,transparent_50%,rgba(255,255,255,0.15)_50%,rgba(255,255,255,0.15)_75%,transparent_75%,transparent)] bg-[length:1rem_1rem] animate-[move-bg_1s_linear_infinite]"></div>
-            </div>
-          </div>
-          
-          <div className="flex justify-between mt-3 px-1">
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-1.5">
-                <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">
-                  {Math.round(((earnings.daily[selectedDay] || 0) / dailyGoal) * 100)}% Complete
-                </span>
-              </div>
-              <div className="h-3 w-[1px] bg-white/10"></div>
-              <div className="flex items-center gap-1.5">
-                <BanknotesIcon className="h-3 w-3 text-orange-400" />
-                <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">
-                  ${Math.max(0, dailyGoal - (earnings.daily[selectedDay] || 0))} Remaining
-                </span>
-              </div>
-            </div>
-            <button 
-              onClick={() => {
-                const newGoal = prompt("Set your daily earnings goal:", dailyGoal);
-                if (newGoal && !isNaN(newGoal)) setDailyGoal(Number(newGoal));
-              }}
-              className="text-[9px] font-black text-blue-400 uppercase tracking-widest hover:text-blue-300 transition-colors"
-            >
-              Set Goal
-            </button>
-          </div>
+          <button
+            onClick={() => {
+              const newGoal = prompt("Set your daily earnings goal:", dailyGoal);
+              if (newGoal && !isNaN(newGoal)) setDailyGoal(Number(newGoal));
+            }}
+            className="text-[9px] font-black text-blue-400 uppercase tracking-widest hover:text-blue-300 shrink-0"
+          >
+            Edit
+          </button>
         </div>
+        )}
 
         {/* === UNASSIGNED CUSTOMERS === */}
         {unassignedCustomers.length > 0 && viewMode === 'schedule' && (
@@ -5338,6 +5435,9 @@ export default function SchedulePage() {
                     isPastDay={false}
                     toggleCustomerPause={toggleCustomerPause}
                     openEmailModalForCustomer={openEmailModalForCustomer}
+                    handleQuickDone={handleQuickDone}
+                    focusMode={false}
+                    isNextStop={false}
                   />
                 ))}
               </div>
@@ -5358,10 +5458,26 @@ export default function SchedulePage() {
               const dayCustomers = [...rawDayCustomers].sort((a, b) => {
                 const aIsRunning = !!activeJobTimers[a.id];
                 const bIsRunning = !!activeJobTimers[b.id];
-                if (aIsRunning && !bIsRunning) return -1;
-                if (!aIsRunning && bIsRunning) return 1;
-                return 0;
+                if (aIsRunning !== bIsRunning) return aIsRunning ? -1 : 1;
+                const aDone = !!(completedCustomers[day]?.includes(a.id));
+                const bDone = !!(completedCustomers[day]?.includes(b.id));
+                if (aDone !== bDone) return aDone ? 1 : -1;
+                const aPause = !!a.maintenance_paused;
+                const bPause = !!b.maintenance_paused;
+                if (aPause !== bPause) return aPause ? 1 : -1;
+                return (a.route_order || 999) - (b.route_order || 999);
               });
+              const remainingCustomers = dayCustomers.filter(c => !completedCustomers[day]?.includes(c.id) && !c.maintenance_paused);
+              const doneCustomersList = dayCustomers.filter(c => completedCustomers[day]?.includes(c.id));
+              const pausedCustomers = dayCustomers.filter(c => c.maintenance_paused && !completedCustomers[day]?.includes(c.id));
+              const nextStop = remainingCustomers[0] || null;
+              const focusedStop = remainingCustomers.find(c => c.id === routeFocusId) || nextStop;
+              const focusIndex = Math.max(0, remainingCustomers.findIndex(c => c.id === focusedStop?.id));
+              const visibleCustomers = !selectedDay || dayJobFilter === 'all'
+                ? dayCustomers
+                : dayJobFilter === 'done'
+                  ? doneCustomersList
+                  : [...remainingCustomers, ...pausedCustomers];
               const completedCount = completedCustomers[day]?.length || 0;
               const earningsData = earnings.daily[day];
               const progress = dayCustomers.length > 0 ? (completedCount / dayCustomers.length) * 100 : 0;
@@ -5374,7 +5490,7 @@ export default function SchedulePage() {
                   key={day}
                   id={`day-${day.replace(/ /g, '-')}`}
                   className={`bg-white/5 backdrop-blur-xl rounded-2xl border overflow-hidden transition-all duration-300 hover:bg-white/[0.07] ${selectedDay ? 'lg:col-span-2' : ''} ${
-                    isToday ? 'border-green-500/30 shadow-lg shadow-green-500/10' : 'border-white/10'
+                    isToday ? 'border-amber-500/35 shadow-lg shadow-amber-500/10' : 'border-white/10'
                   }`}
                 >
                   {/* Day Header */}
@@ -5385,8 +5501,8 @@ export default function SchedulePage() {
                         <span className="text-xs text-gray-500 font-medium">{day.split(' ').slice(1).join(' ')}</span>
                         <span className="text-xs text-gray-600 bg-white/5 px-2 py-0.5 rounded-full">{dayCustomers.length}</span>
                         {isToday && (
-                          <span className="flex items-center gap-1 px-2 py-0.5 bg-green-500/20 text-green-400 text-[10px] font-bold rounded-full uppercase tracking-wider">
-                            <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></span>Today
+                          <span className="flex items-center gap-1 px-2 py-0.5 bg-amber-500/20 text-amber-300 text-[10px] font-bold rounded-full uppercase tracking-wider">
+                            <span className="w-1.5 h-1.5 bg-amber-400 rounded-full animate-pulse"></span>Today
                           </span>
                         )}
                       </div>
@@ -5397,7 +5513,7 @@ export default function SchedulePage() {
                           </span>
                         )}
                         {earningsData && earningsData.total > 0 && (
-                          <span className="text-sm font-bold bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text text-transparent">
+                          <span className="text-sm font-bold bg-gradient-to-r from-amber-300 to-orange-400 bg-clip-text text-transparent">
                             ${earningsData.total.toFixed(0)}
                           </span>
                         )}
@@ -5408,9 +5524,35 @@ export default function SchedulePage() {
                     {dayCustomers.length > 0 && (
                       <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
                         <div
-                          className="h-full bg-gradient-to-r from-green-500 to-emerald-400 rounded-full transition-all duration-700 ease-out"
+                          className="h-full bg-gradient-to-r from-amber-500 to-orange-400 rounded-full transition-all duration-700 ease-out"
                           style={{ width: `${progress}%` }}
                         ></div>
+                      </div>
+                    )}
+
+                    {selectedDay && dayCustomers.length > 0 && (
+                      <div className="mt-3 flex bg-white/5 rounded-xl p-0.5 border border-white/10">
+                        {[
+                          { id: 'remaining', label: `Left ${remainingCustomers.length}` },
+                          { id: 'done', label: `Done ${doneCustomersList.length}` },
+                          { id: 'all', label: `All ${dayCustomers.length}` }
+                        ].map(tab => (
+                          <button
+                            key={tab.id}
+                            onClick={() => setDayJobFilter(tab.id)}
+                            className={`flex-1 py-2.5 rounded-lg text-[11px] font-black uppercase tracking-wider transition-all ${
+                              dayJobFilter === tab.id
+                                ? tab.id === 'done'
+                                  ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/25'
+                                  : tab.id === 'remaining'
+                                  ? 'bg-sky-500 text-white shadow-lg shadow-sky-500/25'
+                                  : 'bg-white/20 text-white'
+                                : 'text-gray-500 hover:text-white'
+                            }`}
+                          >
+                            {tab.label}
+                          </button>
+                        ))}
                       </div>
                     )}
 
@@ -5421,12 +5563,21 @@ export default function SchedulePage() {
                           ⏭️ Move Incomplete
                         </button>
                         <button onClick={() => selectAllDayCustomers(day)} className="text-[10px] px-2.5 py-1.5 text-gray-400 bg-white/5 rounded-lg hover:bg-white/10 border border-white/10 transition-all font-medium">
-                          {selectedDayCustomers[day]?.length === dayCustomers.length ? '✕ Deselect' : '☑ Select All'}
+                          {(selectedDayCustomers[day] || []).length > 0 && (schedule[day] || []).filter(c => !(completedCustomers[day] || []).includes(c.id) && !c.maintenance_paused).every(c => selectedDayCustomers[day]?.includes(c.id)) ? '✕ Deselect' : '☑ Select Left'}
                         </button>
                         {selectedDayCustomers[day]?.length > 0 && (
-                          <button onClick={() => bulkRemoveFromDay(day, selectedDayCustomers[day])} className="text-[10px] px-2.5 py-1.5 text-red-400 bg-red-500/10 rounded-lg hover:bg-red-500/20 border border-red-500/20 transition-all font-medium">
-                            ✕ Remove ({selectedDayCustomers[day].length})
-                          </button>
+                          <>
+                            <button
+                              onClick={() => handleBulkQuickDone(day)}
+                              disabled={bulkCompleting}
+                              className="text-[10px] px-2.5 py-1.5 text-white bg-amber-500 rounded-lg hover:bg-amber-400 border border-amber-400/20 transition-all font-black uppercase tracking-wider disabled:opacity-50"
+                            >
+                              {bulkCompleting ? 'Doing…' : `Done (${selectedDayCustomers[day].filter(id => !(completedCustomers[day] || []).includes(id)).length})`}
+                            </button>
+                            <button onClick={() => bulkRemoveFromDay(day, selectedDayCustomers[day])} className="text-[10px] px-2.5 py-1.5 text-red-400 bg-red-500/10 rounded-lg hover:bg-red-500/20 border border-red-500/20 transition-all font-medium">
+                              ✕ Remove ({selectedDayCustomers[day].length})
+                            </button>
+                          </>
                         )}
                         {dayCustomers.length > 1 && homeBase.trim() && (
                           <button 
@@ -5494,7 +5645,7 @@ export default function SchedulePage() {
                     {/* Earnings breakdown */}
                     {earningsData && earningsData.total > 0 && (
                       <div className="mt-2 flex gap-2 text-[10px]">
-                        <span className="px-2 py-1 bg-green-500/10 text-green-400 rounded-lg font-medium">
+                        <span className="px-2 py-1 bg-amber-500/10 text-amber-300 rounded-lg font-medium">
                           W: ${earningsData.weekly.toFixed(0)} ({earningsData.weeklyCount})
                         </span>
                         <span className="px-2 py-1 bg-blue-500/10 text-blue-400 rounded-lg font-medium">
@@ -5506,14 +5657,129 @@ export default function SchedulePage() {
                   
                   {/* Customer List */}
                   <div className="p-3">
+                    {focusedStop && selectedDay && dayJobFilter !== 'done' && (
+                      <div
+                        className="mb-3 rounded-2xl border border-amber-400/35 bg-gradient-to-br from-amber-500/18 to-sky-500/8 overflow-hidden"
+                        onTouchStart={(e) => { routeSwipeX.current = e.changedTouches[0].clientX; }}
+                        onTouchEnd={(e) => {
+                          const dx = e.changedTouches[0].clientX - routeSwipeX.current;
+                          if (Math.abs(dx) < 50) return;
+                          if (dx < 0 && focusIndex < remainingCustomers.length - 1) {
+                            setRouteFocusId(remainingCustomers[focusIndex + 1].id);
+                          }
+                          if (dx > 0 && focusIndex > 0) {
+                            setRouteFocusId(remainingCustomers[focusIndex - 1].id);
+                          }
+                        }}
+                      >
+                        <div className="flex items-center gap-2 px-3 pt-3">
+                          <button
+                            type="button"
+                            disabled={focusIndex <= 0}
+                            onClick={() => focusIndex > 0 && setRouteFocusId(remainingCustomers[focusIndex - 1].id)}
+                            className="h-12 w-12 rounded-2xl bg-white/10 text-white disabled:opacity-25 flex items-center justify-center active:scale-95"
+                            aria-label="Previous customer"
+                          >
+                            <ChevronLeftIcon className="h-6 w-6" />
+                          </button>
+                          <div className="flex-1 text-center min-w-0">
+                            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-amber-300">Now · {focusIndex + 1} of {remainingCustomers.length}</p>
+                            <p className="text-lg font-black text-white truncate leading-tight">{focusedStop.name}</p>
+                            <p className="text-xs text-gray-400 truncate">{focusedStop.address || 'No address'}{focusedStop.price ? ` · $${focusedStop.price}` : ''}</p>
+                          </div>
+                          <button
+                            type="button"
+                            disabled={focusIndex >= remainingCustomers.length - 1}
+                            onClick={() => focusIndex < remainingCustomers.length - 1 && setRouteFocusId(remainingCustomers[focusIndex + 1].id)}
+                            className="h-12 w-12 rounded-2xl bg-white/10 text-white disabled:opacity-25 flex items-center justify-center active:scale-95"
+                            aria-label="Next customer"
+                          >
+                            <ChevronRightIcon className="h-6 w-6" />
+                          </button>
+                        </div>
+                        {focusedStop.safety_notes && (
+                          <p className="px-4 pt-2 text-[11px] text-red-400 font-bold truncate">⚠️ {focusedStop.safety_notes}</p>
+                        )}
+                        <div className="grid grid-cols-3 gap-2 p-3">
+                          <button
+                            type="button"
+                            onClick={() => focusedStop.address && handleAddressClick(focusedStop)}
+                            disabled={!focusedStop.address}
+                            className="py-3.5 rounded-xl bg-sky-500 hover:bg-sky-400 disabled:bg-white/5 disabled:text-gray-600 text-white text-xs font-black uppercase tracking-wider"
+                          >
+                            Drive
+                          </button>
+                          {focusedStop.phone ? (
+                            <a
+                              href={`tel:${focusedStop.phone}`}
+                              className="py-3.5 rounded-xl bg-white/12 hover:bg-white/20 text-white text-xs font-black uppercase tracking-wider text-center"
+                            >
+                              Call
+                            </a>
+                          ) : (
+                            <span className="py-3.5 rounded-xl bg-white/5 text-gray-600 text-xs font-black uppercase tracking-wider text-center">Call</span>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => handleQuickDone(focusedStop, day)}
+                            className="py-3.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-[#0b1220] text-xs font-black uppercase tracking-wider"
+                          >
+                            ✓ Done
+                          </button>
+                        </div>
+                        {remainingCustomers.length > 1 && (
+                          <div className="px-3 pb-3 flex gap-1.5 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
+                            {remainingCustomers.map((c, i) => (
+                              <button
+                                key={c.id}
+                                id={`chip-${c.id}`}
+                                type="button"
+                                onClick={() => setRouteFocusId(c.id)}
+                                className={`shrink-0 px-3 py-2 rounded-xl text-[11px] font-black transition-all ${
+                                  c.id === focusedStop.id
+                                    ? 'bg-amber-500 text-[#0b1220]'
+                                    : 'bg-white/8 text-gray-300 hover:bg-white/14'
+                                }`}
+                              >
+                                {i + 1}. {(c.name || '').split(' ')[0]}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {selectedDay && dayJobFilter === 'remaining' && remainingCustomers.length === 0 && dayCustomers.length > 0 && (
+                      <div className="mb-3 p-4 bg-amber-500/10 border border-amber-500/25 rounded-2xl text-center">
+                        <p className="text-amber-300 font-black">Route complete</p>
+                        <p className="text-xs text-gray-500 mt-0.5">{doneCustomersList.length} jobs finished today</p>
+                        <button onClick={() => setDayJobFilter('done')} className="mt-2 text-[11px] font-bold text-amber-200 hover:text-white">
+                          View completed →
+                        </button>
+                      </div>
+                    )}
+
                     {selectedDayCustomers[day]?.length > 0 && (
-                      <div className="mb-3 p-2.5 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center justify-between">
-                        <span className="text-xs text-red-400 font-medium">{selectedDayCustomers[day].length} selected for removal</span>
-                        <span className="text-xs text-red-300 font-bold">${selectedDayCustomers[day].reduce((s, id) => s + parseFloat(schedule[day]?.find(c => c.id === id)?.price || 0), 0).toFixed(2)}</span>
+                      <div className="mb-3 p-2.5 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-center justify-between gap-2">
+                        <span className="text-xs text-amber-200 font-medium">
+                          {selectedDayCustomers[day].length} selected · ${selectedDayCustomers[day].reduce((s, id) => s + parseFloat(schedule[day]?.find(c => c.id === id)?.price || 0), 0).toFixed(0)}
+                        </span>
+                        <div className="flex gap-1.5">
+                          <button
+                            onClick={() => handleBulkQuickDone(day)}
+                            disabled={bulkCompleting}
+                            className="text-[10px] px-3 py-1.5 bg-amber-500 text-[#0b1220] rounded-lg font-black uppercase tracking-wider disabled:opacity-50"
+                          >
+                            {bulkCompleting ? 'Doing…' : 'Done selected'}
+                          </button>
+                          <button onClick={() => clearDaySelection(day)} className="text-[10px] px-2 py-1.5 text-gray-400 bg-white/5 rounded-lg font-bold">
+                            Clear
+                          </button>
+                        </div>
                       </div>
                     )}
                     
-                    {dayCustomers.length > 0 ? (
+                    {visibleCustomers.length > 0 ? (
                       <div
                         className={`space-y-2.5 min-h-[80px] p-1 rounded-xl transition-colors ${
                           dragOverDay === day ? 'bg-blue-500/10 border-2 border-dashed border-blue-500/30' : ''
@@ -5522,7 +5788,7 @@ export default function SchedulePage() {
                         onDragLeave={handleDragLeave}
                         onDrop={(e) => handleDrop(e, day)}
                       >
-                        {dayCustomers.map((customer, index) => (
+                        {visibleCustomers.map((customer, index) => (
                           <CustomerCard
                             key={customer.id}
                             customer={customer}
@@ -5534,6 +5800,10 @@ export default function SchedulePage() {
                             index={index}
                             day={day}
                             daySelectionHandler={toggleDayCustomerSelection}
+                            isNextStop={focusedStop?.id === customer.id}
+                            focusMode={!!selectedDay}
+                            handleQuickDone={handleQuickDone}
+                            setRouteFocusId={setRouteFocusId}
                             // Props from parent state
                             proximityData={proximityData}
                             activeJobTimers={activeJobTimers}
@@ -5598,7 +5868,7 @@ export default function SchedulePage() {
                           />
                         ))}
                       </div>
-                    ) : (
+                    ) : dayCustomers.length === 0 ? (
                       <div
                         className={`text-center py-8 rounded-xl border-2 border-dashed transition-all ${
                           dragOverDay === day ? 'border-blue-500/40 bg-blue-500/5' : 'border-white/5'
@@ -5612,7 +5882,7 @@ export default function SchedulePage() {
                           {dragOverDay === day ? 'Drop customer here' : 'No customers scheduled'}
                         </p>
                       </div>
-                    )}
+                    ) : null}
                   </div>
                 </div>
               );
@@ -5701,7 +5971,7 @@ export default function SchedulePage() {
 
         {/* Floating Bottom Summary Bar */}
         {viewMode === 'schedule' && (
-          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-black/60 backdrop-blur-2xl border border-white/10 rounded-full px-6 py-4 flex items-center gap-8 shadow-2xl z-[80] animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="hidden lg:flex fixed bottom-6 left-1/2 -translate-x-1/2 bg-black/60 backdrop-blur-2xl border border-white/10 rounded-full px-6 py-4 items-center gap-8 shadow-2xl z-[80]">
             <div className="flex items-center gap-3 border-r border-white/10 pr-8">
               <div className={`p-2 rounded-xl transition-all ${selectedWeek === 'Week 1' ? 'bg-green-500/20' : 'bg-white/5'}`}>
                 <CalendarDaysIcon className={`h-5 w-5 ${selectedWeek === 'Week 1' ? 'text-green-400' : 'text-gray-500'}`} />
@@ -7220,7 +7490,11 @@ function CustomerCard({
   fetchServiceHistory,
   isPastDay,
   toggleCustomerPause,
-  openEmailModalForCustomer
+  openEmailModalForCustomer,
+  handleQuickDone,
+  isNextStop,
+  focusMode,
+  setRouteFocusId
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -7279,14 +7553,16 @@ function CustomerCard({
   
   return (
     <div 
-      className={`relative group rounded-2xl overflow-hidden transition-all duration-500 ${
+      id={`job-${customer.id}`}
+      className={`relative group rounded-2xl overflow-hidden transition-all duration-300 ${
         isPaused ? 'bg-slate-900/40 border border-slate-700/30 opacity-60 grayscale-[0.5]'
-        : isCompleted ? 'bg-green-500/5 border border-green-500/20 shadow-lg shadow-green-500/5' 
-        : needsAttention ? 'bg-amber-500/5 border border-amber-500/30 shadow-lg shadow-amber-500/10'
+        : isCompleted ? 'bg-amber-500/8 border border-amber-500/25'
+        : isNextStop ? 'bg-amber-500/12 border-2 border-amber-400/60 shadow-lg shadow-amber-500/20'
+        : needsAttention ? 'bg-orange-500/8 border border-orange-500/30 shadow-lg shadow-orange-500/10'
         : isMoved ? 'bg-orange-500/5 border border-orange-500/20'
-        : isSelected ? 'bg-blue-500/10 border border-blue-500/30 ring-1 ring-blue-500/20'
-        : isDragOver ? 'bg-blue-500/15 border border-blue-500/40 scale-[1.02] shadow-2xl shadow-blue-500/20'
-        : 'bg-white/[0.03] border border-white/[0.08] hover:bg-white/[0.06] hover:border-white/[0.15] hover:shadow-xl hover:shadow-black/20'
+        : isSelected ? 'bg-sky-500/10 border border-sky-500/30 ring-1 ring-sky-500/20'
+        : isDragOver ? 'bg-sky-500/15 border border-sky-500/40 scale-[1.02] shadow-2xl shadow-sky-500/20'
+        : 'bg-[#151c2e] border border-white/[0.08] hover:bg-[#1a2338] hover:border-white/[0.15]'
       } ${draggedCustomer?.id === customer.id ? 'opacity-40 scale-95' : ''}`}
       draggable={true}
       onDragStart={handleDragStartCard}
@@ -7335,7 +7611,7 @@ function CustomerCard({
          )}
 
          {isCompleted && jobPayments[customer.name] !== 'paid' && (
-           <div className="flex items-center gap-1 px-2 py-0.5 bg-green-500 text-white text-[9px] font-black rounded-lg tracking-wider uppercase shadow-lg shadow-green-500/30">
+           <div className="flex items-center gap-1 px-2 py-0.5 bg-amber-500 text-[#0b1220] text-[9px] font-black rounded-lg tracking-wider uppercase shadow-lg shadow-amber-500/30">
              <CheckBadgeIcon className="h-3 w-3" />
              <span>Done</span>
            </div>
@@ -7372,16 +7648,21 @@ function CustomerCard({
           V: {customer.service_count || 0}
         </div>
         {customer.last_service && (
-          <div className="px-1.5 py-0.5 bg-green-500/20 backdrop-blur-md border border-green-500/30 text-green-400 text-[9px] font-black rounded-lg">
+          <div className="px-1.5 py-0.5 bg-amber-500/20 backdrop-blur-md border border-amber-500/30 text-amber-300 text-[9px] font-black rounded-lg">
             LD: {formatShortDate(customer.last_service)}
           </div>
         )}
       </div>
       
       {/* Main Content Area */}
-      <div className="pt-9 pb-3.5 px-4 cursor-pointer" onClick={() => setIsExpanded(!isExpanded)}>
-        <div className="flex items-start gap-4">
-          {/* Checkbox Side */}
+      <div className={`${isNextStop ? 'pt-10' : 'pt-8'} pb-2 px-3.5 cursor-pointer`} onClick={() => {
+        setIsExpanded(!isExpanded);
+        if (setRouteFocusId && !isCompleted) setRouteFocusId(customer.id);
+      }}>
+        {isNextStop && !isCompleted && (
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-300 mb-1">Now</p>
+        )}
+        <div className="flex items-start gap-3">
           {showCheckbox && (
             <div 
               onClick={(e) => {
@@ -7392,102 +7673,139 @@ function CustomerCard({
               className="mt-1"
             >
               <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${
-                isSelected ? 'bg-blue-500 border-blue-500 shadow-lg shadow-blue-500/30' : 'border-white/10 hover:border-white/30'
+                isSelected ? 'bg-sky-500 border-sky-500 shadow-lg shadow-sky-500/30' : 'border-white/10 hover:border-white/30'
               }`}>
                 {isSelected && <CheckIcon className="h-4 w-4 text-white font-black" />}
               </div>
             </div>
           )}
 
-          {/* Core Info */}
           <div className="flex-1 min-w-0">
-            <div className="flex items-center justify-between gap-3 mb-1.5">
-              <h3 className={`text-base font-black tracking-tight truncate ${isCompleted ? 'text-gray-500' : 'text-white'}`}>
+            <div className="flex items-start justify-between gap-2">
+              <h3 className={`text-[17px] font-black tracking-tight truncate ${isCompleted ? 'text-gray-500 line-through' : 'text-white'}`}>
                 {highlightSearchTerm(customer.name, searchTerm)}
               </h3>
-              <div className="flex flex-col items-end shrink-0">
-                <span className="text-sm font-black text-green-400 drop-shadow-[0_0_10px_rgba(74,222,128,0.3)]">${customer.price}</span>
-                {customer.last_job_duration_minutes && isCompleted && (
-                  <span className="text-[9px] text-gray-500 font-bold uppercase tracking-widest">{customer.last_job_duration_minutes}m</span>
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="text-base font-black text-amber-300">${customer.price}</span>
+                {day && !isPaused && !showAssignButton && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (isCompleted) toggleCustomerCompletion(day, customer.id);
+                      else handleQuickDone && handleQuickDone(customer, day);
+                    }}
+                    className={`h-12 w-12 rounded-2xl flex items-center justify-center shrink-0 border-2 active:scale-90 transition-all ${
+                      isCompleted
+                        ? 'bg-amber-500 border-amber-400 text-[#0b1220] shadow-lg shadow-amber-500/30'
+                        : 'bg-white/5 border-amber-400/70 text-amber-300 hover:bg-amber-500 hover:text-[#0b1220]'
+                    }`}
+                    title={isCompleted ? 'Undo done' : 'Mark job done'}
+                    aria-label={isCompleted ? 'Undo done' : 'Mark job done'}
+                  >
+                    <CheckIcon className="h-7 w-7" strokeWidth={2.6} />
+                  </button>
                 )}
+                <div className={`p-1 rounded-lg bg-white/5 text-gray-600 ${isExpanded ? 'rotate-180 bg-sky-500/10 text-sky-400' : ''}`}>
+                  <ChevronDownIcon className="h-4 w-4" />
+                </div>
               </div>
             </div>
-            
-            {/* Metadata Row - Organized Pills */}
-            <div className="flex items-center gap-2 flex-wrap">
-              {customer.address && (
-                <button 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleAddressClick(customer);
-                  }}
-                  className="flex items-center gap-1.5 px-2 py-1 bg-white/5 rounded-lg text-[10px] text-gray-400 hover:text-blue-400 hover:bg-blue-500/10 transition-all border border-transparent hover:border-blue-500/20 group/addr"
-                >
-                  <MapPinIcon className="h-3 w-3 text-gray-600 group-hover/addr:text-blue-400" />
-                  <span className="truncate max-w-[150px]">{customer.address.split(',')[0]}</span>
-                </button>
-              )}
-
-              <div className={`px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider border ${
-                customer.frequency === 'weekly'
-                  ? 'bg-emerald-500/5 text-emerald-400 border-emerald-500/20'
-                  : customer.frequency === 'tri_weekly'
-                  ? 'bg-purple-500/5 text-purple-400 border-purple-500/20'
-                  : 'bg-cyan-500/5 text-cyan-400 border-cyan-500/20'
-              }`}>
-                {customer.frequency === 'weekly' ? 'Weekly'
-                  : customer.frequency === 'tri_weekly' ? 'Every 3W'
-                  : 'Bi-Weekly'}
-              </div>
-
-              {/* Show when the customer signed up/was added */}
-              {customer.created_at && (
-                <div className="px-2 py-1 bg-white/5 border border-white/10 rounded-lg text-[9px] font-bold text-gray-500 whitespace-nowrap">
-                  Added: {new Date(customer.created_at).toLocaleDateString()}
-                </div>
-              )}
-
-              {hasProximityData && (distanceDisplay || travelTimeDisplay) && (
-                <div className="flex items-center gap-2 px-2 py-1 bg-white/5 border border-white/5 rounded-lg text-[9px] font-bold text-gray-500">
-                  {distanceDisplay && <span>{distanceDisplay}</span>}
-                  {travelTimeDisplay && (
-                    <span className="flex items-center gap-1">
-                      <span className="w-1 h-1 rounded-full bg-gray-700"></span>
-                      {travelTimeDisplay}
-                    </span>
-                  )}
-                </div>
-              )}
-
-        {customer.last_service && (
-          <button
-            onClick={(e) => { e.stopPropagation(); fetchServiceHistory && fetchServiceHistory(customer); }}
-            className="px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider bg-orange-500/5 text-orange-400 border border-orange-500/20 hover:bg-orange-500/20 transition-all cursor-pointer"
-            title="Click to see service history"
-          >
-            📋 Last: {formatShortDate(customer.last_service)}
-          </button>
-        )}
-            </div>
-          </div>
-
-          {/* Quick Actions Panel */}
-          <div className="flex flex-col items-center gap-2 shrink-0">
-            {day && !isCompleted && (
-              <button
-                onClick={(e) => { e.stopPropagation(); toggleCustomerCompletion(day, customer.id); }}
-                className="w-9 h-9 flex items-center justify-center rounded-xl bg-green-500/10 text-green-400 hover:bg-green-500 hover:text-white transition-all border border-green-500/20 shadow-lg shadow-green-500/5"
-                title="Complete"
-              >
-                <CheckCircleIcon className="h-5 w-5" />
-              </button>
+            <p className="text-xs text-gray-400 truncate mt-0.5">
+              {customer.address ? customer.address.split(',')[0] : 'No address'}
+              {travelTimeDisplay ? ` · ${travelTimeDisplay}` : ''}
+              {distanceDisplay ? ` · ${distanceDisplay}` : ''}
+              {customer.frequency === 'weekly' ? ' · W' : customer.frequency === 'tri_weekly' ? ' · 3W' : ' · BW'}
+            </p>
+            {customer.safety_notes && (
+              <p className="mt-1.5 text-[11px] font-bold text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-2 py-1 truncate">
+                ⚠️ {customer.safety_notes}
+              </p>
             )}
-            <div className={`p-1.5 rounded-lg bg-white/5 text-gray-600 transition-all group-hover:text-gray-400 ${isExpanded ? 'rotate-180 bg-blue-500/10 text-blue-400' : ''}`}>
-              <ChevronDownIcon className="h-4 w-4" />
-            </div>
           </div>
         </div>
       </div>
+
+      {day && !isCompleted && !isPaused && !showAssignButton && (
+        <div className="grid grid-cols-3 gap-1.5 px-3 pb-3" onClick={(e) => e.stopPropagation()}>
+          <button
+            onClick={() => customer.address && handleAddressClick(customer)}
+            disabled={!customer.address}
+            className="py-3 rounded-xl bg-sky-500 hover:bg-sky-400 disabled:bg-white/5 disabled:text-gray-600 text-white text-[11px] font-black uppercase tracking-wider active:scale-95 transition-all"
+          >
+            Drive
+          </button>
+          {customer.phone ? (
+            <a
+              href={`tel:${customer.phone}`}
+              className="py-3 rounded-xl bg-white/10 hover:bg-white/20 text-white text-[11px] font-black uppercase tracking-wider text-center active:scale-95 transition-all"
+            >
+              Call
+            </a>
+          ) : (
+            <span className="py-3 rounded-xl bg-white/5 text-gray-600 text-[11px] font-black uppercase tracking-wider text-center">Call</span>
+          )}
+          <button
+            onClick={() => handleQuickDone && handleQuickDone(customer, day)}
+            className="py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-[#0b1220] text-[11px] font-black uppercase tracking-wider active:scale-95 transition-all"
+          >
+            Done
+          </button>
+          {!customer.work_started_at && (
+            <button
+              onClick={() => startWork && startWork(customer.id)}
+              className="col-span-3 py-2 rounded-xl bg-violet-500/15 hover:bg-violet-500/25 text-violet-300 text-[11px] font-bold border border-violet-500/20 flex items-center justify-center gap-1"
+              title="Start work timer (auto-completes in 15-30 mins with date & email)"
+            >
+              🔨 Start Work / Doing Today
+            </button>
+          )}
+        </div>
+      )}
+
+      {showAssignButton && (
+        <div className="grid grid-cols-2 gap-1.5 px-3 pb-3" onClick={(e) => e.stopPropagation()}>
+          <button
+            onClick={() => { setSelectedCustomer(customer); setShowAssignModal(true); }}
+            className="py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-[#0b1220] text-[11px] font-black uppercase tracking-wider"
+          >
+            Assign Day
+          </button>
+          {customer.phone ? (
+            <a href={`tel:${customer.phone}`} className="py-3 rounded-xl bg-white/10 hover:bg-white/20 text-white text-[11px] font-black uppercase tracking-wider text-center">
+              Call
+            </a>
+          ) : (
+            <button
+              onClick={() => customer.address && handleAddressClick(customer)}
+              className="py-3 rounded-xl bg-blue-500/80 text-white text-[11px] font-black uppercase tracking-wider"
+            >
+              Map
+            </button>
+          )}
+        </div>
+      )}
+
+      {day && isCompleted && (
+        <div className="flex gap-1.5 px-3 pb-3" onClick={(e) => e.stopPropagation()}>
+          <button
+            onClick={() => togglePaymentByCustomerName(customer.name)}
+            className={`flex-1 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-wider ${
+              jobPayments[customer.name] === 'paid'
+                ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20'
+                : 'bg-red-500/15 text-red-400 border border-red-500/20'
+            }`}
+          >
+            {jobPayments[customer.name] === 'paid' ? 'Paid' : 'Mark Paid'}
+          </button>
+          <button
+            onClick={() => toggleCustomerCompletion(day, customer.id)}
+            className="px-3 py-2.5 rounded-xl bg-white/5 text-gray-400 text-[11px] font-bold border border-white/10"
+          >
+            Undo
+          </button>
+        </div>
+      )}
 
       {/* Expanded details */}
       {isExpanded && (
@@ -7710,6 +8028,7 @@ function CustomerCard({
                     setSelectedCustomerForDone({ ...customer, day });
                     setCompletionMessage(`Your ${customer.service_type?.replace('_', ' ') || 'service'} has been completed successfully! Thank you for choosing Fall Cleanups Services.`);
                     setShowMarkDoneModal(true);
+                    setCompletionDate(getTodayKey());
                   }}
                   className="px-3 py-1.5 text-[11px] font-medium text-blue-400 bg-blue-500/10 rounded-lg border border-blue-500/20 hover:bg-blue-500/20 transition-all flex items-center gap-1"
                 >
@@ -7717,15 +8036,6 @@ function CustomerCard({
                   Mark Done {activeJobTimers[customer.id] ? `(${activeJobTimers[customer.id]})` : ''}
                 </button>
               </div>
-            )}
-            {day && !isCompleted && !customer.work_started_at && (
-              <button
-                onClick={(e) => { e.stopPropagation(); startWork && startWork(customer.id); }}
-                className="px-3 py-1.5 text-[11px] font-medium text-violet-400 bg-violet-500/10 rounded-lg border border-violet-500/20 hover:bg-violet-500/20 transition-all flex items-center gap-1"
-                title="Start work timer (auto-completes in 15-30 mins with date & email)"
-              >
-                🔨 Start Work / Doing Today
-              </button>
             )}
             {day && !isCompleted && !customer.job_started_at && (
               <button

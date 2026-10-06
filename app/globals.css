@@ -96,3 +96,84 @@ progress::-webkit-progress-value {
   background: rgba(255, 255, 255, 0.2);
 }
 
+@keyframes leaf-season-fall {
+  0% {
+    transform: translate3d(0, -8%, 0) rotate(var(--leaf-rot));
+    opacity: 0;
+  }
+  8% {
+    opacity: 0.85;
+  }
+  25% {
+    transform: translate3d(var(--leaf-sway), 28vh, 0) rotate(calc(var(--leaf-rot) + 90deg));
+  }
+  50% {
+    transform: translate3d(calc(var(--leaf-sway) * -1.1), 58vh, 0) rotate(calc(var(--leaf-rot) + 190deg));
+  }
+  75% {
+    transform: translate3d(var(--leaf-sway), 84vh, 0) rotate(calc(var(--leaf-rot) + 280deg));
+  }
+  100% {
+    transform: translate3d(0, 112vh, 0) rotate(calc(var(--leaf-rot) + 360deg));
+    opacity: 0.15;
+  }
+}
+
+@keyframes leaf-season-wiggle {
+  0%, 100% { transform: rotate(-8deg); }
+  50% { transform: rotate(10deg); }
+}
+
+.leaf-season-fall {
+  animation: leaf-season-fall var(--leaf-dur) linear var(--leaf-delay) infinite;
+  will-change: transform;
+}
+
+.leaf-season-static {
+  transform: rotate(var(--leaf-rot));
+}
+
+.leaf-season-rest {
+  transform: rotate(var(--leaf-rot));
+}
+
+.leaf-season-wiggle {
+  animation: leaf-season-wiggle 2.4s ease-in-out infinite;
+  transform-origin: 50% 80%;
+}
+
+@keyframes leaf-season-flutter {
+  0%, 100% { transform: perspective(300px) rotateY(0deg) rotateX(10deg); }
+  25% { transform: perspective(300px) rotateY(65deg) rotateX(-12deg); }
+  50% { transform: perspective(300px) rotateY(0deg) rotateX(18deg); }
+  75% { transform: perspective(300px) rotateY(-60deg) rotateX(-8deg); }
+}
+
+.leaf-season-flutter {
+  animation: leaf-season-flutter var(--flutter-dur, 2s) ease-in-out infinite;
+  transform-style: preserve-3d;
+}
+
+@keyframes leaf-promo-marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+.leaf-promo-marquee {
+  animation: leaf-promo-marquee 38s linear infinite;
+}
+
+.leaf-promo-marquee:hover {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .leaf-season-wiggle,
+  .leaf-season-flutter {
+    animation: none;
+  }
+  .leaf-promo-marquee {
+    animation-duration: 70s;
+  }
+}
+

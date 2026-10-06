@@ -125,6 +125,15 @@ export default function AdminDashboardRedirect() {
             </Link>
             
             <Link
+              href="/leads/analytics"
+              className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow"
+            >
+              <ChartBarIcon className="h-12 w-12 text-emerald-600 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Lead Demand</h3>
+              <p className="text-sm text-gray-600">See which services get requested, by day and month</p>
+            </Link>
+            
+            <Link
               href="/schedule"
               className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow"
             >
