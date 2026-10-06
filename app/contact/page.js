@@ -56,6 +56,7 @@ function ContactForm() {
   const [showMessageHelper, setShowMessageHelper] = useState(true);
   const [referralCode, setReferralCode] = useState('');
   const [selectedPackage, setSelectedPackage] = useState(null);
+  const [accountUser, setAccountUser] = useState(null);
   
   // Media Upload State
   const [mediaFiles, setMediaFiles] = useState([]);
@@ -410,6 +411,26 @@ function ContactForm() {
           throw new Error(result.error || 'Server processing failed');
         }
 
+        if (accountUser?.id) {
+          const addressParts = [formData.address, formData.city, formData.state, formData.zipCode].filter(Boolean);
+          const fullAddress = formData.city && formData.address?.includes(formData.city)
+            ? formData.address
+            : addressParts.join(', ');
+          await fetch('/api/create-customer-from-signup', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId: accountUser.id,
+              email: formData.email || accountUser.email,
+              name: formData.name,
+              phone: formData.phone,
+              address: fullAddress,
+              service: formData.service,
+              quoteAlreadySent: true,
+            }),
+          });
+        }
+
         // ONLY NOW show success message
         setStatus({ 
           type: 'success', 
@@ -441,11 +462,40 @@ function ContactForm() {
     }
   };
 
+  const saveQuoteForAccount = (quoteAlreadySent = false) => {
+    const addressParts = [formData.address, formData.city, formData.state, formData.zipCode].filter(Boolean);
+    const fullAddress = formData.city && formData.address?.includes(formData.city)
+      ? formData.address
+      : addressParts.join(', ');
+    localStorage.setItem('pending_quote_account', JSON.stringify({
+      name: formData.name,
+      phone: formData.phone,
+      email: formData.email,
+      address: fullAddress,
+      service: formData.service,
+      quoteAlreadySent,
+    }));
+  };
+
   const signInWithGoogle = async () => {
     const origin = window.location.origin;
     if (referralCode) localStorage.setItem('pending_referral_code', referralCode);
-    await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: `${origin}/auth/callback?redirect=/contact` } });
+    saveQuoteForAccount(status.type === 'success');
+    await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: `${origin}/auth/callback?redirect=/customer/dashboard` } });
   };
+
+  const signOutAccount = async () => {
+    await supabase.auth.signOut();
+    setAccountUser(null);
+  };
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setAccountUser(data.user || null));
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setAccountUser(session?.user || null);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
 
   return (
     <div className="min-h-screen bg-white text-slate-900 overflow-x-hidden">
@@ -465,21 +515,21 @@ function ContactForm() {
 
          <div className="max-w-5xl mx-auto px-4 relative z-10 text-center">
             <p className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#6b1d2a]/80 border border-yellow-300/30 text-yellow-200 text-[11px] font-black uppercase tracking-[0.25em] mb-7 backdrop-blur">
-               🍁 Free Fall Quotes · RI &amp; MA
+               Free Quotes · RI &amp; MA
             </p>
             <h1 className="text-5xl md:text-8xl font-black text-white tracking-tighter leading-[0.95]">
-               Get Your
+               Get a free quote
                <span className="block bg-gradient-to-r from-yellow-200 via-yellow-300 to-yellow-500 bg-clip-text text-transparent pb-2">
-                  Fall Quote
+                  for your yard
                </span>
             </h1>
             {selectedPackage ? (
                <p className="mt-6 text-lg md:text-xl text-stone-200 font-medium">
-                  Quoting your <span className="font-black text-yellow-300">{selectedPackage.name}</span>. Fill in your address below and we&apos;ll size it to your yard.
+                  You picked <span className="font-black text-yellow-300">{selectedPackage.name}</span>. Add your address and we size the price to your yard.
                </p>
             ) : (
                <p className="mt-6 text-lg md:text-xl text-stone-200 max-w-2xl mx-auto font-medium">
-                  Leaf cleanup, aeration, overseeding and more. Tell us about your yard and we&apos;ll send a free quote within 1–6 hours.
+                  Leaf cleanup is one of our jobs. We also quote mowing, dethatch, spring cleanup, mulch, hedge trimming, aeration, and snow. We reply in 1 to 6 hours.
                </p>
             )}
             <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
@@ -1039,42 +1089,6 @@ function ContactForm() {
                             )}
                         </div>
 
-                        {/* MESSAGE AREA */}
-                        <div>
-                           <label className="text-[10px] font-black italic text-slate-500 uppercase tracking-widest mb-3 block">Message Details *</label>
-                            {showMessageHelper && (
-                              <div className="mb-6 flex flex-col md:flex-row items-center justify-between p-6 bg-green-50 border border-green-100 rounded-[2rem] gap-4">
-                                 <div className="flex items-center gap-3">
-                                   <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center text-xl">✨</div>
-                                   <div>
-                                     <p className="text-[10px] font-black uppercase tracking-widest text-green-700">Writing Assistant</p>
-                                     <p className="text-xs font-bold text-slate-600 italic">Let AI summarize your project details.</p>
-                                   </div>
-                                 </div>
-                                 <div className="flex gap-3 w-full md:w-auto">
-                                   <button 
-                                     type="button" 
-                                     disabled={isGeneratingAI}
-                                     onClick={generateAIDraft} 
-                                     className="flex-1 md:flex-none px-6 py-3 bg-green-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-green-700 transition-all shadow-lg shadow-green-600/20 disabled:opacity-50 flex items-center justify-center gap-2"
-                                   >
-                                      {isGeneratingAI ? (
-                                        <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                      ) : '✨ AI Draft Project'}
-                                   </button>
-                                   <button 
-                                     type="button" 
-                                     onClick={insertTemplate} 
-                                     className="flex-1 md:flex-none px-6 py-3 bg-white text-slate-600 text-[10px] font-black uppercase tracking-widest rounded-xl border-2 border-slate-100 hover:bg-slate-50 transition-all"
-                                   >
-                                      Use Template
-                                   </button>
-                                 </div>
-                              </div>
-                            )}
-                           <textarea required name="message" value={formData.message} onChange={handleChange} className="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl px-8 py-6 text-slate-900 focus:outline-none focus:border-green-500 transition-all font-bold h-40 resize-none placeholder-slate-300" placeholder="Describe your property needs..." />
-                        </div>
-
                         {/* MEDIA STRATEGY - TOGGLE SECTION */}
                         {!showMediaSection ? (
                            <button 
@@ -1212,7 +1226,11 @@ function ContactForm() {
                            </div>
                         </div>
 
+                        <p className="text-sm text-[#5C6B62]">
+                           Optional. Create an account below to see this quote when it is ready. Your name, phone, address, and service are saved on the account.
+                        </p>
                         <button 
+                          type="submit"
                           disabled={isSubmitting}
                           className="w-full bg-green-600 hover:bg-green-500 text-white font-black p-8 rounded-[2rem] text-2xl shadow-2xl transition-all disabled:opacity-50 italic group flex items-center justify-center gap-6"
                         >
@@ -1223,31 +1241,43 @@ function ContactForm() {
                              </div>
                            ) : (
                              <span className="flex items-center justify-center gap-4">
-                                {estimatePreference === 'meet_person' ? 'REQUEST IN-PERSON APPOINTMENT' : 'REQUEST MY FREE ESTIMATE'}
+                                Get My Free Quote
                                 <ArrowRightIcon className="w-8 h-8 group-hover:translate-x-3 transition-all" />
                              </span>
                            )}
                         </button>
+                        <p className="text-center text-sm font-semibold text-slate-500 -mt-4">
+                           Takes about 1 minute. We reply in 1–6 hours. We never share your info.
+                        </p>
 
-                        {/* ACCOUNT PORTAL CARD - NOW BELOW FORM (OPTIONAL) */}
-                        <div className="bg-gradient-to-r from-slate-900 to-slate-800 rounded-[2.5rem] p-10 text-white mt-16 shadow-2xl relative overflow-hidden group">
-                           <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 blur-3xl rounded-full" />
-                           <div className="relative z-10 flex flex-col md:flex-row items-center gap-8">
-                              <div className="flex-1 text-center md:text-left">
-                                 <div className="inline-block px-3 py-1 bg-white/10 rounded-full text-[8px] font-black uppercase tracking-widest mb-4">Optional Concierge Feature</div>
-                                 <h3 className="text-2xl font-black italic tracking-tighter mb-2 underline decoration-green-500 underline-offset-8 decoration-4">Priority Account Access</h3>
-                                 <p className="text-slate-400 font-semibold italic text-sm">Sign up in 1-click to track quotes, skip dates, and manage payments.</p>
+                        <div className="mt-10 border border-[#C9D4CC] bg-[#F3F6F4] p-6 md:p-8 text-[#1B2838]">
+                           <h3 className="text-2xl font-semibold tracking-tight">Optional: see when your quote is ready</h3>
+                           <p className="mt-3 max-w-md text-sm text-[#5C6B62]">You can send the quote without an account. If you create one, this form comes with you: name, phone, address, and service. Then open the account to see the quote when we reply.</p>
+                           {accountUser ? (
+                              <div className="mt-6 flex flex-col sm:flex-row sm:items-center gap-3">
+                                 <p className="text-sm flex-1">Signed in as {accountUser.email}. Sending this quote saves it on your account.</p>
+                                 <Link href="/customer/dashboard" className="inline-flex items-center justify-center min-h-11 px-4 bg-[#1B2838] text-white font-semibold text-sm">
+                                    Open my account
+                                 </Link>
+                                 <button type="button" onClick={signOutAccount} className="min-h-11 px-4 border border-[#1B2838] font-semibold text-sm">
+                                    Sign out
+                                 </button>
                               </div>
-                              <button 
-                                type="button"
-                                onClick={signInWithGoogle}
-                                className="bg-white text-slate-900 font-black px-10 py-5 rounded-2xl flex items-center gap-4 transition-all hover:scale-105 active:scale-95 group/btn"
-                              >
-                                 <Image src="https://www.gstatic.com/images/branding/product/1x/gsa_512dp.png" alt="G" width={20} height={20} />
-                                 Google Signup
-                                 <ArrowRightIcon className="w-5 h-5 group-hover/btn:translate-x-2 transition-transform" />
-                              </button>
-                           </div>
+                           ) : (
+                              <div className="mt-6 flex flex-col sm:flex-row sm:items-center gap-3">
+                                 <button
+                                    type="button"
+                                    onClick={signInWithGoogle}
+                                    className="inline-flex items-center justify-center gap-3 min-h-11 px-4 bg-white border border-[#C9D4CC] font-semibold text-sm"
+                                 >
+                                    <Image src="https://www.gstatic.com/images/branding/product/1x/gsa_512dp.png" alt="" width={18} height={18} />
+                                    Continue with Google
+                                 </button>
+                                 <Link href="/login?redirect=/customer/dashboard" onClick={() => saveQuoteForAccount(status.type === 'success')} className="text-sm underline underline-offset-4">
+                                    I already have an account
+                                 </Link>
+                              </div>
+                           )}
                         </div>
 
                         {status.message && (

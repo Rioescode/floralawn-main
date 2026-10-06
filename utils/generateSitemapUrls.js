@@ -1,11 +1,10 @@
 import { locations } from '@/data/locations';
 import { lawnServices } from '@/data/lawn-services';
-import { riCities } from '@/data/ri-cities';
-import config from '@/config';
+import { getBaseUrl } from '@/utils/seo-helpers';
 
 export function generateSitemapUrls() {
   const urls = [];
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || `https://${config.domainName}`;
+  const baseUrl = getBaseUrl();
 
   // Homepage (already handled in sitemap.js but good for safety)
   urls.push({

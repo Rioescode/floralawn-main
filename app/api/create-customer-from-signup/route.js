@@ -3,7 +3,7 @@ import { supabaseAdmin } from '@/lib/supabase';
 
 export async function POST(request) {
   try {
-    const { userId, email, name, phone, address, referralCode } = await request.json();
+    const { userId, email, name, phone, address, service, referralCode, quoteAlreadySent } = await request.json();
 
     if (!userId || !email) {
       return NextResponse.json(
@@ -28,7 +28,54 @@ export async function POST(request) {
       
     const existingCustomer = existingCustomerArray?.[0];
 
+    const serviceSlug = {
+      'Lawn Mowing': 'lawn_mowing',
+      'Mulching': 'mulch_installation',
+      'Spring Cleanup': 'spring_cleanup',
+      'Fall Cleanup': 'fall_cleanup',
+      'Leaf Removal': 'fall_cleanup',
+      'Hedge Trimming': 'landscaping',
+    }[service] || 'lawn_care';
+
+    const serviceNote = service ? `Service needed: ${service}` : '';
+
+    const saveLead = async () => {
+      if (!service) return;
+      const lead = {
+        customer_name: name || email.split('@')[0],
+        customer_email: email,
+        customer_phone: phone || null,
+        service_type: service,
+        address: address || null,
+        status: 'pending',
+        notes: 'Created with a new yard account.',
+        lead_source: 'account_signup',
+      };
+      const { error: leadError } = await supabaseAdmin.from('contact_leads').insert([lead]);
+      if (!leadError) return;
+      await supabaseAdmin.from('contact_leads').insert([{
+        customer_name: lead.customer_name,
+        customer_email: lead.customer_email,
+        customer_phone: lead.customer_phone,
+        service_type: lead.service_type,
+        status: 'pending',
+        notes: `${serviceNote}\nAddress: ${address || 'Not provided'}`,
+      }]);
+    };
+
     if (existingCustomer) {
+      const patch = {};
+      if (name && name !== 'New Customer') patch.name = name;
+      if (phone && phone !== 'Not provided') patch.phone = phone;
+      if (address) patch.address = address;
+      if (service) {
+        patch.service_type = serviceSlug;
+        patch.notes = serviceNote;
+      }
+      if (Object.keys(patch).length) {
+        await supabaseAdmin.from('customers').update(patch).eq('id', existingCustomer.id);
+      }
+      if (service && !quoteAlreadySent) await saveLead();
       return NextResponse.json({
         success: true,
         message: 'Customer already exists',
@@ -46,15 +93,23 @@ export async function POST(request) {
     const existingByEmail = existingByEmailArray?.[0];
 
     if (existingByEmail) {
-      // Update existing customer to link user_id
+      const patch = { user_id: userId };
+      if (name) patch.name = name;
+      if (phone) patch.phone = phone;
+      if (address) patch.address = address;
+      if (service) {
+        patch.service_type = serviceSlug;
+        patch.notes = serviceNote;
+      }
       const { error: updateError } = await supabaseAdmin
         .from('customers')
-        .update({ user_id: userId })
+        .update(patch)
         .eq('id', existingByEmail.id);
 
       if (updateError) {
         console.error('Error updating customer user_id:', updateError);
       }
+      if (service && !quoteAlreadySent) await saveLead();
 
       return NextResponse.json({
         success: true,
@@ -63,8 +118,11 @@ export async function POST(request) {
       });
     }
 
-    // Create new customer record with pending status
-    const customerNotes = `Auto-created from signup on ${new Date().toLocaleDateString()}. Waiting for admin approval.${referralCode ? ` Referral code used: ${referralCode}` : ''}`;
+    const customerNotes = [
+      `Auto-created from signup on ${new Date().toLocaleDateString()}.`,
+      serviceNote,
+      referralCode ? `Referral code used: ${referralCode}` : '',
+    ].filter(Boolean).join('\n');
     
     const { data: newCustomer, error: insertError } = await supabaseAdmin
       .from('customers')
@@ -75,10 +133,10 @@ export async function POST(request) {
           email: email,
           phone: phone || 'Not provided',
           address: address || null,
-          service_type: 'lawn_mowing', // Default service type
-          frequency: 'weekly', // Default frequency
-          price: 0, // Default price, admin will set later
-          status: 'pending', // Set to pending for admin review
+          service_type: service ? serviceSlug : 'lawn_mowing',
+          frequency: 'one_time',
+          price: 0,
+          status: 'pending',
           notes: customerNotes
         }
       ])
@@ -92,6 +150,8 @@ export async function POST(request) {
         { status: 500 }
       );
     }
+
+    if (!quoteAlreadySent) await saveLead();
 
     return NextResponse.json({
       success: true,

@@ -81,7 +81,7 @@ export default function LocationPage({ params }) {
                   <Image src="/nextdoor-badge.png" alt="Nextdoor Fave" width={40} height={40} className="rounded-full shadow-lg" />
                   <div className="text-left">
                     <p className="text-[10px] text-green-400 font-black uppercase tracking-widest leading-none mb-1">Neighborhood</p>
-                    <p className="text-sm text-white font-black italic leading-none">2025 Winner</p>
+                    <p className="text-sm text-white font-black italic leading-none">2026 Fave · #1 in Pawtucket</p>
                   </div>
                 </div>
                 <div className="flex items-center space-x-3 bg-white/5 backdrop-blur-md border border-white/10 px-6 py-3 rounded-2xl group hover:bg-white/10 transition-all">

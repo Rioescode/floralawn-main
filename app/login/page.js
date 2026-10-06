@@ -9,10 +9,6 @@ import Footer from '@/components/Footer';
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [emailPreferences, setEmailPreferences] = useState({
-    subscribe: false,
-    frequency: 'monthly'
-  });
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirect = searchParams.get('redirect');
@@ -95,27 +91,19 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
+    <div className="min-h-screen bg-[#F3F6F4] text-[#1B2838]">
       <Navigation />
       
-      <div className="max-w-lg mx-auto px-4 py-12 sm:py-16">
-        {/* Hero Section */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-4">
-            <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-            </svg>
-          </div>
-          <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-3">
-            Manage Your Services Online
-          </h1>
-          <p className="text-gray-600 text-lg">
-            Sign in with Google to access your account. If you don't have an account yet, we'll create one for you automatically.
-          </p>
-        </div>
+      <div className="max-w-lg mx-auto px-4 py-16 sm:py-20">
+        <p className="text-sm text-[#5C6B62]">Flora Lawn</p>
+        <h1 className="mt-2 text-4xl sm:text-5xl font-semibold tracking-tight leading-tight">
+          Open your yard account
+        </h1>
+        <p className="mt-4 max-w-md text-base text-[#5C6B62]">
+          The first time, we ask for your name, phone, address, and the service you need. After that, this is how you sign in.
+        </p>
 
-        {/* Main Card */}
-        <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-6 sm:p-8">
+        <div className="mt-8 bg-white border border-[#C9D4CC] p-6 sm:p-8">
           {error && (
             <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-400 rounded-lg">
               <div className="flex items-center">
@@ -181,100 +169,6 @@ export default function LoginPage() {
             </div>
           </div>
 
-          {/* Email Marketing Opt-in Section */}
-          <div className="mt-6 pt-6 border-t border-gray-200">
-            <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-lg p-4 border border-green-200">
-              <div className="flex items-start mb-3">
-                <div className="bg-green-100 rounded-full p-1.5 mr-2 flex-shrink-0">
-                  <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 002 2v10a2 2 0 002 2z" />
-                  </svg>
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-sm font-bold text-gray-800 mb-1">📧 Stay Connected & Save Money!</h3>
-                  <p className="text-xs text-gray-700 mb-3">
-                    Get exclusive discounts, seasonal reminders, and landscaping tips. 
-                    <span className="font-semibold text-green-700"> Unsubscribe anytime!</span>
-                  </p>
-                  
-                  <label className="flex items-start space-x-2 cursor-pointer group">
-                    <input
-                      type="checkbox"
-                      checked={emailPreferences.subscribe}
-                      onChange={(e) => setEmailPreferences(prev => ({...prev, subscribe: e.target.checked}))}
-                      className="w-4 h-4 text-green-600 bg-white border-2 border-gray-300 rounded focus:ring-green-500 focus:ring-1 mt-0.5"
-                    />
-                    <div className="flex-1">
-                      <span className="text-xs font-medium text-gray-800 block">📧 Yes, send me emails with:</span>
-                      <p className="text-xs text-gray-600 mt-0.5">🎫 Exclusive coupons • 🍂 Seasonal reminders • 📢 Service updates • 💡 Lawn care tips</p>
-                    </div>
-                  </label>
-
-                  {emailPreferences.subscribe && (
-                    <div className="mt-2 p-2 bg-white rounded border border-green-200">
-                      <p className="text-xs text-green-700 font-medium">
-                        ✅ You'll receive valuable discounts and tips!
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Features Section */}
-        <div className="mt-8">
-          <div className="text-center mb-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">With an account, you can:</h3>
-            <p className="text-sm text-gray-600">Manage everything from one place</p>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="p-4 bg-white border border-gray-200 rounded-xl hover:border-green-300 hover:shadow-md transition-all">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <span className="text-xl">📅</span>
-                </div>
-                <div>
-                  <p className="font-semibold text-gray-900 text-sm">Schedule Appointments</p>
-                  <p className="text-xs text-gray-500">Book new services easily</p>
-                </div>
-              </div>
-            </div>
-            <div className="p-4 bg-white border border-gray-200 rounded-xl hover:border-green-300 hover:shadow-md transition-all">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <span className="text-xl">🔄</span>
-                </div>
-                <div>
-                  <p className="font-semibold text-gray-900 text-sm">Reschedule Anytime</p>
-                  <p className="text-xs text-gray-500">Change dates when needed</p>
-                </div>
-              </div>
-            </div>
-            <div className="p-4 bg-white border border-gray-200 rounded-xl hover:border-green-300 hover:shadow-md transition-all">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <span className="text-xl">⏭️</span>
-                </div>
-                <div>
-                  <p className="font-semibold text-gray-900 text-sm">Skip Services</p>
-                  <p className="text-xs text-gray-500">Skip when you're away</p>
-                </div>
-              </div>
-            </div>
-            <div className="p-4 bg-white border border-gray-200 rounded-xl hover:border-green-300 hover:shadow-md transition-all">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <span className="text-xl">📱</span>
-                </div>
-                <div>
-                  <p className="font-semibold text-gray-900 text-sm">View History</p>
-                  <p className="text-xs text-gray-500">Track all your services</p>
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
 

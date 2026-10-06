@@ -157,6 +157,12 @@ export async function POST(request) {
             3. 📞 <strong>Confirmation</strong>: We're available for questions at (401) 389-0913.
           </div>
 
+          <div style="margin-top: 28px; padding: 22px; background: #f0fdf4; border-radius: 16px; border: 1px solid #bbf7d0;">
+            <p style="margin: 0 0 8px 0; color: #14532d; font-size: 15px; font-weight: 800;">Optional: see this quote on your account</p>
+            <p style="margin: 0 0 16px 0; color: #166534; font-size: 13px; line-height: 1.6;">Create an account with Google and the name, phone, address, and service from this quote stay with you. Open the account any time to see when the quote is ready.</p>
+            <a href="https://floralawn-and-landscaping.com/login?redirect=/customer/dashboard" style="display: inline-block; background: #14532d; color: #ffffff; padding: 12px 18px; border-radius: 10px; text-decoration: none; font-weight: 800; font-size: 14px;">Create an account</a>
+          </div>
+
           <!-- Signature Card -->
           <div style="margin-top: 36px; padding: 24px; background: #f8fafc; border-radius: 16px; border: 1px solid #e2e8f0;">
             <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="width: 100%;">
@@ -188,9 +194,31 @@ export async function POST(request) {
     `;
     
     // --- SAVE LEAD TO DATABASE ---
+    if (body.leadId) {
+      const { data: updated, error: updateError } = await supabaseAdmin
+        .from('contact_leads')
+        .update({
+          service_type: sanitizedService,
+          address: address || null,
+          notes: sanitizedMessage,
+          customer_phone: phone || null,
+        })
+        .eq('id', body.leadId)
+        .eq('customer_email', sanitizedEmail)
+        .select('id')
+        .maybeSingle();
+
+      if (updateError || !updated) {
+        return NextResponse.json({ error: 'Could not update that quote.' }, { status: 400 });
+      }
+
+      return NextResponse.json({ success: true, leadId: updated.id, updated: true, message: 'Quote updated' });
+    }
+
+    let savedLeadId = null;
     try {
       console.log('📝 Saving lead to database...');
-      const { error: dbError } = await supabaseAdmin.from('contact_leads').insert([{
+      const { data: inserted, error: dbError } = await supabaseAdmin.from('contact_leads').insert([{
         customer_name: sanitizedName,
         customer_email: sanitizedEmail,
         customer_phone: phone,
@@ -209,12 +237,14 @@ export async function POST(request) {
         lead_source: 'contact_form',
         promo_code: promoCode || null,
         created_at: new Date().toISOString()
-      }]);
+      }]).select('id').maybeSingle();
+
+      if (!dbError && inserted?.id) savedLeadId = inserted.id;
 
       if (dbError) {
         console.warn('⚠️ Full contact_leads insert failed, trying base columns:', dbError.message);
         // Fallback: save with only the guaranteed base columns
-        const { error: fallbackError } = await supabaseAdmin.from('contact_leads').insert([{
+        const { data: fallbackRow, error: fallbackError } = await supabaseAdmin.from('contact_leads').insert([{
           customer_name: sanitizedName,
           customer_email: sanitizedEmail,
           customer_phone: phone,
@@ -222,9 +252,12 @@ export async function POST(request) {
           city: sanitizedCity,
           status: 'pending',
           notes: `[Pref: ${body.estimatePreference || 'walk_around'}] [Source: contact_form]\n\n${message}`,
-        }]);
+        }]).select('id').maybeSingle();
         if (fallbackError) console.error('❌ Fallback lead insert also failed:', fallbackError.message);
-        else console.log('✅ Lead saved via fallback (base columns)');
+        else {
+          if (fallbackRow?.id) savedLeadId = fallbackRow.id;
+          console.log('✅ Lead saved via fallback (base columns)');
+        }
       } else {
         console.log('✅ Lead saved to contact_leads successfully');
       }
@@ -292,7 +325,7 @@ export async function POST(request) {
       const customerEmailResult = await sendEmail({
         to: sanitizedEmail,
         subject: 'Thank You for Contacting Flora Lawn & Landscaping',
-        text: `Thank you for contacting Flora Lawn & Landscaping! We've received your inquiry and will get back to you within 1-6 hours during business days. For immediate assistance, call (401) 389-0913.`,
+        text: `Thank you for contacting Flora Lawn & Landscaping! We've received your inquiry and will get back to you within 1-6 hours during business days. Optional: create an account to see this quote when it is ready: https://floralawn-and-landscaping.com/login?redirect=/customer/dashboard For immediate assistance, call (401) 389-0913.`,
         html: emailHtml,
         replyTo: 'floralawncareri@gmail.com'
       });
@@ -466,7 +499,8 @@ export async function POST(request) {
         success: true, 
         message: 'Confirmation email sent',
         emailId: customerEmailResult?.id,
-        smsSent: smsSent
+        smsSent: smsSent,
+        leadId: savedLeadId
       });
     } catch (emailError) {
       console.error('❌ Error in sendEmail function:', emailError);

@@ -27,7 +27,7 @@ const PROMOS = [
     text: "Leaf removal, bed cleanout, and haul-away so your lawn is ready for winter.",
     code: null,
     href: "/contact?service=Fall%20Cleanup",
-    cta: "Book Fall Cleanup",
+    cta: "Get My Free Quote",
     icon: SparklesIcon,
     tone: "from-red-800 to-red-600 text-white",
   },
@@ -39,7 +39,7 @@ const PROMOS = [
     text: "Two homes on the same street, same day, and you both save.",
     code: "NEIGHBOR-10",
     href: "/contact?service=Fall%20Cleanup&promo=NEIGHBOR-10",
-    cta: "Claim 10% Off",
+    cta: "Get 10% Off",
     icon: UserGroupIcon,
     tone: "from-yellow-400 to-yellow-300 text-stone-900",
   },
@@ -51,7 +51,7 @@ const PROMOS = [
     text: "Bundle your cleanups and weekly maintenance into one plan.",
     code: "BUNDLE-15",
     href: "/contact?service=Lawn%20Mowing&promo=BUNDLE-15",
-    cta: "Lock In Bundle",
+    cta: "Get 15% Off Quote",
     icon: TicketIcon,
     tone: "from-emerald-800 to-emerald-600 text-white",
   },
@@ -175,24 +175,23 @@ export default function FallHero() {
             </div>
 
             <h1 className="text-5xl sm:text-6xl lg:text-7xl xl:text-8xl font-black text-white tracking-tighter leading-[0.92] drop-shadow-[0_4px_24px_rgba(0,0,0,0.5)]">
-              Leaves Down.
+              Lawn care for
               <br />
-              <span className="bg-gradient-to-r from-yellow-300 via-yellow-400 to-red-500 bg-clip-text text-transparent">
-                Lawn Clean.
+              <span className="bg-gradient-to-r from-yellow-200 via-yellow-300 to-yellow-500 bg-clip-text text-transparent">
+                every season
               </span>
             </h1>
 
             <p className="mt-6 text-lg sm:text-xl text-stone-200 max-w-xl mx-auto lg:mx-0 font-medium leading-relaxed">
-              Fall cleanups, leaf removal, and final mows across Rhode Island &amp; Massachusetts.
-              Get on the route before the first snow.
+              Weekly mowing, dethatch, spring and fall cleanup, mulch, hedge trimming, aeration, and snow. Rhode Island and Massachusetts homes. Free quote in 1 to 6 hours.
             </p>
 
             <div className="mt-9 flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
               <Link
-                href="/contact?service=Fall%20Cleanup"
+                href="/contact"
                 className="group inline-flex items-center justify-center gap-3 px-9 py-5 rounded-2xl bg-yellow-400 hover:bg-yellow-300 text-stone-900 font-black uppercase tracking-wide shadow-2xl shadow-black/40 hover:scale-[1.03] active:scale-95 transition-all"
               >
-                Book Fall Cleanup
+                Get My Free Quote
                 <ArrowRightIcon className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </Link>
               <a
@@ -203,12 +202,15 @@ export default function FallHero() {
                 (401) 389-0913
               </a>
             </div>
+            <p className="mt-3 text-sm font-semibold text-stone-300">
+              Takes about 1 minute · Reply in 1–6 hours · No obligation
+            </p>
 
             <a
               href="#packages"
               className="mt-5 inline-flex items-center gap-2 text-yellow-300 font-black uppercase tracking-widest text-xs hover:text-yellow-200"
             >
-              See fall packages ↓
+              See all services ↓
             </a>
 
             <div className="mt-10 flex flex-wrap items-center justify-center lg:justify-start gap-x-6 gap-y-3 text-stone-200">
@@ -220,8 +222,8 @@ export default function FallHero() {
               </div>
               <span className="text-sm font-bold">4.8 Thumbtack</span>
               <div className="flex items-center gap-2">
-                <Image src="/nextdoor-badge.png" alt="Nextdoor Fave" width={24} height={24} className="rounded-full" />
-                <span className="text-sm font-bold">2025 Nextdoor Fave</span>
+                <Image src="/nextdoor-badge.png" alt="2026 Nextdoor Fave, number 1 in Pawtucket" width={24} height={24} className="rounded-full" />
+                <span className="text-sm font-bold">2026 Nextdoor Fave · #1 in Pawtucket</span>
               </div>
             </div>
           </motion.div>

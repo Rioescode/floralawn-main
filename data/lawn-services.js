@@ -704,5 +704,41 @@ export const lawnServices = [
     includes: ["Bespoke site preparation", "Specialized brush clearing", "Unique planting projects", "Full site recovery"],
     metaDescription: "Custom lawn and garden services in {city}, RI. Have a unique outdoor project? Flora Lawn handles specialized requests with expert care. Get a custom quote!",
     subheading: "Professional solutions for your unique landscape and property needs"
+  },
+  {
+    title: "Lawn Dethatching",
+    slug: "dethatching",
+    urlPath: "dethatching",
+    h1Variations: [
+      "Lawn Dethatching in {city}, {state}"
+    ],
+    description: "Power dethatching pulls the matted thatch layer off the lawn so water, air, and seed can reach the soil.",
+    includes: ["Power dethatch pass", "Thatch raked and hauled", "Lawn blown clean", "Ready for seed or fertilizer"],
+    metaDescription: "Lawn dethatching in {city}, {state} by Flora Lawn. We pull the thatch layer and haul it away. Free quote in 1 to 6 hours.",
+    subheading: "Clear the matted layer so {city} grass can thicken"
+  },
+  {
+    title: "Lawn Fertilization",
+    slug: "fertilization",
+    urlPath: "fertilization",
+    h1Variations: [
+      "Lawn Fertilization in {city}, {state}"
+    ],
+    description: "Seasonal fertilizer applications matched to New England grass, timed for spring green-up and fall root growth.",
+    includes: ["Spring feeding", "Summer maintenance feed", "Fall root feeding", "Even spreader coverage"],
+    metaDescription: "Lawn fertilization in {city}, {state} by Flora Lawn. Seasonal feeding for thicker grass. Free quote in 1 to 6 hours.",
+    subheading: "Seasonal feeding for a thicker {city} lawn"
+  },
+  {
+    title: "Weed Control",
+    slug: "weed-control",
+    urlPath: "weed-control",
+    h1Variations: [
+      "Weed Control in {city}, {state}"
+    ],
+    description: "Targeted weed control for crabgrass, clover, and broadleaf weeds common in Rhode Island and Massachusetts yards.",
+    includes: ["Broadleaf treatment", "Crabgrass timing", "Spot follow-up", "Lawn-safe application"],
+    metaDescription: "Weed control in {city}, {state} by Flora Lawn. Crabgrass and broadleaf treatment for local lawns. Free quote in 1 to 6 hours.",
+    subheading: "Fewer weeds in {city} lawns without tearing up the grass"
   }
 ];

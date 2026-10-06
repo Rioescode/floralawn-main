@@ -51,8 +51,13 @@ export async function generateMetadata({ params }) {
   if (!city || !service) return { title: 'Service Not Found' };
 
   const cityName = city.city;
-  const title = `${service.title} in ${cityName}, RI | Expert ${service.title} by Flora Lawn`;
-  const description = service.metaDescription.replace('{city}', cityName);
+  const location = locations.find((l) => l.slug === params.city);
+  const state = location?.state || city.state || 'RI';
+  const title = `${service.title} in ${cityName}, ${state} | Flora Lawn`;
+  const description = service.metaDescription
+    .replaceAll('{city}', cityName)
+    .replaceAll('{state}', state)
+    .replace(', RI', `, ${state}`);
   const baseUrl = getBaseUrl();
   const canonicalUrl = `${baseUrl}/${params.city}/${params.service}`;
 
@@ -78,7 +83,50 @@ export default async function ServicePage({ params }) {
   if (!city || !service) notFound();
 
   const cityName = city.city;
-  const h1 = service.h1Variations[Math.floor(Math.random() * service.h1Variations.length)].replace('{city}', cityName);
+  const state = location?.state || city.state || 'RI';
+  const region = state === 'MA' ? 'Massachusetts' : 'Rhode Island';
+  const h1 = (service.h1Variations[0] || `${service.title} in {city}, {state}`)
+    .replaceAll('{city}', cityName)
+    .replaceAll('{state}', state)
+    .replace(', RI', `, ${state}`);
+
+  const formService = {
+    'lawn-mowing': 'Lawn Mowing',
+    'lawn-care': 'Lawn Fertilization',
+    'mulch-installation': 'Mulching',
+    'leaf-removal': 'Leaf Removal',
+    'hedge-trimming': 'Hedge Trimming',
+    'spring-cleanup': 'Spring Cleanup',
+    'fall-cleanup': 'Fall Cleanup',
+    'lawn-aeration': 'Lawn Aeration',
+    'overseeding': 'Overseeding',
+    'snow-removal': 'Snow Removal',
+    'dethatching': 'Lawn Dethatching',
+    'fertilization': 'Lawn Fertilization',
+    'weed-control': 'Weed Control',
+  }[service.urlPath];
+  const quoteHref = formService
+    ? `/contact?service=${encodeURIComponent(formService)}`
+    : '/contact';
+  const bestTime = {
+    'lawn-mowing': 'April through November, weekly or every other week',
+    'spring-cleanup': 'March and April, before the first mow',
+    'fall-cleanup': 'October through early December, before the first lasting snow',
+    'leaf-removal': 'October through early December',
+    'lawn-aeration': 'September and October',
+    'overseeding': 'September and October, right after aeration',
+    'dethatching': 'April, once the lawn is dry enough to rake',
+    'mulch-installation': 'April through June',
+    'hedge-trimming': 'June, then again in late summer',
+    'fertilization': 'spring green-up and a fall root feeding',
+    'weed-control': 'late spring for crabgrass, then spot treatments through summer',
+    'snow-removal': 'December through March, after each storm',
+  }[service.urlPath] || 'spring through fall, timed to the weather';
+  const priority = ['lawn-mowing', 'dethatching', 'spring-cleanup', 'fall-cleanup', 'leaf-removal', 'mulch-installation', 'hedge-trimming', 'lawn-aeration', 'overseeding', 'fertilization', 'weed-control', 'snow-removal'];
+  const related = priority
+    .filter((path) => path !== service.urlPath)
+    .map((path) => lawnServices.find((s) => s.urlPath === path))
+    .filter(Boolean);
 
   const baseUrl = getBaseUrl();
   const serviceSchema = generateServiceSchema(service, cityName);
@@ -114,7 +162,7 @@ export default async function ServicePage({ params }) {
                   <Image src="/nextdoor-badge.png" alt="Nextdoor Fave" width={32} height={32} className="rounded-full" />
                   <div className="text-left">
                     <p className="text-[10px] text-green-400 font-black uppercase tracking-widest leading-none mb-1">Nextdoor</p>
-                    <p className="text-xs text-white font-bold leading-none italic">2025 Fave winner</p>
+                    <p className="text-xs text-white font-bold leading-none italic">2026 Fave · #1 in Pawtucket</p>
                   </div>
                </div>
                <div className="flex items-center space-x-3 bg-white/5 backdrop-blur-md border border-white/10 px-5 py-2.5 rounded-2xl group hover:bg-white/10 transition-all">
@@ -131,12 +179,12 @@ export default async function ServicePage({ params }) {
             </h1>
             
             <p className="text-xl md:text-2xl text-slate-300 mb-12 max-w-2xl leading-relaxed">
-               Expert {service.title.toLowerCase()} specifically engineered for the unique soil and climate conditions of {cityName}, Rhode Island.
+               {service.title} for homes in {cityName}, {state}. {service.description} Free quote in 1 to 6 hours.
             </p>
 
             <div className="flex flex-wrap gap-6">
-               <Link href="/contact" className="bg-green-600 hover:bg-green-500 text-white px-12 py-5 rounded-2xl font-black text-xl transition-all shadow-2xl shadow-green-900/40 scale-100 hover:scale-105">
-                 Book Next-Day Quote
+               <Link href={quoteHref} className="bg-yellow-400 hover:bg-yellow-300 text-stone-900 px-12 py-5 rounded-2xl font-black text-xl transition-all shadow-2xl">
+                 Get My Free Quote
                </Link>
                <a href="tel:4013890913" className="flex items-center text-white px-8 py-5 border border-white/20 rounded-2xl font-bold hover:bg-white/5 transition-all group">
                  <PhoneIcon className="w-6 h-6 mr-3 text-green-400 group-hover:scale-125 transition-transform" />
@@ -222,7 +270,7 @@ export default async function ServicePage({ params }) {
          <div className="max-w-7xl mx-auto px-4">
             <div className="text-center mb-20">
                <h2 className="text-4xl md:text-6xl font-black text-slate-900 mb-6 tracking-tight">Our Professional Process</h2>
-               <p className="text-xl text-slate-600 max-w-2xl mx-auto font-medium">How we deliver the best {service.title.toLowerCase()} results in Rhode Island.</p>
+               <p className="text-xl text-slate-600 max-w-2xl mx-auto font-medium">What is included with {service.title.toLowerCase()} in {cityName}, {state}.</p>
             </div>
 
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
@@ -281,6 +329,24 @@ export default async function ServicePage({ params }) {
         </section>
       )}
 
+      {/* Other services in this city */}
+      <section className="py-16 bg-slate-50 border-t border-slate-200">
+        <div className="max-w-7xl mx-auto px-4">
+          <h2 className="text-3xl font-black text-slate-900 mb-8">More lawn work in {cityName}</h2>
+          <div className="flex flex-wrap gap-3">
+            {related.map((s) => (
+              <Link
+                key={s.urlPath}
+                href={`/${params.city}/${s.urlPath}`}
+                className="px-4 py-2 rounded-full bg-white border border-slate-200 font-bold text-slate-800 hover:border-green-600 hover:text-green-700"
+              >
+                {s.title} in {cityName}
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* FAQ Guide (SEO) */}
       <section className="py-24 bg-white">
         <div className="max-w-4xl mx-auto px-4 text-center mb-20">
@@ -288,9 +354,9 @@ export default async function ServicePage({ params }) {
         </div>
         <div className="max-w-3xl mx-auto px-4 space-y-8">
            {[
-             {q: `How much does ${service.title.toLowerCase()} cost in ${cityName}?`, a: `Costs vary based on property size and condition. For a typical ${cityName} property, we provide custom quotes within 24 hours to ensure you get the best value.`},
-             {q: `When is the best time for ${service.title.toLowerCase()} in RI?`, a: `Rhode Island's climate requires specific timing. Generally, late March through October is ideal for ${service.title.toLowerCase()}, but we adjust our techniques monthly based on local weather patterns.`},
-             {q: `Is Flora Lawn available in my part of ${cityName}?`, a: `Yes, we serve the entire ${cityName} area, including all local neighborhoods and surrounding Rhode Island towns.`}
+             {q: `How much does ${service.title.toLowerCase()} cost in ${cityName}?`, a: `Price depends on lot size and condition. We quote ${cityName} yards in 1 to 6 hours and confirm the price before any work starts.`},
+             {q: `When should I book ${service.title.toLowerCase()} in ${cityName}?`, a: `For ${cityName}, ${region}, the useful window is ${bestTime}.`},
+             {q: `Do you serve my part of ${cityName}?`, a: `Yes. Flora Lawn covers ${cityName}, ${state}, plus nearby Rhode Island and Massachusetts towns.`}
            ].map((faq, i) => (
              <div key={i} className="bg-slate-50 border border-slate-100 p-10 rounded-[2rem] hover:border-green-300 hover:bg-white transition-all shadow-sm">
                 <h3 className="text-xl font-black text-slate-900 mb-5 flex items-start">
@@ -309,8 +375,8 @@ export default async function ServicePage({ params }) {
         <div className="max-w-4xl mx-auto px-4 text-center text-white relative z-10">
           <h2 className="text-5xl md:text-7xl font-black mb-12 tracking-tighter">Transform your {cityName} yard today.</h2>
           <div className="flex flex-col sm:flex-row justify-center gap-6">
-            <Link href="/contact" className="bg-white text-green-600 px-16 py-7 rounded-2xl font-black text-2xl shadow-2xl hover:bg-slate-50 transition-all uppercase tracking-tight">
-               Get Instant Quote
+            <Link href={quoteHref} className="bg-white text-green-600 px-16 py-7 rounded-2xl font-black text-2xl shadow-2xl hover:bg-slate-50 transition-all uppercase tracking-tight">
+               Get My Free Quote
             </Link>
             <a href="tel:4013890913" className="flex items-center justify-center border-2 border-white/30 text-white px-10 py-7 rounded-2xl font-black text-2xl hover:bg-white/5 transition-all">
               Call Team

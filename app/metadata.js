@@ -1,15 +1,15 @@
-import config from '@/config';
 import { getBaseUrl } from '@/utils/seo-helpers';
 
 const baseUrl = getBaseUrl();
 
 export const metadata = {
-  title: 'Flora Lawn and Landscaping Inc | Professional Lawn Care & Landscaping',
-  description: 'Fast, reliable yard maintenance and landscaping services throughout Rhode Island. Same-day service available. We handle lawn care, landscaping, yard cleanup and more.',
-  keywords: 'lawn care, landscaping, lawn mowing, mulch installation, leaf removal, snow removal, Rhode Island, RI, professional landscaping, yard maintenance',
+  metadataBase: new URL(baseUrl),
+  title: 'Lawn Care, Mulch & Cleanup in RI & MA | Flora Lawn',
+  description: 'Lawn mowing, dethatching, spring and fall cleanup, mulch, hedge trimming, aeration, and snow removal in Rhode Island and Massachusetts. Free quote in 1 to 6 hours.',
+  keywords: 'lawn mowing, lawn care, dethatching, spring cleanup, fall cleanup, leaf removal, mulch, hedge trimming, bush trimming, aeration, overseeding, fertilization, snow removal, Rhode Island, Massachusetts, Providence, Pawtucket, Warwick',
   openGraph: {
-    title: 'Flora Lawn and Landscaping Inc | Rhode Island Landscaping Experts',
-    description: 'Professional yard maintenance and landscaping services. From basic lawn care to complete landscape transformations. Serving all of Rhode Island.',
+    title: 'Lawn Care, Mulch & Cleanup in RI & MA | Flora Lawn',
+    description: 'Mowing, dethatch, spring and fall cleanup, mulch, hedge trimming, and aeration for Rhode Island and Massachusetts homes. Free quote in 1 to 6 hours.',
     images: [
       {
         url: `${baseUrl}/images/2024-09-18.jpg`,
@@ -25,8 +25,8 @@ export const metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Flora Lawn and Landscaping Inc | Professional Landscaping Services',
-    description: 'Expert landscaping services in Rhode Island. Fast, reliable, and eco-friendly yard care.',
+    title: 'Lawn Care, Mulch & Cleanup in RI & MA | Flora Lawn',
+    description: 'Free quote for lawn mowing, dethatch, cleanup, mulch, and hedge trimming in Rhode Island and Massachusetts.',
     images: [`${baseUrl}/images/2024-09-18.jpg`],
   },
   alternates: {

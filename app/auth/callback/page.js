@@ -12,9 +12,15 @@ export default function AuthCallbackPage() {
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [pendingUser, setPendingUser] = useState(null);
+  const [accountInfo, setAccountInfo] = useState({
+    name: '',
+    phone: '',
+    address: '',
+    service: '',
+  });
   const [isProcessing, setIsProcessing] = useState(false);
 
-  const finishSetup = async (user, isNewUser, profile) => {
+  const finishSetup = async (user, isNewUser, profile, signup) => {
     try {
       // Check for pending referral code from localStorage (with error handling)
           let pendingReferralCode = null;
@@ -40,16 +46,28 @@ export default function AuthCallbackPage() {
             console.log('👤 Ensuring customer record exists for user:', user.email);
             
             // Use API route to create customer (bypasses RLS)
+            const pendingQuoteFlag = (() => {
+              if (signup?.quoteAlreadySent) return true;
+              try {
+                const raw = localStorage.getItem('pending_quote_account');
+                return raw ? !!JSON.parse(raw).quoteAlreadySent : false;
+              } catch (e) {
+                return false;
+              }
+            })();
+
             const customerResponse = await fetch('/api/create-customer-from-signup', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 userId: user.id,
                 email: user.email,
-                name: profile?.full_name || user.user_metadata?.full_name || user.email?.split('@')[0] || 'New Customer',
-                phone: profile?.phone || user.user_metadata?.phone || 'Not provided',
-                address: profile?.location || user.user_metadata?.address || null,
-                referralCode: pendingReferralCode // Pass referral code if available
+                name: signup?.name || profile?.full_name || user.user_metadata?.full_name || user.email?.split('@')[0] || 'New Customer',
+                phone: signup?.phone || profile?.phone || user.user_metadata?.phone || 'Not provided',
+                address: signup?.address || profile?.location || user.user_metadata?.address || null,
+                service: signup?.service || null,
+                referralCode: pendingReferralCode,
+                quoteAlreadySent: pendingQuoteFlag
               })
             });
 
@@ -142,6 +160,7 @@ export default function AuthCallbackPage() {
 
       // Redirect to the specified page or dashboard
       router.replace(redirect || '/customer/dashboard');
+      try { localStorage.removeItem('pending_quote_account'); } catch (e) { /* keep going */ }
     } catch (err) {
       console.error('Error in finishSetup:', err);
       router.replace('/login?error=setup-failed');
@@ -166,14 +185,28 @@ export default function AuthCallbackPage() {
           // Check if this is a new user (profile doesn't exist)
           const isNewUser = !profile && (profileError?.code === 'PGRST116' || !profileError);
           
+          const pendingQuote = (() => {
+            try {
+              const raw = localStorage.getItem('pending_quote_account');
+              return raw ? JSON.parse(raw) : null;
+            } catch (e) {
+              return null;
+            }
+          })();
+
           if (isNewUser) {
             setPendingUser(user);
+            setAccountInfo({
+              name: pendingQuote?.name || user.user_metadata?.full_name || '',
+              phone: pendingQuote?.phone || '',
+              address: pendingQuote?.address || '',
+              service: pendingQuote?.service || '',
+            });
             setShowTermsModal(true);
-            return; // Pause setup until terms are accepted
+            return;
           }
 
-          // Existing user: finish setup immediately
-          await finishSetup(user, false, profile);
+          await finishSetup(user, false, profile, pendingQuote);
         }
       } catch (err) {
         console.error('Error in auth callback:', err);
@@ -196,7 +229,7 @@ export default function AuthCallbackPage() {
           {
             id: pendingUser.id,
             email: pendingUser.email,
-            full_name: pendingUser.user_metadata?.full_name || '',
+            full_name: accountInfo.name || pendingUser.user_metadata?.full_name || '',
             avatar_url: pendingUser.user_metadata?.avatar_url || '',
           }
         ]);
@@ -204,7 +237,7 @@ export default function AuthCallbackPage() {
       if (insertError) throw insertError;
 
       setShowTermsModal(false);
-      await finishSetup(pendingUser, true, null);
+      await finishSetup(pendingUser, true, null, accountInfo);
     } catch (err) {
       console.error('Error creating profile after terms:', err);
       setIsProcessing(false);
@@ -215,68 +248,105 @@ export default function AuthCallbackPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
       {showTermsModal ? (
-        <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+        <div className="bg-white max-w-lg w-full shadow-2xl overflow-y-auto max-h-[90vh]">
           <div className="p-6">
             <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mb-4 text-2xl">
               👋
             </div>
-            <h3 className="text-xl font-bold text-gray-900 mb-2">
-              Create Your Account
+            <h3 className="text-2xl font-semibold text-[#1B2838] mb-2">
+              Create your yard account
             </h3>
-            <p className="text-gray-600 mb-6 text-sm">
-              It looks like you're new here! You are about to create an account with <strong>Flora Lawn & Landscaping Inc</strong>. This allows us to easily schedule your services, communicate with you, and manage your billing.
+            <p className="text-[#5C6B62] mb-5 text-sm">
+              Google gives us the email. We still need the yard, the phone, and the service.
             </p>
-            
-            <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 mb-6">
-              <label className="flex items-start gap-3 cursor-pointer group">
+
+            <form className="space-y-3" onSubmit={(event) => { event.preventDefault(); handleAcceptTerms(); }}>
+              <label className="block text-sm text-[#1B2838]">
+                Name
+                <input
+                  required
+                  value={accountInfo.name}
+                  onChange={(event) => setAccountInfo((current) => ({ ...current, name: event.target.value }))}
+                  className="mt-1 w-full min-h-11 border border-[#C9D4CC] px-3"
+                />
+              </label>
+              <label className="block text-sm text-[#1B2838]">
+                Phone
+                <input
+                  required
+                  inputMode="tel"
+                  value={accountInfo.phone}
+                  onChange={(event) => setAccountInfo((current) => ({ ...current, phone: event.target.value }))}
+                  className="mt-1 w-full min-h-11 border border-[#C9D4CC] px-3"
+                />
+              </label>
+              <label className="block text-sm text-[#1B2838]">
+                Address
+                <input
+                  required
+                  value={accountInfo.address}
+                  onChange={(event) => setAccountInfo((current) => ({ ...current, address: event.target.value }))}
+                  className="mt-1 w-full min-h-11 border border-[#C9D4CC] px-3"
+                />
+              </label>
+              <label className="block text-sm text-[#1B2838]">
+                Service needed
+                <select
+                  required
+                  value={accountInfo.service}
+                  onChange={(event) => setAccountInfo((current) => ({ ...current, service: event.target.value }))}
+                  className="mt-1 w-full min-h-11 border border-[#C9D4CC] bg-white px-3"
+                >
+                  <option value="">Select a service</option>
+                  <option>Lawn Mowing</option>
+                  <option>Lawn Fertilization</option>
+                  <option>Weed Control</option>
+                  <option>Lawn Aeration</option>
+                  <option>Overseeding</option>
+                  <option>Lawn Dethatching</option>
+                  <option>Mulching</option>
+                  <option>Hedge Trimming</option>
+                  <option>Spring Cleanup</option>
+                  <option>Fall Cleanup</option>
+                  <option>Leaf Removal</option>
+                  <option>Snow Removal</option>
+                  <option>Other</option>
+                </select>
+              </label>
+
+              <label className="flex items-start gap-3 pt-2">
                 <input
                   type="checkbox"
                   checked={termsAccepted}
-                  onChange={(e) => setTermsAccepted(e.target.checked)}
-                  className="w-5 h-5 mt-0.5 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                  onChange={(event) => setTermsAccepted(event.target.checked)}
+                  className="mt-1"
                 />
-                <div className="flex-1">
-                  <span className="text-sm text-gray-800 font-medium group-hover:text-gray-900">
-                    I agree to create an account
-                  </span>
-                  <p className="text-xs text-gray-500 mt-1">
-                    By checking this box, you agree to our{' '}
-                    <a href="/terms-of-service" target="_blank" className="text-green-600 hover:underline">Terms of Service</a> and{' '}
-                    <a href="/privacy-policy" target="_blank" className="text-green-600 hover:underline">Privacy Policy</a>.
-                  </p>
-                </div>
+                <span className="text-sm text-[#5C6B62]">
+                  I agree to the <a href="/terms-of-service" target="_blank" className="underline">Terms of Service</a> and <a href="/privacy-policy" target="_blank" className="underline">Privacy Policy</a>.
+                </span>
               </label>
-            </div>
 
-            <div className="flex gap-3">
-              <button
-                onClick={() => {
-                  supabase.auth.signOut();
-                  router.replace('/login');
-                }}
-                disabled={isProcessing}
-                className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition-colors disabled:opacity-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleAcceptTerms}
-                disabled={!termsAccepted || isProcessing}
-                className="flex-[2] flex items-center justify-center gap-2 bg-green-600 text-white px-4 py-3 rounded-xl font-semibold hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isProcessing ? (
-                  <>
-                    <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    <span>Creating...</span>
-                  </>
-                ) : (
-                  <span>Create Account</span>
-                )}
-              </button>
-            </div>
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    supabase.auth.signOut();
+                    router.replace('/login');
+                  }}
+                  disabled={isProcessing}
+                  className="flex-1 min-h-11 border border-[#1B2838] font-semibold disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={!termsAccepted || !accountInfo.name.trim() || !accountInfo.phone.trim() || !accountInfo.address.trim() || !accountInfo.service || isProcessing}
+                  className="flex-[2] min-h-11 bg-[#2F6B4F] text-white font-semibold disabled:opacity-50"
+                >
+                  {isProcessing ? 'Creating' : 'Create account'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       ) : (

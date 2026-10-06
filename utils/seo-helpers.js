@@ -1,8 +1,6 @@
-import config from '@/config';
-
 // Get the base URL consistently
 export function getBaseUrl() {
-  return process.env.NEXT_PUBLIC_SITE_URL || `https://${config.domainName}`;
+  return process.env.NEXT_PUBLIC_SITE_URL || process.env.SITE_URL || 'https://floralawn-and-landscaping.com';
 }
 
 // Generate structured data for local business
@@ -13,7 +11,6 @@ export function generateLocalBusinessSchema(businessInfo) {
     '@id': `${getBaseUrl()}#organization`,
     name: businessInfo.name || 'Flora Lawn & Landscaping Inc',
     image: `${getBaseUrl()}/flora-logo-final.png`,
-    '@id': `${getBaseUrl()}`,
     url: getBaseUrl(),
     telephone: businessInfo.phone || '(401) 389-0913',
     email: businessInfo.email || 'floralawncareri@gmail.com',
@@ -45,20 +42,26 @@ export function generateLocalBusinessSchema(businessInfo) {
         closes: '16:00'
       }
     ],
-    areaServed: {
-      '@type': 'State',
-      name: 'Rhode Island'
-    },
+    areaServed: [
+      { '@type': 'State', name: 'Rhode Island' },
+      { '@type': 'State', name: 'Massachusetts' }
+    ],
     serviceType: [
       'Lawn Mowing',
-      'Landscaping',
+      'Lawn Dethatching',
+      'Lawn Aeration',
+      'Overseeding',
+      'Lawn Fertilization',
+      'Weed Control',
       'Mulch Installation',
+      'Hedge Trimming',
+      'Bush Trimming',
+      'Spring Cleanup',
+      'Fall Cleanup',
       'Leaf Removal',
       'Snow Removal',
-      'Lawn Care',
-      'Hedge Trimming',
-      'Spring Cleanup',
-      'Fall Cleanup'
+      'Landscaping',
+      'Lawn Care'
     ],
     aggregateRating: {
       '@type': 'AggregateRating',

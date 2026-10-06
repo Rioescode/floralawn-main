@@ -11,6 +11,8 @@ module.exports = {
     "/icon.*", 
     "/api/*", 
     "/dashboard/*",
+    "/schedule",
+    "/schedule/*",
     "/utils/*",
     "/components/*",
     "/marketplace/components/*"
@@ -45,7 +47,6 @@ module.exports = {
       { loc: '/', changefreq: 'daily', priority: 1.0 },
       { loc: '/about', changefreq: 'monthly', priority: 0.8 },
       { loc: '/contact', changefreq: 'monthly', priority: 0.8 },
-      { loc: '/schedule', changefreq: 'daily', priority: 0.9 },
       { loc: '/privacy-policy', changefreq: 'monthly', priority: 0.5 },
       { loc: '/services', changefreq: 'weekly', priority: 0.9 },
       { loc: '/tos', changefreq: 'monthly', priority: 0.5 }

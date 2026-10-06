@@ -14,6 +14,10 @@ const SERVICES = {
   fertilize: { name: "Fertilization", form: "Lawn Fertilization" },
   weeds: { name: "Weed Control", form: "Weed Control" },
   leaves: { name: "Leaf Removal", form: "Leaf Removal" },
+  spring: { name: "Spring Cleanup", form: "Spring Cleanup" },
+  mulch: { name: "Mulching", form: "Mulching" },
+  hedge: { name: "Hedge Trimming", form: "Hedge Trimming" },
+  mow: { name: "Lawn Mowing", form: "Lawn Mowing" },
 };
 
 const CLEANUP_TIERS = [
@@ -50,7 +54,7 @@ const PACKAGES = [
   },
 ];
 
-const BUILDER_KEYS = ["leaves", "dethatch", "aeration", "overseed", "fertilize", "weeds"];
+const BUILDER_KEYS = ["mow", "leaves", "spring", "dethatch", "mulch", "hedge", "aeration", "overseed", "fertilize", "weeds"];
 
 const contactHref = (service, { promo, pkg, services } = {}) => {
   const q = new URLSearchParams({ service });
@@ -77,14 +81,14 @@ export default function FallPackages() {
       <div className="relative z-10 max-w-7xl mx-auto px-4">
         <div className="text-center max-w-2xl mx-auto mb-14">
           <p className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-red-100 text-red-800 text-[11px] font-black uppercase tracking-[0.22em] mb-5">
-            🍁 Fall Packages
+            Lawn, cleanup, mulch, and more
           </p>
           <h2 className="text-4xl md:text-6xl font-black text-stone-900 tracking-tighter leading-none">
-            Pick a package.
-            <span className="text-red-800"> We handle the rest.</span>
+            Plans for every
+            <span className="text-red-800"> yard job.</span>
           </h2>
           <p className="mt-5 text-lg text-stone-600 font-medium">
-            Leaf cleanup, dethatching, aeration, and overseeding, packaged together for one simple fall visit plan.
+            Mowing, dethatch, spring and fall cleanup, mulch, hedge trimming, aeration, and seed. Pick a plan and we quote your yard.
           </p>
         </div>
 
@@ -149,7 +153,7 @@ export default function FallPackages() {
               })}
               className="mt-6 inline-flex w-full items-center justify-center gap-2 py-4 rounded-2xl bg-yellow-400 hover:bg-yellow-300 text-stone-900 font-black uppercase tracking-wide transition-colors"
             >
-              Book {activeTier.label} Cleanup <ArrowRightIcon className="w-4 h-4" />
+              Get My Free Quote <ArrowRightIcon className="w-4 h-4" />
             </Link>
           </div>
         </motion.div>
@@ -202,7 +206,7 @@ export default function FallPackages() {
                         : "bg-stone-900 hover:bg-black text-yellow-300"
                     }`}
                   >
-                    Get This Package <ArrowRightIcon className="w-4 h-4" />
+                    Get My Free Quote <ArrowRightIcon className="w-4 h-4" />
                   </Link>
                 </div>
               </motion.div>
@@ -233,7 +237,7 @@ export default function FallPackages() {
                 })}
                 className="mt-7 self-start inline-flex items-center gap-2 px-7 py-4 rounded-2xl bg-yellow-400 hover:bg-yellow-300 text-stone-900 font-black uppercase tracking-wide transition-colors"
               >
-                Lock In Bundle <ArrowRightIcon className="w-4 h-4" />
+                Get 15% Off Quote <ArrowRightIcon className="w-4 h-4" />
               </Link>
             </div>
           </div>
@@ -279,14 +283,14 @@ export default function FallPackages() {
                   picked.length ? "bg-red-800 hover:bg-red-700 text-white" : "bg-stone-100 text-stone-400 pointer-events-none"
                 }`}
               >
-                Get Quote <ArrowRightIcon className="w-4 h-4" />
+                Get My Free Quote <ArrowRightIcon className="w-4 h-4" />
               </Link>
             </div>
           </div>
         </div>
 
         <p className="mt-8 text-center text-sm text-stone-500 font-medium">
-          Every yard is different. We quote based on lot size and leaf volume, and confirm your price before any work starts.
+          Every yard is different. Free quote, no obligation. We confirm the price before any work starts.
         </p>
       </div>
     </section>

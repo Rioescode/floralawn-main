@@ -2,8 +2,9 @@ import { generateSitemapUrls } from '@/utils/generateSitemapUrls';
 import { getBaseUrl } from '@/utils/seo-helpers';
 
 export default async function sitemap() {
-  const baseUrl = getBaseUrl();
-  const dynamicUrls = generateSitemapUrls();
+  try {
+    const baseUrl = getBaseUrl();
+    const dynamicUrls = generateSitemapUrls();
 
   // Static pages
   const staticPages = [
@@ -37,4 +38,13 @@ export default async function sitemap() {
   });
 
   return deduped;
+  } catch (err) {
+    console.error('sitemap generation failed:', err);
+    const baseUrl = getBaseUrl();
+    return [
+      { url: baseUrl, lastModified: new Date(), changeFrequency: 'daily', priority: 1.0 },
+      { url: `${baseUrl}/contact`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.9 },
+      { url: `${baseUrl}/services`, lastModified: new Date(), changeFrequency: 'weekly', priority: 0.9 },
+    ];
+  }
 }

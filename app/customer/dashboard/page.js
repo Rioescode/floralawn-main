@@ -9,6 +9,7 @@ import { format } from 'date-fns';
 import { sendNotification } from '@/lib/notifications';
 import ReferralProgram from '@/components/ReferralProgram';
 import LoyaltyRewards from '@/components/LoyaltyRewards';
+import YardAccount from '@/components/YardAccount';
 
 export default function CustomerDashboard() {
   const [services, setServices] = useState([]);
@@ -48,6 +49,10 @@ export default function CustomerDashboard() {
   const [adminLeads, setAdminLeads] = useState([]);
   const [adminNewCustomers, setAdminNewCustomers] = useState([]);
   const [loadingAdmin, setLoadingAdmin] = useState(false);
+  const [showCustomerView, setShowCustomerView] = useState(false);
+  const [previewCustomers, setPreviewCustomers] = useState([]);
+  const [previewServices, setPreviewServices] = useState([]);
+  const [previewId, setPreviewId] = useState('');
   
   const router = useRouter();
 
@@ -115,6 +120,13 @@ export default function CustomerDashboard() {
       
       if (leadsRes.data) setAdminLeads(leadsRes.data);
       if (accountsRes.data) setAdminNewCustomers(accountsRes.data);
+
+      const { data: previewRows } = await supabase
+        .from('customers')
+        .select('id, name, email, phone, address, service_type, next_service, status')
+        .order('name')
+        .limit(80);
+      if (previewRows) setPreviewCustomers(previewRows);
     } catch (err) {
       console.error('Error fetching admin data:', err);
     } finally {
@@ -290,6 +302,57 @@ export default function CustomerDashboard() {
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     router.push('/');
+  };
+
+  const saveYard = async ({ address, phone }) => {
+    if (!user) return 'Sign in again, then save.';
+    const { error: saveError } = await supabase
+      .from('customers')
+      .update({ address, phone })
+      .eq('user_id', user.id);
+    if (saveError) return saveError.message || 'Could not save. Try again.';
+    await fetchServices(user);
+    return 'Yard details saved.';
+  };
+
+  const openCustomerView = async (customerId) => {
+    const list = previewCustomers;
+    const row = list.find((item) => item.id === customerId) || list.find((item) => item.next_service) || list[0];
+    if (!row) {
+      setPreviewServices([]);
+      setPreviewId('');
+      setShowCustomerView(true);
+      return;
+    }
+    let rows = [row];
+    if (row.email) {
+      const { data } = await supabase
+        .from('customers')
+        .select('id, name, email, phone, address, service_type, next_service, status')
+        .eq('email', row.email);
+      if (data?.length) rows = data;
+    }
+    setPreviewId(row.id);
+    setPreviewServices(rows);
+    setShowCustomerView(true);
+    window.scrollTo({ top: 0 });
+  };
+
+  const savePreviewYard = async ({ address, phone }) => {
+    const row = previewServices[0];
+    if (!row) return 'This customer has no yard record yet.';
+    const query = supabase.from('customers').update({ address, phone });
+    const { error: saveError } = row.email
+      ? await query.eq('email', row.email)
+      : await query.eq('id', row.id);
+    if (saveError) return saveError.message || 'Could not save. Try again.';
+    setPreviewServices((current) => current.map((item) => ({ ...item, address, phone })));
+    return 'Yard details saved.';
+  };
+
+  const previewUser = {
+    email: previewServices[0]?.email || '',
+    user_metadata: { full_name: previewServices[0]?.name || 'Customer' },
   };
 
   const handleSkipService = async () => {
@@ -561,63 +624,85 @@ export default function CustomerDashboard() {
   return (
     <>
       <Navigation />
-      <div className="min-h-screen bg-gray-50 pt-16">
+      <div className="min-h-screen bg-[#F3F6F4] pt-4">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 sm:mb-8">
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">My Services</h1>
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
-              {userRole === 'admin' && (
-                <Link
-                  href="/customers"
-                  className="flex-1 sm:flex-none text-center bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors text-sm sm:text-base font-medium flex items-center justify-center gap-2 shadow-md"
-                >
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                  </svg>
-                  Admin Dashboard
-                </Link>
-              )}
-              <Link
-                href="/booking"
-                className="flex-1 sm:flex-none text-center bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors text-sm sm:text-base font-medium"
-              >
-                Book New Service
-              </Link>
-              {isSubscribed ? (
+          {showCustomerView && userRole === 'admin' ? (
+            <>
+              <div className="mb-6 flex flex-col sm:flex-row sm:items-end gap-3 text-[#1B2838]">
+                <label className="text-sm flex-1">
+                  Customer
+                  <select
+                    value={previewId}
+                    onChange={(event) => openCustomerView(event.target.value)}
+                    className="mt-1 w-full min-h-11 border border-[#C9D4CC] bg-white px-3"
+                  >
+                    {previewCustomers.map((row) => (
+                      <option key={row.id} value={row.id}>
+                        {row.name || row.email || 'Customer'}
+                      </option>
+                    ))}
+                  </select>
+                </label>
                 <button
-                  disabled
-                  className="flex-1 sm:flex-none text-center bg-green-100 text-green-700 px-4 py-2 rounded-lg cursor-default text-sm sm:text-base font-medium flex items-center justify-center gap-2"
+                  type="button"
+                  onClick={() => setShowCustomerView(false)}
+                  className="min-h-11 px-4 border border-[#1B2838] font-semibold"
                 >
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-                  </svg>
-                  Subscribed
+                  Back to morning sheet
                 </button>
-              ) : (
-                <button
-                  onClick={() => setShowOptInModal(true)}
-                  className="flex-1 sm:flex-none text-center bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm sm:text-base font-medium flex items-center justify-center gap-2"
-                >
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                  Subscribe
-                </button>
-              )}
-              <Link
-                href="/customer/support"
-                className="flex-1 sm:flex-none text-center bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition-colors text-sm sm:text-base font-medium"
-              >
-                Support
-              </Link>
-              <button
-                onClick={handleSignOut}
-                className="flex-1 sm:flex-none text-center bg-red-100 text-red-700 px-4 py-2 rounded-lg hover:bg-red-200 transition-colors text-sm sm:text-base font-medium"
-              >
-                Sign Out
-              </button>
-            </div>
-          </div>
+              </div>
+              <p className="mb-4 text-sm text-[#5C6B62]">This is the dashboard {previewServices[0]?.name || 'a customer'} sees after they sign in.</p>
+              <YardAccount
+                user={previewUser}
+                userRole="customer"
+                services={previewServices}
+                preview
+                onSkip={(service) => {
+                  setSelectedService(service);
+                  setSkipDate(service.next_service || '');
+                  setShowSkipModal(true);
+                }}
+                onChangeDate={(service) => {
+                  setSelectedService(service);
+                  setNewDate(service.next_service || '');
+                  setShowRescheduleModal(true);
+                }}
+                onSaveYard={savePreviewYard}
+                onSignOut={() => setShowCustomerView(false)}
+              />
+            </>
+          ) : (
+          <>
+          <YardAccount
+            user={user}
+            userRole={userRole}
+            services={services}
+            adminLeads={adminLeads}
+            adminNewCustomers={adminNewCustomers}
+            loadingAdmin={loadingAdmin}
+            onOpenCustomerView={userRole === 'admin' ? () => openCustomerView() : undefined}
+            onSkip={(service) => {
+              setSelectedService(service);
+              setSkipDate(service.next_service || '');
+              setShowSkipModal(true);
+            }}
+            onChangeDate={(service) => {
+              setSelectedService(service);
+              setNewDate(service.next_service || '');
+              setShowRescheduleModal(true);
+            }}
+            onSaveYard={saveYard}
+            onSignOut={handleSignOut}
+          />
+          {userRole !== 'admin' && !isSubscribed && (
+            <button
+              type="button"
+              onClick={() => setShowOptInModal(true)}
+              className="mb-8 text-sm underline underline-offset-4 text-[#1B2838]"
+            >
+              Email updates
+            </button>
+          )}
 
           {/* Success/Error Messages */}
           {success && (
@@ -989,6 +1074,8 @@ export default function CustomerDashboard() {
                 </div>
               </div>
             </>
+          )}
+          </>
           )}
         </div>
       </div>

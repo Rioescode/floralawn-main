@@ -346,15 +346,15 @@ export default function HomePage() {
         <LeafSeason density="sparse" className="z-[1]" />
         
         <div className="max-w-4xl mx-auto px-4 relative z-10 text-center">
-           <h2 className="text-5xl md:text-7xl font-black text-white tracking-tighter italic mb-8 uppercase leading-none">
-              Ready for a <span className="text-yellow-400">Perfect</span> Lawn?
+           <h2 className="text-5xl md:text-7xl font-black text-white tracking-tighter mb-8 uppercase leading-none">
+              Ready for a <span className="text-yellow-400">clean</span> lawn?
            </h2>
-           <p className="text-xl text-slate-400 mb-12 font-semibold italic">
-              Get your free, no-obligation quote today and let our local team take care of the rest.
+           <p className="text-xl text-slate-300 mb-12 font-semibold">
+              Free quote in 1 to 6 hours. We confirm the price before any work starts.
            </p>
            <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
-              <Link href="/contact" className="bg-green-600 hover:bg-green-500 text-white font-black px-14 py-6 rounded-2xl flex items-center gap-4 transition-all active:scale-95 shadow-2xl uppercase text-lg">
-                Get Free Quote <ArrowRightIcon className="w-6 h-6" />
+              <Link href="/contact" className="bg-yellow-400 hover:bg-yellow-300 text-stone-900 font-black px-14 py-6 rounded-2xl flex items-center gap-4 transition-all active:scale-95 shadow-2xl uppercase text-lg">
+                Get My Free Quote <ArrowRightIcon className="w-6 h-6" />
               </Link>
               <a href="tel:4013890913" className="flex items-center text-white gap-4 group">
                  <div className="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center group-hover:bg-green-600/20 transition-all border border-white/10">

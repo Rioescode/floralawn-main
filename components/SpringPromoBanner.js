@@ -31,11 +31,11 @@ const promos = [
   {
     id: 1,
     title: 'Fall Cleanup Season',
-    subtitle: 'Leaves, beds & lawn — done in one visit.',
+    subtitle: 'Leaves, beds, and lawn in one visit.',
     badge: 'LEAF SEASON',
     icon: LeafIcon,
     accent: 'FROM $175',
-    mainText: 'full fall cleanup — leaves cleared, beds cleaned up and lawn ready for winter.',
+    mainText: 'full fall cleanup. Leaves cleared, beds cleaned, lawn ready for winter.',
     link: '/contact?service=Fall%20Cleanup',
     theme: {
       bg: 'bg-[#1c0a0e]',
@@ -51,11 +51,11 @@ const promos = [
   {
     id: 2,
     title: 'Aeration + Overseeding',
-    subtitle: 'Fall is the #1 time to seed New England lawns.',
+    subtitle: 'Fall is the best time to seed New England lawns.',
     badge: 'BEST TIME TO SEED',
     icon: SparklesIcon,
     accent: 'FROM $125',
-    mainText: 'core aeration + overseeding — thicker, greener lawn next spring.',
+    mainText: 'core aeration and overseeding for a thicker lawn next spring.',
     link: '/contact?service=Lawn%20Aeration',
     theme: {
       bg: 'bg-[#22100c]',
@@ -71,11 +71,11 @@ const promos = [
   {
     id: 3,
     title: 'Neighborhood Leaf Day',
-    subtitle: 'Better Together. Shared Savings.',
-    badge: 'COMMUNITY REWARD',
+    subtitle: 'Two homes, same day, both save.',
+    badge: 'NEIGHBOR DEAL',
     icon: UserGroupIcon,
     accent: 'SAVE 10%',
-    mainText: 'when you and your neighbor book leaf cleanup on the same day!',
+    mainText: 'when you and your neighbor book leaf cleanup on the same day.',
     link: '/contact?service=Leaf%20Removal&promo=NEIGHBOR-10',
     theme: {
       bg: 'bg-[#2a0f14]',
@@ -91,11 +91,11 @@ const promos = [
   {
     id: 4,
     title: 'Fall-to-Spring Bundle',
-    subtitle: 'Full Season Care. Maximum Value.',
-    badge: 'BULK SAVINGS',
+    subtitle: 'Fall, spring, and weekly mowing in one plan.',
+    badge: 'SEASON BUNDLE',
     icon: GiftIcon,
     accent: '15% OFF',
-    mainText: 'Save up to 15% when you bundle Fall Cleanup, Spring Cleanup and Weekly Maintenance!',
+    mainText: '15% off when you bundle fall cleanup, spring cleanup, and weekly mowing.',
     link: '/contact?service=Fall%20Cleanup&promo=BUNDLE-15',
     theme: {
       bg: 'bg-[#1a120b]',
@@ -195,7 +195,7 @@ export default function SpringPromoBanner() {
 
             <div className="flex-grow text-center lg:text-left bg-black/25 backdrop-blur-md border border-white/10 p-4 rounded-3xl min-h-[80px] flex items-center">
               <p className="text-sm lg:text-base font-bold text-white/75 leading-tight">
-                🍁 Leaf Season: <span className="text-white font-black italic uppercase tracking-tight underline decoration-yellow-400/40 underline-offset-4 decoration-2">Flora Lawn</span> is offering 
+                🍁 <span className="text-white font-black italic uppercase tracking-tight underline decoration-yellow-400/40 underline-offset-4 decoration-2">Flora Lawn</span> has 
                 <span className={`inline-flex items-center gap-2 mx-2 ${promo.theme.accentBg} ${promo.theme.accentText} px-3 py-1 rounded-lg font-black italic text-xs uppercase shadow-xl transform rotate-2`}>
                   {promo.accent}
                 </span>
@@ -227,7 +227,7 @@ export default function SpringPromoBanner() {
                   className="w-full sm:w-auto bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/10 text-white px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-3 transition-all active:scale-95"
                 >
                   <EnvelopeIcon className="w-3.5 h-3.5" />
-                  <span>Claim Online</span>
+                  <span>Get My Free Quote</span>
                 </Link>
               </div>
 

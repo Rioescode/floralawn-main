@@ -80,9 +80,11 @@ export default function Navigation() {
 
   const aboutLink = { name: 'About Us', href: '/about', icon: UserGroupIcon };
 
+  const accountPage = pathname === '/login' || pathname.startsWith('/customer');
+
   return (
     <>
-      <SpringPromoBanner />
+      {!accountPage && <SpringPromoBanner />}
       <header 
         className={`sticky top-0 left-0 right-0 z-[1000] transition-all duration-500 bg-white/95 backdrop-blur-2xl border-b border-slate-200 ${
           isScrolled ? 'py-3 shadow-lg' : 'py-5'
@@ -153,9 +155,16 @@ export default function Navigation() {
                  <PhoneIcon className="w-5 h-5" /> (401) 389-0913
               </a>
               {user ? (
-                <Link href={userRole === 'admin' ? '/admin' : '/dashboard'} className="w-10 h-10 bg-green-100 text-green-600 rounded-full flex items-center justify-center hover:bg-green-600 hover:text-white transition-all">
-                   <UserIcon className="w-5 h-5" />
-                </Link>
+                <>
+                  <Link href="/customer/dashboard" className="px-3 py-2 rounded-xl text-[11px] xl:text-xs font-black uppercase tracking-wider bg-slate-900 text-white">
+                    Dashboard
+                  </Link>
+                  {userRole === 'admin' && (
+                    <Link href="/admin" className="px-3 py-2 rounded-xl text-[11px] xl:text-xs font-black uppercase tracking-wider text-slate-600 hover:bg-slate-100">
+                      Admin
+                    </Link>
+                  )}
+                </>
               ) : (
                 <Link href="/login" className="text-xs font-black uppercase text-slate-400 hover:text-green-600">Login</Link>
               )}
@@ -209,12 +218,21 @@ export default function Navigation() {
                   {user ? (
                     <>
                       <Link 
-                        href={userRole === 'admin' ? '/admin' : '/dashboard'} 
+                        href="/customer/dashboard" 
                         onClick={() => setMobileMenuOpen(false)}
                         className="block text-2xl font-black text-green-600 italic uppercase"
                       >
-                         {userRole === 'admin' ? '→ Admin Portal' : '→ My Dashboard'}
+                         Dashboard
                       </Link>
+                      {userRole === 'admin' && (
+                        <Link
+                          href="/admin"
+                          onClick={() => setMobileMenuOpen(false)}
+                          className="block text-xl font-bold text-slate-700"
+                        >
+                          Admin
+                        </Link>
+                      )}
                       <button 
                         onClick={async () => {
                           await supabase.auth.signOut();
