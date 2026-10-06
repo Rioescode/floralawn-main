@@ -38,8 +38,8 @@ const nextConfig = {
       '@': require('path').resolve(__dirname, './')
     };
     
-    // Production optimizations
-    if (!dev && !isServer) {
+    // Production builds run in a fresh container, so the webpack cache only costs memory.
+    if (!dev) {
       config.cache = false;
     }
     return config;
@@ -151,7 +151,7 @@ const nextConfig = {
     serverComponentsExternalPackages: ['@anthropic-ai/sdk', 'twilio'],
     // Keep peak build memory low enough for the Coolify server.
     webpackBuildWorker: false,
-    cpus: 2
+    cpus: 1
   }
 }
 

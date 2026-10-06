@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "node scripts/dev.js",
-    "build": "NODE_OPTIONS='--max-old-space-size=4096' next build",
+    "build": "NODE_OPTIONS='--max-old-space-size=1536' next build",
     "next-sitemap": "next-sitemap",
     "postbuild": "next-sitemap",
     "start": "next start",
