@@ -149,7 +149,9 @@ const nextConfig = {
   // Experimental features for security and performance
   experimental: {
     serverComponentsExternalPackages: ['@anthropic-ai/sdk', 'twilio'],
-    webpackBuildWorker: true
+    // Keep peak build memory low enough for the Coolify server.
+    webpackBuildWorker: false,
+    cpus: 2
   }
 }
 
