@@ -30,17 +30,12 @@ import Link from 'next/link';
 import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
 
+// Render on the first visit. Prebuilding every city and service
+// runs the deploy server out of memory (exit 137).
+export const dynamicParams = true
+
 export async function generateStaticParams() {
-  const paths = [];
-  locations.forEach(location => {
-    lawnServices.forEach(service => {
-      paths.push({
-        city: location.slug,
-        service: service.urlPath
-      });
-    });
-  });
-  return paths;
+  return []
 }
 
 export async function generateMetadata({ params }) {

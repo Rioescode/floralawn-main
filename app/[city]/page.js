@@ -22,10 +22,12 @@ import Image from 'next/image';
 import { lawnServices } from '@/data/lawn-services';
 import { getBaseUrl } from '@/utils/seo-helpers';
 
+// Render on the first visit. Prebuilding every city
+// runs the deploy server out of memory (exit 137).
+export const dynamicParams = true
+
 export async function generateStaticParams() {
-  return locations.map((location) => ({
-    city: location.slug,
-  }));
+  return []
 }
 
 export async function generateMetadata({ params }) {

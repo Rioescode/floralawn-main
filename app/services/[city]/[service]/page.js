@@ -3,48 +3,10 @@ import { lawnServices } from "@/data/lawn-services";
 import ServicePage from "../../ServicePage";
 import { getBaseUrl, generateServiceSchema, generateBreadcrumbSchema } from '@/utils/seo-helpers';
 
-export async function generateStaticParams() {
-  // Define RI cities
-  const riCities = [
-    'Providence',
-    'Warwick',
-    'Cranston',
-    'Pawtucket',
-    'East Providence',
-    'Woonsocket',
-    'Coventry',
-    'Cumberland',
-    'North Providence',
-    'South Kingstown',
-    'West Warwick',
-    'Johnston',
-    'North Kingstown',
-    'Newport',
-    'Bristol',
-    'Westerly',
-    'Smithfield',
-    'Lincoln',
-    'Central Falls',
-    'Portsmouth',
-    'Barrington',
-    'Middletown',
-    'Burrillville',
-    'Narragansett'
-  ];
-  
-  // Generate all city/service combinations
-  const paths = [];
-  
-  riCities.forEach(city => {
-    lawnServices.forEach(service => {
-      paths.push({
-        city: city.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
-        service: service.urlPath
-      });
-    });
-  });
+export const dynamicParams = true
 
-  return paths;
+export async function generateStaticParams() {
+  return []
 }
 
 export async function generateMetadata({ params }) {

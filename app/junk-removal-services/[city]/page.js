@@ -17,10 +17,10 @@ import {
 } from '@heroicons/react/24/outline';
 import { StarIcon } from '@heroicons/react/24/solid';
 
+export const dynamicParams = true
+
 export async function generateStaticParams() {
-  return locations.map((location) => ({
-    city: location.slug,
-  }));
+  return []
 }
 
 export async function generateMetadata({ params }) {
