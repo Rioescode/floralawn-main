@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { autoMeasureLawn } from '@/libs/actions/auto-measure';
+import GoogleSignInButton from '@/components/GoogleSignInButton';
 import jsPDF from 'jspdf';
 import { 
   MapPinIcon, 
@@ -281,13 +282,6 @@ export default function InstantQuoteMap({ onQuoteComplete, selectedPlace, setSel
   }, [isDrawingMode]);
 
 
-  const signInAdmin = async () => {
-    const origin = window.location.origin;
-    await supabase.auth.signInWithOAuth({ 
-      provider: 'google', 
-      options: { redirectTo: `${origin}/auto-lawn` } 
-    });
-  };
 
   const fetchLeads = async () => {
     if (user?.email?.toLowerCase() !== 'esckoofficial@gmail.com') return;
@@ -1331,10 +1325,7 @@ export default function InstantQuoteMap({ onQuoteComplete, selectedPlace, setSel
                    {user?.email?.toLowerCase() === 'esckoofficial@gmail.com' ? (
                       <button onClick={() => setShowSettings(false)} className="px-20 py-8 bg-green-500 text-black font-black uppercase text-base rounded-3xl hover:bg-green-400 transition-all shadow-6xl active:scale-95">Secure Global Engine</button>
                    ) : (
-                      <button onClick={signInAdmin} className="px-10 py-8 bg-white/5 border border-white/10 text-white font-black uppercase text-xs rounded-3xl hover:bg-white/10 transition-all flex items-center gap-4 group">
-                         <div className="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center group-hover:bg-green-600 transition-all"><SparklesIcon className="w-4 h-4" /></div>
-                         Verify Admin Identity
-                      </button>
+                      <GoogleSignInButton redirectTo="/auth/callback?redirect=/auto-lawn" />
                    )}
                 </div>
              </motion.div>

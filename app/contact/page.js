@@ -11,6 +11,7 @@ import Link from "next/link";
 import { sendNotification } from '@/lib/notifications';
 import Image from 'next/image';
 import { supabase, supabaseAdmin } from '@/lib/supabase';
+import GoogleSignInButton from '@/components/GoogleSignInButton';
 import { 
   PhoneIcon, 
   MapPinIcon, 
@@ -477,11 +478,9 @@ function ContactForm() {
     }));
   };
 
-  const signInWithGoogle = async () => {
-    const origin = window.location.origin;
+  const prepareGoogleAccount = () => {
     if (referralCode) localStorage.setItem('pending_referral_code', referralCode);
     saveQuoteForAccount(status.type === 'success');
-    await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: `${origin}/auth/callback?redirect=/customer/dashboard` } });
   };
 
   const signOutAccount = async () => {
@@ -1265,14 +1264,12 @@ function ContactForm() {
                               </div>
                            ) : (
                               <div className="mt-6 flex flex-col sm:flex-row sm:items-center gap-3">
-                                 <button
-                                    type="button"
-                                    onClick={signInWithGoogle}
-                                    className="inline-flex items-center justify-center gap-3 min-h-11 px-4 bg-white border border-[#C9D4CC] font-semibold text-sm"
-                                 >
-                                    <Image src="https://www.gstatic.com/images/branding/product/1x/gsa_512dp.png" alt="" width={18} height={18} />
-                                    Continue with Google
-                                 </button>
+                                 <div className="w-full sm:w-72">
+                                    <GoogleSignInButton
+                                       redirectTo="/auth/callback?redirect=/customer/dashboard"
+                                       onBefore={prepareGoogleAccount}
+                                    />
+                                 </div>
                                  <Link href="/login?redirect=/customer/dashboard" onClick={() => saveQuoteForAccount(status.type === 'success')} className="text-sm underline underline-offset-4">
                                     I already have an account
                                  </Link>

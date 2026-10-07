@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
+import GoogleSignInButton from '@/components/GoogleSignInButton';
 import { useRouter } from 'next/navigation';
 
 export default function RegisterForm({ onClose, onShowLogin, serviceParam, cityParam, typeParam }) {
@@ -111,57 +112,10 @@ export default function RegisterForm({ onClose, onShowLogin, serviceParam, cityP
     }
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
-    
-    try {
-      setLoading(true);
-      setError(null);
-
-      if (!allDocumentsAccepted) {
-        throw new Error('Please accept all required documents to continue');
-      }
-
-      console.log('Starting registration...');
-      
-      // Store user data in localStorage to retrieve after OAuth
-      const userData = {
-        user_type: 'customer',
-        is_professional: false
-      };
-      
-      localStorage.setItem('signup_data', JSON.stringify(userData));
-
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
-          queryParams: {
-            access_type: 'offline',
-            prompt: 'consent'
-          }
-        }
-      });
-
-      if (error) throw error;
-      
-      // If we have service parameters, include them in the profile data
-      const profileData = {
-        full_name: `${firstName} ${lastName}`,
-        email,
-        phone,
-        // Include service parameters if available
-        ...(serviceParam && { requested_service: serviceParam }),
-        ...(cityParam && { service_location: cityParam }),
-        ...(typeParam && { service_type: typeParam }),
-      };
-      
-    } catch (err) {
-      console.error('Registration error:', err);
-      setError(err.message);
-      localStorage.removeItem('signup_data');
-    } finally {
-      setLoading(false);
+    if (!allDocumentsAccepted) {
+      setError('Please accept all required documents to continue');
     }
   };
 
@@ -223,16 +177,15 @@ export default function RegisterForm({ onClose, onShowLogin, serviceParam, cityP
               <div className="text-red-500 text-sm">{error}</div>
           )}
 
-          <button
-            type="submit"
-              className="w-full bg-green-600 text-white py-2 rounded-md font-medium hover:bg-green-700 transition-colors flex items-center justify-center"
-              disabled={loading}
-            >
-              <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12.24 10.285V14.4h6.806c-.275 1.765-2.056 5.174-6.806 5.174-4.095 0-7.439-3.389-7.439-7.574s3.345-7.574 7.439-7.574c2.33 0 3.891.989 4.785 1.849l3.254-3.138C18.189 1.186 15.479 0 12.24 0c-6.635 0-12 5.365-12 12s5.365 12 12 12c6.926 0 11.52-4.869 11.52-11.726 0-.788-.085-1.39-.189-1.989H12.24z" fill="#ffffff"/>
-            </svg>
-              {loading ? 'Connecting...' : 'Continue with Google'}
-          </button>
+          <GoogleSignInButton
+            redirectTo="/auth/callback?redirect=/marketplace/customer"
+            onBefore={() => {
+              if (!allDocumentsAccepted) {
+                throw new Error('Please accept all required documents to continue');
+              }
+            }}
+            onError={(err) => setError(err?.message || 'Google sign-in failed')}
+          />
         </form>
           
           <div className="mt-4 text-center text-sm text-gray-600">
