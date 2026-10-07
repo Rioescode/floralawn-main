@@ -106,15 +106,15 @@ const nextConfig = {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://cdn.emailjs.com https://api.anthropic.com https://maps.googleapis.com",
+              "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://cdn.emailjs.com https://api.anthropic.com https://maps.googleapis.com https://accounts.google.com",
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "font-src 'self' https://fonts.gstatic.com",
               "img-src 'self' data: https: blob: https://maps.gstatic.com https://maps.googleapis.com *.googleapis.com *.gstatic.com",
-              "connect-src 'self' https://api.anthropic.com https://*.supabase.co https://api.emailjs.com https://maps.googleapis.com",
-              "frame-src 'self' https://www.google.com https://maps.googleapis.com",
+              "connect-src 'self' https://api.anthropic.com https://*.supabase.co https://api.emailjs.com https://maps.googleapis.com https://accounts.google.com",
+              "frame-src 'self' https://www.google.com https://maps.googleapis.com https://accounts.google.com",
               "frame-ancestors 'none'",
               "base-uri 'self'",
-              "form-action 'self'"
+              "form-action 'self' https://accounts.google.com"
             ].join('; ')
           }
         ]
