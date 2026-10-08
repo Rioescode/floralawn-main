@@ -28,7 +28,7 @@ const LEAVES = Array.from({ length: 22 }, (_, i) => ({
   opacity: 0.8 + (i % 3) * 0.1,
 }));
 
-const FRONT_LEAVES = Array.from({ length: 7 }, (_, i) => ({
+const FRONT_LEAVES = Array.from({ length: 10 }, (_, i) => ({
   id: `f${i}`,
   left: `${(i * 14.3 + 6) % 94}%`,
   delay: `${(i * 2.3) % 11}s`,
@@ -41,7 +41,7 @@ const FRONT_LEAVES = Array.from({ length: 7 }, (_, i) => ({
   opacity: 0.55,
 }));
 
-const MAPLE =
+export const MAPLE =
   "M50 4 L57 20 L66 14 L64 34 L80 24 L76 38 L95 36 L82 50 L92 56 L70 63 L74 74 L55 68 L53 78 L47 78 L45 68 L26 74 L30 63 L8 56 L18 50 L5 36 L24 38 L20 24 L36 34 L34 14 L43 20 Z";
 
 const OAK =
@@ -103,7 +103,7 @@ function LeafShape({ type, size, color }) {
   );
 }
 
-export default function LeafSeason({ density = "full", className = "" }) {
+export default function LeafSeason({ density = "full", className = "", respectMotion = true }) {
   const [reduce, setReduce] = useState(false);
 
   useEffect(() => {
@@ -120,7 +120,8 @@ export default function LeafSeason({ density = "full", className = "" }) {
       : density === "sparse"
       ? LEAVES.filter((_, i) => i % 3 === 0)
       : LEAVES;
-  const items = reduce ? all.filter((_, i) => i % 2 === 0) : all;
+  const calm = respectMotion && reduce;
+  const items = calm ? all.filter((_, i) => i % 2 === 0) : all;
 
   return (
     <div
@@ -140,13 +141,13 @@ export default function LeafSeason({ density = "full", className = "" }) {
                 ? "blur(1.5px) drop-shadow(0 10px 14px rgba(0,0,0,0.4))"
                 : "drop-shadow(0 4px 6px rgba(0,0,0,0.3))",
             "--leaf-delay": leaf.delay,
-            "--leaf-dur": reduce ? `${parseFloat(leaf.duration) * 1.8}s` : leaf.duration,
+            "--leaf-dur": calm ? `${parseFloat(leaf.duration) * 1.8}s` : leaf.duration,
             "--leaf-rot": `${leaf.rot}deg`,
             "--leaf-sway": leaf.sway,
           }}
         >
           <span
-            className={reduce ? "block" : "block leaf-season-flutter"}
+            className={calm ? "block" : "block leaf-season-flutter"}
             style={{ "--flutter-dur": `${1.6 + (i % 5) * 0.35}s` }}
           >
             <LeafShape type={leaf.type} size={leaf.size} color={leaf.color} />

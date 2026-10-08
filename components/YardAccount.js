@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { format } from 'date-fns';
 import { supabase } from '@/lib/supabase';
+import YardSeasonScene from '@/components/YardSeasonScene';
 
 const QUOTE_SERVICES = [
   'Lawn Mowing',
@@ -85,8 +86,13 @@ export default function YardAccount({
   const [quotePrimaryService, setQuotePrimaryService] = useState('');
   const [editingQuoteId, setEditingQuoteId] = useState(null);
   const [extraAddresses, setExtraAddresses] = useState([]);
+  const [yardSize, setYardSize] = useState(user?.user_metadata?.yard_size || 'medium');
   const addressRef = useRef(null);
   const extraAddressRefs = useRef({});
+
+  useEffect(() => {
+    setYardSize(user?.user_metadata?.yard_size || 'medium');
+  }, [user?.user_metadata?.yard_size]);
 
   useEffect(() => {
     setAddress(yard?.address || '');
@@ -289,30 +295,57 @@ export default function YardAccount({
 
   return (
     <section className="mb-10 text-[#1B2838]">
-      <p className="text-sm text-[#5C6B62]">{todayLabel}</p>
-      <h1 className="mt-1 text-3xl sm:text-4xl font-semibold tracking-tight">{first}&apos;s yard</h1>
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="text-sm text-[#5C6B62]">{todayLabel}</p>
+          <h1 className="mt-1 text-3xl sm:text-4xl font-semibold tracking-tight">{first}&apos;s yard</h1>
+        </div>
+        <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm">
+          <Link href="/customer/support" className="underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#2F6B4F]">Support</Link>
+          {!preview && (
+            <button type="button" onClick={onSignOut} className="underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#2F6B4F]">
+              Sign out
+            </button>
+          )}
+        </div>
+      </div>
 
-      <div className="mt-8 border-l-4 border-[#2F6B4F] pl-5">
-        <p className="text-sm text-[#5C6B62]">Next visit</p>
+      <div className="mt-6 grid items-start gap-6 lg:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
+      <div className="border border-[#C9D4CC] bg-white p-4 sm:p-5">
+        <YardSeasonScene
+          lastService={nextVisit?.last_service || yard?.last_service}
+          nextService={nextVisit?.next_service}
+          frequency={nextVisit?.frequency || yard?.frequency}
+          size={yardSize}
+          onSizeChange={(next) => {
+            setYardSize(next);
+            if (!preview) supabase.auth.updateUser({ data: { yard_size: next } });
+          }}
+        />
+      </div>
+
+      <div className="grid gap-6">
+      <div className="bg-[#1B2838] p-5 sm:p-6 text-white">
+        <p className="text-sm text-[#A9C2B3]">Next visit</p>
         {nextVisit?.next_service ? (
           <>
-            <p className="mt-1 text-4xl sm:text-5xl font-semibold tracking-tight leading-none">
+            <p className="mt-2 text-3xl sm:text-4xl font-semibold tracking-tight leading-none">
               {format(new Date(`${nextVisit.next_service}T12:00:00`), 'EEEE, MMMM d')}
             </p>
             <p className="mt-3 text-lg">{visitLabel(nextVisit)}</p>
-            {nextVisit.address && <p className="text-sm text-[#5C6B62]">{nextVisit.address}</p>}
+            {nextVisit.address && <p className="text-sm text-[#A9C2B3]">{nextVisit.address}</p>}
             <div className="mt-5 flex flex-wrap gap-3">
               <button
                 type="button"
                 onClick={() => onSkip(nextVisit)}
-                className="min-h-11 px-4 bg-[#1B2838] text-white font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2F6B4F]"
+                className="min-h-11 px-4 bg-white text-[#1B2838] font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
               >
                 Skip this visit
               </button>
               <button
                 type="button"
                 onClick={() => onChangeDate(nextVisit)}
-                className="min-h-11 px-4 border border-[#1B2838] font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2F6B4F]"
+                className="min-h-11 px-4 border border-white/60 font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
               >
                 Change the date
               </button>
@@ -320,9 +353,9 @@ export default function YardAccount({
           </>
         ) : (
           <>
-            <p className="mt-1 text-3xl sm:text-4xl font-semibold tracking-tight leading-tight">No visit on the books</p>
-            <p className="mt-3 max-w-md text-sm text-[#5C6B62]">Request a quote and the date will show up here once it is scheduled.</p>
-            <button type="button" onClick={() => setShowQuote(true)} className="mt-5 inline-flex items-center justify-center min-h-11 px-4 bg-[#1B2838] text-white font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2F6B4F]">
+            <p className="mt-2 text-3xl font-semibold tracking-tight leading-tight">No visit on the books</p>
+            <p className="mt-3 max-w-md text-sm text-[#A9C2B3]">Request a quote and the date will show up here once it is scheduled.</p>
+            <button type="button" onClick={() => { setEditingQuoteId(null); setShowQuote(true); setQuoteMessage(''); }} className="mt-5 inline-flex items-center justify-center min-h-11 px-4 bg-[#E8C547] text-[#1B2838] font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">
               Get a free quote
             </button>
           </>
@@ -330,7 +363,7 @@ export default function YardAccount({
       </div>
 
       {yard && (
-        <form onSubmit={saveYard} className="mt-10 max-w-xl">
+        <form onSubmit={saveYard} className="border border-[#C9D4CC] bg-white p-5">
           <h2 className="text-lg font-semibold">Yard details</h2>
           <label className="mt-4 block text-sm" htmlFor="yard-address">
             Address
@@ -364,9 +397,12 @@ export default function YardAccount({
           {savedNote && <p className="mt-3 text-sm">{savedNote}</p>}
         </form>
       )}
+      </div>
+      </div>
 
+      <div className="mt-6 grid items-start gap-6 lg:grid-cols-2">
       {quotes.length > 0 && (
-        <div className="mt-10 max-w-xl">
+        <div className="border border-[#C9D4CC] bg-white p-5">
           <h2 className="text-lg font-semibold">Your quotes</h2>
           <ul className="mt-2 border-t border-[#C9D4CC]">
             {quotes.map((quote) => (
@@ -426,7 +462,7 @@ export default function YardAccount({
         </div>
       )}
 
-      <div className="mt-8 max-w-xl">
+      <div>
         {showQuote ? (
           <form
             className="border border-[#C9D4CC] bg-white p-5"
@@ -461,8 +497,10 @@ export default function YardAccount({
               const propertyLines = chosen.map((row, index) => `Property ${index + 1}: ${row.address} — ${row.service}`);
               const serviceSummary = [...new Set(chosen.map((row) => row.service))].join(', ');
               const quoteBody = [
-                `Quote requested from the yard account for ${serviceSummary}.`,
+                `Services: ${serviceSummary}`,
+                'Sent from: Yard account',
                 `When: ${whenLabel}`,
+                `Yard size: ${yardSize.charAt(0).toUpperCase()}${yardSize.slice(1)}`,
                 ...propertyLines,
                 quoteNote.trim() ? `Note: ${quoteNote.trim()}` : '',
               ].filter(Boolean).join('\n');
@@ -653,20 +691,16 @@ export default function YardAccount({
             </div>
           </form>
         ) : (
-          <button type="button" onClick={() => { setEditingQuoteId(null); setShowQuote(true); setQuoteMessage(''); }} className="underline underline-offset-4 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#2F6B4F]">
-            Get a quote
-          </button>
+          <div className="border border-[#C9D4CC] bg-white p-5">
+            <h2 className="text-lg font-semibold">Need something else done?</h2>
+            <p className="mt-1 text-sm text-[#5C6B62]">Mowing, cleanups, mulch, snow. Pick the service and we reply in 1–6 hours.</p>
+            <button type="button" onClick={() => { setEditingQuoteId(null); setShowQuote(true); setQuoteMessage(''); }} className="mt-4 min-h-11 px-4 bg-[#2F6B4F] text-white font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1B2838]">
+              Get a quote
+            </button>
+          </div>
         )}
         {quoteMessage && <p className="mt-3 text-sm">{quoteMessage}</p>}
       </div>
-
-      <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm">
-        <Link href="/customer/support" className="underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#2F6B4F]">Support</Link>
-        {!preview && (
-          <button type="button" onClick={onSignOut} className="underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#2F6B4F]">
-            Sign out
-          </button>
-        )}
       </div>
     </section>
   );

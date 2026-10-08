@@ -1,4 +1,5 @@
 import { sendEmail } from '@/libs/resend';
+import { emailLayout, heading, section, detailsTable, button, buttonRow, escapeHtml, siteUrl } from '@/libs/email-template';
 import { NextResponse } from 'next/server';
 
 export async function POST(request) {
@@ -9,24 +10,29 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Job data is required' }, { status: 400 });
     }
 
-    const subject = `🔔 Reminder: ${diffDays} Days until ${job.customer_name}'s Job`;
-    
-    const html = `
-      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff;">
-        <h2 style="color: #0f172a; margin-top: 0;">Job Reminder (${diffDays} Days Out)</h2>
-        <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; border-left: 4px solid #3b82f6;">
-          <p style="margin: 0 0 10px 0;"><strong>Customer:</strong> ${job.customer_name}</p>
-          <p style="margin: 0 0 10px 0;"><strong>Date:</strong> ${job.visit_date}</p>
-          <p style="margin: 0 0 10px 0;"><strong>Service:</strong> ${job.service_type || 'General Service'}</p>
-          <p style="margin: 0 0 10px 0;"><strong>Address:</strong> ${job.address || job.city || 'No address'}</p>
-          <p style="margin: 0 0 10px 0;"><strong>Phone:</strong> ${job.customer_phone || 'No phone'}</p>
-        </div>
-        <p style="color: #64748b; font-size: 14px; margin-top: 20px;">
-          This is an automated reminder from your Flora Lawn Dashboard.
-        </p>
-        <a href="https://floralawn-and-landscaping.com/schedule" style="display: inline-block; background-color: #3b82f6; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; margin-top: 10px;">View Schedule</a>
-      </div>
-    `;
+    const subject = `Reminder: ${job.customer_name} in ${diffDays} day${diffDays === 1 ? '' : 's'} · ${job.service_type || 'Yard service'}`;
+    const phoneDigits = String(job.customer_phone || '').replace(/\D/g, '');
+    const place = job.address || job.city || '';
+
+    const html = emailLayout({
+      preheader: `${job.customer_name} on ${job.visit_date}. ${job.service_type || 'Yard service'}.`,
+      footerNote: 'Automatic reminder from your Flora Lawn schedule.',
+      body: [
+        `<p style="margin:0 0 6px 0;font-size:12px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#2F6B4F;">Job in ${escapeHtml(diffDays)} day${diffDays === 1 ? '' : 's'}</p>`,
+        heading(job.customer_name || 'Customer', escapeHtml(job.visit_date || '')),
+        section('Job', detailsTable([
+          { label: 'Service', value: job.service_type || 'Yard service' },
+          { label: 'Date', value: job.visit_date },
+          { label: 'Address', value: place || 'No address' },
+          { label: 'Phone', value: job.customer_phone || 'No phone' },
+        ])),
+        buttonRow([
+          button(siteUrl('/schedule'), 'Open schedule'),
+          phoneDigits ? button(`sms:${phoneDigits}`, 'Text customer', 'dark') : '',
+          place ? button(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place)}`, 'Map', 'outline') : '',
+        ]),
+      ].join(''),
+    });
 
     const result = await sendEmail({
       to: 'floralawncareri@gmail.com',

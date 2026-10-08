@@ -5,6 +5,8 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { CheckIcon, ArrowRightIcon, StarIcon } from "@heroicons/react/24/solid";
 import LeafSeason from "@/components/LeafSeason";
+import ServiceToggleGrid from "@/components/ServiceToggleGrid";
+import { MIX_SERVICES } from "@/data/quote-services";
 
 const SERVICES = {
   cleanup: { name: "Complete Fall Cleanup", form: "Fall Cleanup" },
@@ -54,8 +56,6 @@ const PACKAGES = [
   },
 ];
 
-const BUILDER_KEYS = ["mow", "leaves", "spring", "dethatch", "mulch", "hedge", "aeration", "overseed", "fertilize", "weeds"];
-
 const contactHref = (service, { promo, pkg, services } = {}) => {
   const q = new URLSearchParams({ service });
   if (promo) q.set("promo", promo);
@@ -68,7 +68,7 @@ const formNames = (keys) => keys.map((k) => SERVICES[k].name);
 
 export default function FallPackages() {
   const [tier, setTier] = useState("complete");
-  const [picked, setPicked] = useState(["leaves", "aeration"]);
+  const [picked, setPicked] = useState([]);
   const activeTier = CLEANUP_TIERS.find((t) => t.id === tier);
 
   const toggle = (key) =>
@@ -245,46 +245,34 @@ export default function FallPackages() {
           <div className="rounded-[2rem] p-8 bg-white border-2 border-stone-200">
             <p className="text-[11px] font-black uppercase tracking-[0.25em] text-red-800">Build Your Own</p>
             <h3 className="text-2xl md:text-3xl font-black text-stone-900 tracking-tight mt-2">Mix &amp; match services</h3>
-            <div className="mt-5 grid sm:grid-cols-2 gap-2.5">
-              {BUILDER_KEYS.map((k) => {
-                const on = picked.includes(k);
-                return (
-                  <button
-                    key={k}
-                    type="button"
-                    onClick={() => toggle(k)}
-                    className={`flex items-center justify-between gap-2 px-4 py-3 rounded-2xl border-2 text-left transition-all ${
-                      on ? "border-red-800 bg-red-50" : "border-stone-200 hover:border-stone-400"
-                    }`}
-                  >
-                    <span className="flex items-center gap-2 font-bold text-stone-900">
-                      <span className={`w-5 h-5 rounded-md flex items-center justify-center ${on ? "bg-red-800 text-white" : "border-2 border-stone-300"}`}>
-                        {on && <CheckIcon className="w-3.5 h-3.5" />}
-                      </span>
-                      {SERVICES[k].name}
-                    </span>
-                  </button>
-                );
-              })}
+            <div className="mt-5">
+              <ServiceToggleGrid services={MIX_SERVICES} selected={picked} onToggle={toggle} />
             </div>
             <div className="mt-6 flex items-center justify-between gap-4">
               <div>
-                <p className="text-[11px] font-black uppercase tracking-widest text-stone-500">Your plan</p>
+                <p className="text-sm font-semibold text-stone-500">Your plan</p>
                 <p className="text-2xl font-black text-red-800 tracking-tight">
                   {picked.length} {picked.length === 1 ? "service" : "services"} selected
                 </p>
               </div>
-              <Link
-                href={contactHref(picked.length ? SERVICES[picked[0]].form : "Other", {
-                  pkg: "Custom Fall Plan",
-                  services: formNames(picked),
-                })}
-                className={`inline-flex items-center gap-2 px-6 py-4 rounded-2xl font-black uppercase tracking-wide transition-colors ${
-                  picked.length ? "bg-red-800 hover:bg-red-700 text-white" : "bg-stone-100 text-stone-400 pointer-events-none"
-                }`}
-              >
-                Get My Free Quote <ArrowRightIcon className="w-4 h-4" />
-              </Link>
+              {picked.length ? (
+                <Link
+                  href={contactHref(picked[0], {
+                    pkg: "Custom Plan",
+                    services: picked.map((form) => MIX_SERVICES.find((service) => service.form === form)?.name || form),
+                  })}
+                  className="inline-flex items-center gap-2 px-6 py-4 rounded-2xl font-black uppercase tracking-wide transition-colors bg-red-800 hover:bg-red-700 text-white"
+                >
+                  Get My Free Quote <ArrowRightIcon className="w-4 h-4" />
+                </Link>
+              ) : (
+                <span
+                  aria-disabled="true"
+                  className="inline-flex items-center gap-2 px-6 py-4 rounded-2xl font-black uppercase tracking-wide bg-stone-100 text-stone-400"
+                >
+                  Get My Free Quote <ArrowRightIcon className="w-4 h-4" />
+                </span>
+              )}
             </div>
           </div>
         </div>

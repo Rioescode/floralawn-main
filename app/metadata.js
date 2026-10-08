@@ -10,14 +10,6 @@ export const metadata = {
   openGraph: {
     title: 'Lawn Care, Mulch & Cleanup in RI & MA | Flora Lawn',
     description: 'Mowing, dethatch, spring and fall cleanup, mulch, hedge trimming, and aeration for Rhode Island and Massachusetts homes. Free quote in 1 to 6 hours.',
-    images: [
-      {
-        url: `${baseUrl}/images/2024-09-18.jpg`,
-        width: 1200,
-        height: 630,
-        alt: 'Professional lawn care service by Flora Lawn and Landscaping Inc'
-      }
-    ],
     url: baseUrl,
     locale: 'en_US',
     type: 'website',
@@ -27,7 +19,6 @@ export const metadata = {
     card: 'summary_large_image',
     title: 'Lawn Care, Mulch & Cleanup in RI & MA | Flora Lawn',
     description: 'Free quote for lawn mowing, dethatch, cleanup, mulch, and hedge trimming in Rhode Island and Massachusetts.',
-    images: [`${baseUrl}/images/2024-09-18.jpg`],
   },
   alternates: {
     canonical: baseUrl

@@ -123,7 +123,7 @@ export default function CustomerDashboard() {
 
       const { data: previewRows } = await supabase
         .from('customers')
-        .select('id, name, email, phone, address, service_type, next_service, status')
+        .select('id, name, email, phone, address, service_type, next_service, last_service, frequency, status')
         .order('name')
         .limit(80);
       if (previewRows) setPreviewCustomers(previewRows);
@@ -328,7 +328,7 @@ export default function CustomerDashboard() {
     if (row.email) {
       const { data } = await supabase
         .from('customers')
-        .select('id, name, email, phone, address, service_type, next_service, status')
+        .select('id, name, email, phone, address, service_type, next_service, last_service, frequency, status')
         .eq('email', row.email);
       if (data?.length) rows = data;
     }

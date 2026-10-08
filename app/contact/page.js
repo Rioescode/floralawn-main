@@ -29,6 +29,81 @@ import {
   DocumentPlusIcon
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarIconSolid, CheckBadgeIcon } from '@heroicons/react/24/solid';
+import ServiceToggleGrid from "@/components/ServiceToggleGrid";
+import CleanupYard from "@/components/CleanupYard";
+import YardSeasonScene from "@/components/YardSeasonScene";
+import { CONTACT_SERVICES, resolveServiceList, serviceDisplayName } from "@/data/quote-services";
+
+const CLEANUP_TASKS = [
+  { id: 'lawn', label: 'Leaves on the lawn' },
+  { id: 'beds', label: 'Garden beds' },
+  { id: 'branches', label: 'Fallen branches' },
+  { id: 'haul', label: 'Haul it away' },
+];
+const CLEANUP_SCOPES = [
+  { id: 'front', label: 'Front yard' },
+  { id: 'back', label: 'Back yard' },
+  { id: 'whole', label: 'Whole property' },
+];
+const CLEANUP_SIZES = [
+  { id: 'small', label: 'Small' },
+  { id: 'medium', label: 'Medium' },
+  { id: 'large', label: 'Large' },
+];
+const CLEANUP_TIMING = [
+  { id: 'this-week', label: 'This week' },
+  { id: 'next-week', label: 'Next week' },
+  { id: 'flexible', label: 'Flexible' },
+];
+const MOW_OPTIONS = [
+  { id: 'weekly', label: 'Weekly' },
+  { id: 'biweekly', label: 'Every 2 weeks' },
+  { id: 'once', label: 'One time' },
+];
+const LAST_CUT_OPTIONS = [
+  { id: 'this-week', label: 'This week', days: 1 },
+  { id: 'last-week', label: 'Last week', days: 10 },
+  { id: 'few-weeks', label: '2–3 weeks ago', days: 27 },
+  { id: 'month', label: 'Over a month', days: 48 },
+  { id: 'unsure', label: 'Not sure', days: null },
+];
+const HEDGE_OPTIONS = [
+  { id: 'few', label: 'A few bushes' },
+  { id: 'line', label: 'A full line' },
+  { id: 'unsure', label: 'Not sure' },
+];
+const SNOW_OPTIONS = [
+  { id: 'driveway', label: 'Driveway' },
+  { id: 'walk', label: 'Driveway and walk' },
+  { id: 'steps', label: 'Driveway, walk, and steps' },
+];
+const LAWN_SIZE_SERVICES = ['Lawn Dethatching', 'Lawn Aeration', 'Overseeding', 'Lawn Fertilization', 'Weed Control'];
+
+function ChoiceRow({ label, value, options, onChange }) {
+  return (
+    <div>
+      <p className="text-sm font-semibold text-slate-700 mb-2">{label}</p>
+      <div className="flex flex-wrap gap-2">
+        {options.map((option) => {
+          const on = value === option.id;
+          return (
+            <button
+              key={option.id}
+              type="button"
+              aria-pressed={on}
+              onClick={() => onChange(option.id)}
+              className={`px-4 py-2.5 rounded-full border-2 text-sm font-bold transition-colors ${
+                on ? 'border-red-800 bg-red-50 text-stone-900' : 'border-stone-300 bg-white text-stone-900 hover:border-stone-400'
+              }`}
+            >
+              {option.label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 function ContactForm() {
   const [formData, setFormData] = useState({
@@ -38,7 +113,17 @@ function ContactForm() {
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
   const [cleanupAssessment, setCleanupAssessment] = useState({
     lastCleaned: '',
-    conditionLevel: 3
+    conditionLevel: 3,
+    tasks: ['lawn', 'haul'],
+    scope: 'whole',
+    size: 'medium',
+    timing: 'flexible',
+  });
+  const [jobDetails, setJobDetails] = useState({
+    mow: 'weekly',
+    lastCut: 'last-week',
+    hedge: 'line',
+    snow: 'driveway',
   });
   const [mulchAssessment, setMulchAssessment] = useState({
     yardsUsedBefore: '',
@@ -57,7 +142,9 @@ function ContactForm() {
   const [showMessageHelper, setShowMessageHelper] = useState(true);
   const [referralCode, setReferralCode] = useState('');
   const [selectedPackage, setSelectedPackage] = useState(null);
+  const [pickedServices, setPickedServices] = useState([]);
   const [accountUser, setAccountUser] = useState(null);
+  const [prefilledFromAccount, setPrefilledFromAccount] = useState(false);
   
   // Media Upload State
   const [mediaFiles, setMediaFiles] = useState([]);
@@ -76,17 +163,11 @@ function ContactForm() {
     const ref = searchParams.get('ref');
     const promo = searchParams.get('promo');
     if (location) setFormData(prev => ({ ...prev, city: location }));
-    if (service) { 
-      // Handle the 'id' passed from offers page
-      const serviceMap = {
-        'spring-dethatch': 'Spring Cleanup',
-        'first-cut-special': 'Lawn Mowing',
-        'prepay-unlock': 'Lawn Mowing',
-        'honor-service': 'Lawn Mowing',
-        'referral-credit': 'Other'
-      };
-      setFormData(prev => ({ ...prev, service: serviceMap[service] || service })); 
-      setShowMessageHelper(true); 
+    const picked = resolveServiceList(service, searchParams.get('services'));
+    if (picked.length) {
+      setPickedServices(picked);
+      setFormData(prev => ({ ...prev, service: picked[0] }));
+      setShowMessageHelper(true);
     }
     if (ref) setReferralCode(ref.toUpperCase());
     if (promo) setFormData(prev => ({ ...prev, promoCode: promo.toUpperCase() }));
@@ -284,8 +365,17 @@ function ContactForm() {
     setMediaPreviews(updatedPreviews);
   };
 
-  const isCleanupService = ['Spring Cleanup', 'Fall Cleanup'].includes(formData.service);
-  const isMulchService = formData.service === 'Mulching';
+  const isCleanupService = pickedServices.some((service) => service === 'Spring Cleanup' || service === 'Fall Cleanup' || service === 'Leaf Removal');
+  const isMulchService = pickedServices.includes('Mulching');
+  const needsMow = pickedServices.includes('Lawn Mowing');
+  const lastCutDays = LAST_CUT_OPTIONS.find((item) => item.id === jobDetails.lastCut)?.days ?? null;
+  const lastCutDate = lastCutDays === null
+    ? null
+    : new Date(Date.now() - lastCutDays * 86400000).toLocaleDateString('en-CA');
+  const needsLawnSize = pickedServices.some((service) => LAWN_SIZE_SERVICES.includes(service));
+  const needsHedge = pickedServices.includes('Hedge Trimming');
+  const needsSnow = pickedServices.includes('Snow Removal');
+  const showJobDetails = needsMow || needsLawnSize || needsHedge || needsSnow;
 
   const conditionLabels = [
     { level: 1, label: 'Light', desc: 'Minimal debris, mostly maintained', color: 'text-green-600', bg: 'bg-green-50 border-green-300' },
@@ -295,9 +385,33 @@ function ContactForm() {
     { level: 5, label: 'Severe', desc: 'Neglected for a season+, full restoration', color: 'text-red-600', bg: 'bg-red-50 border-red-300' },
   ];
   const currentCondition = conditionLabels[cleanupAssessment.conditionLevel - 1];
+  const cleanupTaskNames = CLEANUP_TASKS.filter((task) => cleanupAssessment.tasks.includes(task.id)).map((task) => task.label);
+  const cleanupScopeLabel = CLEANUP_SCOPES.find((item) => item.id === cleanupAssessment.scope)?.label || 'Whole property';
+  const cleanupTimingLabel = CLEANUP_TIMING.find((item) => item.id === cleanupAssessment.timing)?.label || 'Flexible';
+  const cleanupSizeLabel = CLEANUP_SIZES.find((item) => item.id === cleanupAssessment.size)?.label || 'Medium';
+  const cleanupSummary = `${cleanupSizeLabel} yard, ${cleanupScopeLabel.toLowerCase()}. ${cleanupTaskNames.length ? cleanupTaskNames.join(', ') : 'No tasks picked'}. Leaf cover: ${currentCondition.label.toLowerCase()}. Timing: ${cleanupTimingLabel}.${cleanupAssessment.lastCleaned ? ` Last cleaned: ${cleanupAssessment.lastCleaned}.` : ''}`;
+
+  const toggleCleanupTask = (id) => {
+    setCleanupAssessment((prev) => ({
+      ...prev,
+      tasks: prev.tasks.includes(id) ? prev.tasks.filter((task) => task !== id) : [...prev.tasks, id],
+    }));
+  };
+
+  const toggleService = (form) => {
+    setPickedServices((prev) => {
+      const next = prev.includes(form) ? prev.filter((item) => item !== form) : [...prev, form];
+      setFormData((current) => ({ ...current, service: next[0] || '' }));
+      return next;
+    });
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!pickedServices.length) {
+      setStatus({ type: 'error', message: 'Select at least one service.' });
+      return;
+    }
     setIsSubmitting(true);
     setSubmissionStep('Verifying Data...');
     try {
@@ -307,7 +421,15 @@ function ContactForm() {
       // Build assessment context
       let cleanupContext = '';
       if (isCleanupService) {
-        cleanupContext = `[CLEANUP ASSESSMENT]\nLast Cleaned: ${cleanupAssessment.lastCleaned || 'Not specified'}\nCondition Level: ${cleanupAssessment.conditionLevel}/5 — ${currentCondition.label} (${currentCondition.desc})\n\n`;
+        cleanupContext = [
+          '[CLEANUP ASSESSMENT]',
+          `Yard size: ${cleanupSizeLabel}`,
+          `Area: ${cleanupScopeLabel}`,
+          `Tasks: ${cleanupTaskNames.length ? cleanupTaskNames.join(', ') : 'None picked'}`,
+          `Leaf cover: ${cleanupAssessment.conditionLevel}/5, ${currentCondition.label} (${currentCondition.desc})`,
+          `Timing: ${cleanupTimingLabel}`,
+          `Last cleaned: ${cleanupAssessment.lastCleaned || 'Not sure'}`,
+        ].join('\n') + '\n\n';
       }
 
       let mulchContext = '';
@@ -319,6 +441,16 @@ function ContactForm() {
           `Edging measurement: ${mulchAssessment.edgingMeasurement || (mulchAssessment.knowsEdgingMeasurement === 'no' ? 'Will provide photo' : 'Not specified')}\n\n`;
       }
 
+      const jobLines = [];
+      if (needsMow) jobLines.push(`Mowing: ${MOW_OPTIONS.find((item) => item.id === jobDetails.mow)?.label}`);
+      if (needsMow) jobLines.push(`Last cut: ${LAST_CUT_OPTIONS.find((item) => item.id === jobDetails.lastCut)?.label}`);
+      if ((needsMow || needsLawnSize) && !isCleanupService) jobLines.push(`Yard size: ${CLEANUP_SIZES.find((item) => item.id === cleanupAssessment.size)?.label}`);
+      if (needsHedge) jobLines.push(`Hedges: ${HEDGE_OPTIONS.find((item) => item.id === jobDetails.hedge)?.label}`);
+      if (needsSnow) jobLines.push(`Snow: ${SNOW_OPTIONS.find((item) => item.id === jobDetails.snow)?.label}`);
+      const jobContext = jobLines.length ? `[JOB DETAILS]\n${jobLines.join('\n')}\n\n` : '';
+
+      const selectedNames = pickedServices.map(serviceDisplayName);
+      const servicesLine = selectedNames.length ? `Services: ${selectedNames.join(', ')}\n\n` : '';
       const packageContext = selectedPackage
         ? `[PACKAGE: ${selectedPackage.name}]${selectedPackage.services.length ? `\nIncludes: ${selectedPackage.services.join(', ')}` : ''}\n\n`
         : '';
@@ -329,7 +461,7 @@ function ContactForm() {
         user_phone: formData.phone,
         user_address: `${formData.address}${formData.state ? `, ${formData.state}` : ''}${formData.zipCode ? ` ${formData.zipCode}` : ''}`,
         service_type: formData.service.toLowerCase().replace(/\s+/g, '_'),
-        message: `[PREFERS: ${estimatePreference === 'meet_person' ? 'Meet In Person' : 'Walk Around & Email Pricing'}]\n\n` + packageContext + cleanupContext + mulchContext + formData.message,
+        message: `[PREFERS: ${estimatePreference === 'meet_person' ? 'Meet In Person' : 'Walk Around & Email Pricing'}]\n\n` + servicesLine + jobContext + packageContext + cleanupContext + mulchContext + formData.message,
         to_name: process.env.NEXT_PUBLIC_APP_NAME,
         reply_to: formData.email,
         promo_code: formData.promoCode || 'NONE',
@@ -386,7 +518,7 @@ function ContactForm() {
             state: formData.state,
             zipCode: formData.zipCode,
             service: formData.service,
-            message: packageContext + formData.message,
+            message: servicesLine + jobContext + packageContext + cleanupContext + mulchContext + (formData.message.trim() ? `[MESSAGE]\n${formData.message.trim()}` : ''),
             packageName: selectedPackage?.name || null,
             packageServices: selectedPackage?.services || [],
             sendSMS: smsPreferences.subscribe,
@@ -397,7 +529,7 @@ function ContactForm() {
               lastCleaned: cleanupAssessment.lastCleaned || 'Not specified',
               conditionLevel: cleanupAssessment.conditionLevel,
               conditionLabel: currentCondition.label,
-              conditionDesc: currentCondition.desc
+              conditionDesc: cleanupSummary
             } : null,
             promoCode: formData.promoCode || null,
             estimatePreference: estimatePreference,
@@ -441,6 +573,7 @@ function ContactForm() {
         setSubmissionStep('Success!');
         // Clear form
         setFormData({ name: '', email: '', phone: '', address: '', city: '', state: '', zipCode: '', service: '', message: '', promoCode: '', preferredMeetingDate: '' });
+        setPickedServices([]);
         setSelectedPackage(null);
         
         // Smooth scroll to success message
@@ -495,6 +628,37 @@ function ContactForm() {
     });
     return () => subscription.unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (!accountUser?.id) {
+      setPrefilledFromAccount(false);
+      return undefined;
+    }
+    let cancelled = false;
+    const fill = (row) => {
+      if (cancelled) return;
+      const meta = accountUser.user_metadata || {};
+      const phone = row?.phone && row.phone !== 'Not provided' ? row.phone : '';
+      setFormData((prev) => ({
+        ...prev,
+        name: prev.name || row?.name || meta.full_name || '',
+        email: prev.email || accountUser.email || row?.email || '',
+        phone: prev.phone || phone,
+        address: prev.address || row?.address || '',
+      }));
+      if (meta.yard_size) setCleanupAssessment((prev) => ({ ...prev, size: meta.yard_size }));
+      setPrefilledFromAccount(true);
+    };
+    supabase
+      .from('customers')
+      .select('name, email, phone, address')
+      .eq('user_id', accountUser.id)
+      .limit(1)
+      .then(({ data }) => fill(data?.[0]));
+    return () => {
+      cancelled = true;
+    };
+  }, [accountUser?.id]);
 
   return (
     <div className="min-h-screen bg-white text-slate-900 overflow-x-hidden">
@@ -626,6 +790,16 @@ function ContactForm() {
                   <div className="bg-white p-6 md:p-20 rounded-[2.5rem] md:rounded-[4rem] shadow-2xl border border-slate-50 relative">
                      
                       <form onSubmit={handleSubmit} className="space-y-8">
+                        {prefilledFromAccount && (
+                          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border-2 border-green-200 bg-green-50 px-5 py-4">
+                            <p className="text-sm font-semibold text-green-900">
+                              Welcome back{formData.name ? `, ${formData.name.split(' ')[0]}` : ''}. We filled in your saved details. Change anything that is different for this job.
+                            </p>
+                            <Link href="/customer/dashboard" className="text-sm font-bold text-green-900 underline underline-offset-4">
+                              Your yard
+                            </Link>
+                          </div>
+                        )}
                         {/* PERSONAL INFO */}
                         <div className="grid md:grid-cols-2 gap-8">
                            <div>
@@ -739,30 +913,66 @@ function ContactForm() {
                            </div>
                         )}
 
-                        {/* SERVICE SELECTION */}
                         <div>
-                           <label className="text-[10px] font-black italic text-slate-500 uppercase tracking-widest mb-3 block">Service Required *</label>
-                           <select required name="service" value={formData.service} onChange={handleChange} className="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl px-8 py-5 text-slate-900 focus:outline-none focus:border-green-500 transition-all font-bold">
-                              <option value="">Select Service...</option>
-                              <optgroup label="Lawn Care">
-                                 <option value="Lawn Mowing">Lawn Mowing</option>
-                                 <option value="Lawn Fertilization">Lawn Fertilization</option>
-                                 <option value="Weed Control">Weed Control</option>
-                                 <option value="Lawn Aeration">Lawn Aeration</option>
-                                 <option value="Overseeding">Overseeding</option>
-                                 <option value="Lawn Dethatching">Lawn Dethatching</option>
-                              </optgroup>
-                              <optgroup label="Landscaping">
-                                 <option value="Mulching">Mulching</option>
-                                 <option value="Hedge Trimming">Hedge Trimming</option>
-                                 <option value="Spring Cleanup">Spring Cleanup</option>
-                                 <option value="Fall Cleanup">Fall Cleanup</option>
-                                 <option value="Leaf Removal">Leaf Removal</option>
-                              </optgroup>
-                              <option value="Snow Removal">Snow Removal</option>
-                              <option value="Other">Other / Property Maintenance</option>
-                           </select>
+                           <div className="flex items-end justify-between gap-3 mb-3">
+                              <label className="text-sm font-semibold text-slate-600">Services</label>
+                              <p className="text-sm font-bold text-red-800">{pickedServices.length} {pickedServices.length === 1 ? 'service' : 'services'} selected</p>
+                           </div>
+                           <ServiceToggleGrid services={CONTACT_SERVICES} selected={pickedServices} onToggle={toggleService} />
+                           <input type="hidden" name="service" value={formData.service} />
                         </div>
+
+                        {showJobDetails && (
+                          <div className="rounded-[2rem] border-2 border-stone-200 bg-stone-50 p-5 sm:p-6 space-y-5">
+                            <div>
+                              <p className="text-sm font-semibold text-slate-500">For the services you picked</p>
+                              <p className="mt-1 text-lg font-bold text-slate-900">One detail each, so the price is closer</p>
+                            </div>
+                            {(needsMow || needsLawnSize) && (
+                              <div className="rounded-2xl border border-stone-200 bg-white p-3">
+                                <p className="mb-2 text-sm font-semibold text-slate-700">Pick the yard size that looks closest to yours</p>
+                                <YardSeasonScene
+                                  lastService={needsMow ? lastCutDate : null}
+                                  frequency="monthly"
+                                  size={cleanupAssessment.size}
+                                  onSizeChange={(size) => setCleanupAssessment((prev) => ({ ...prev, size }))}
+                                />
+                              </div>
+                            )}
+                            {needsMow && (
+                              <ChoiceRow
+                                label="When was it last cut?"
+                                value={jobDetails.lastCut}
+                                options={LAST_CUT_OPTIONS}
+                                onChange={(lastCut) => setJobDetails((prev) => ({ ...prev, lastCut }))}
+                              />
+                            )}
+                            {needsMow && (
+                              <ChoiceRow
+                                label="How often should we mow?"
+                                value={jobDetails.mow}
+                                options={MOW_OPTIONS}
+                                onChange={(mow) => setJobDetails((prev) => ({ ...prev, mow }))}
+                              />
+                            )}
+                            {needsHedge && (
+                              <ChoiceRow
+                                label="How much hedge?"
+                                value={jobDetails.hedge}
+                                options={HEDGE_OPTIONS}
+                                onChange={(hedge) => setJobDetails((prev) => ({ ...prev, hedge }))}
+                              />
+                            )}
+                            {needsSnow && (
+                              <ChoiceRow
+                                label="What should we clear of snow?"
+                                value={jobDetails.snow}
+                                options={SNOW_OPTIONS}
+                                onChange={(snow) => setJobDetails((prev) => ({ ...prev, snow }))}
+                              />
+                            )}
+                          </div>
+                        )}
 
                         {/* PROMO CODE OPTIONAL */}
                         <div>
@@ -785,27 +995,9 @@ function ContactForm() {
                            />
                         </div>
 
-                        {/* CLEANUP ASSESSMENT PANEL — Spring / Fall only */}
                         {isCleanupService && (
-                           <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 to-slate-800 border-2 border-green-500/30 rounded-[2.5rem] p-8 space-y-7 animate-in fade-in slide-in-from-top-4 duration-500">
-
-                             {/* Animated leaf background */}
-                             <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-[2.5rem]">
-                               {['🍂','🍃','🍁','🍂','🍃'].map((leaf, i) => (
-                                 <span key={i} className="absolute text-2xl opacity-10" style={{
-                                   left: `${10 + i * 20}%`,
-                                   top: '-10%',
-                                   animation: `leafFall ${3 + i * 0.7}s ease-in ${i * 0.4}s infinite`,
-                                 }}>{leaf}</span>
-                               ))}
-                             </div>
-
+                           <div className="bg-slate-900 border-2 border-green-500/30 rounded-[2rem] p-6 sm:p-8 space-y-6">
                              <style>{`
-                               @keyframes leafFall {
-                                 0%   { transform: translateY(0) rotate(0deg);   opacity: 0.08; }
-                                 50%  { transform: translateY(180px) rotate(180deg) translateX(20px); opacity: 0.15; }
-                                 100% { transform: translateY(380px) rotate(360deg) translateX(-10px); opacity: 0; }
-                               }
                                .cleanup-slider::-webkit-slider-thumb {
                                  appearance: none; width: 24px; height: 24px;
                                  border-radius: 50%; background: #22c55e;
@@ -818,88 +1010,140 @@ function ContactForm() {
                                  border: 3px solid white;
                                }
                              `}</style>
-
-                             {/* Header */}
-                             <div className="relative flex items-center gap-4">
-                               <div className="w-14 h-14 bg-green-500/20 border border-green-500/30 rounded-2xl flex items-center justify-center text-2xl shrink-0" style={{animation:'bounce 2s infinite'}}>🍂</div>
-                               <div>
-                                 <p className="text-[10px] font-black uppercase tracking-widest text-green-400">Instant Online Estimate</p>
-                                 <p className="font-black italic text-white text-lg leading-tight">Cleanup Assessment</p>
-                               </div>
-                               <span className="ml-auto bg-green-500 text-white text-[8px] font-black uppercase tracking-[0.2em] px-3 py-1.5 rounded-full shadow-lg shadow-green-500/30">Quick Quote</span>
+                             <div>
+                               <p className="text-sm font-semibold text-green-300">Cleanup details</p>
+                               <p className="mt-1 text-xl font-bold text-white">What should we clear?</p>
+                               <p className="mt-2 text-sm text-slate-300">These answers are what we use to price the visit. We confirm the number before any work.</p>
                              </div>
 
-                             {/* Q1: Last cleaned */}
-                             <div className="relative">
-                               <label className="text-[10px] font-black italic text-slate-400 uppercase tracking-widest mb-3 block">
-                                 📅 When was the property last cleaned?
-                               </label>
+                             <CleanupYard
+                               tasks={cleanupAssessment.tasks}
+                               scope={cleanupAssessment.scope}
+                               cover={cleanupAssessment.conditionLevel}
+                               size={cleanupAssessment.size}
+                             />
+
+                             <div>
+                               <p className="text-sm font-semibold text-slate-300 mb-2">How big is the yard?</p>
+                               <div className="grid grid-cols-3 gap-2">
+                                 {CLEANUP_SIZES.map((item) => {
+                                   const on = cleanupAssessment.size === item.id;
+                                   return (
+                                     <button
+                                       key={item.id}
+                                       type="button"
+                                       aria-pressed={on}
+                                       onClick={() => setCleanupAssessment((prev) => ({ ...prev, size: item.id }))}
+                                       className={`px-3 py-3 rounded-2xl border-2 text-sm font-bold transition-colors ${on ? 'border-white bg-white text-slate-900' : 'border-white/25 text-white hover:border-white/50'}`}
+                                     >
+                                       {item.label}
+                                     </button>
+                                   );
+                                 })}
+                               </div>
+                             </div>
+
+                             <div className="flex flex-wrap gap-2">
+                               {CLEANUP_TASKS.map((task) => {
+                                 const on = cleanupAssessment.tasks.includes(task.id);
+                                 return (
+                                   <button
+                                     key={task.id}
+                                     type="button"
+                                     aria-pressed={on}
+                                     onClick={() => toggleCleanupTask(task.id)}
+                                     className={`px-4 py-2.5 rounded-full border-2 text-sm font-bold transition-colors ${on ? 'border-white bg-white text-slate-900' : 'border-white/25 text-white hover:border-white/50'}`}
+                                   >
+                                     {task.label}
+                                   </button>
+                                 );
+                               })}
+                             </div>
+
+                             <div>
+                               <p className="text-sm font-semibold text-slate-300 mb-2">How much of the property?</p>
+                               <div className="grid grid-cols-3 gap-2">
+                                 {CLEANUP_SCOPES.map((item) => {
+                                   const on = cleanupAssessment.scope === item.id;
+                                   return (
+                                     <button
+                                       key={item.id}
+                                       type="button"
+                                       aria-pressed={on}
+                                       onClick={() => setCleanupAssessment((prev) => ({ ...prev, scope: item.id }))}
+                                       className={`px-3 py-3 rounded-2xl border-2 text-sm font-bold transition-colors ${on ? 'border-white bg-white text-slate-900' : 'border-white/25 text-white hover:border-white/50'}`}
+                                     >
+                                       {item.label}
+                                     </button>
+                                   );
+                                 })}
+                               </div>
+                             </div>
+
+                             <div>
+                               <p className="text-sm font-semibold text-slate-300 mb-2">When do you want it done?</p>
+                               <div className="grid grid-cols-3 gap-2">
+                                 {CLEANUP_TIMING.map((item) => {
+                                   const on = cleanupAssessment.timing === item.id;
+                                   return (
+                                     <button
+                                       key={item.id}
+                                       type="button"
+                                       aria-pressed={on}
+                                       onClick={() => setCleanupAssessment((prev) => ({ ...prev, timing: item.id }))}
+                                       className={`px-3 py-3 rounded-2xl border-2 text-sm font-bold transition-colors ${on ? 'border-white bg-white text-slate-900' : 'border-white/25 text-white hover:border-white/50'}`}
+                                     >
+                                       {item.label}
+                                     </button>
+                                   );
+                                 })}
+                               </div>
+                             </div>
+
+                             <div>
+                               <label className="text-sm font-semibold text-slate-300 mb-2 block" htmlFor="last-cleaned">When was it last cleaned?</label>
                                <select
+                                 id="last-cleaned"
                                  value={cleanupAssessment.lastCleaned}
-                                 onChange={e => setCleanupAssessment(p => ({ ...p, lastCleaned: e.target.value }))}
-                                 className="w-full bg-slate-800 border-2 border-slate-600 rounded-2xl px-6 py-4 text-white focus:outline-none focus:border-green-500 transition-all font-bold"
+                                 onChange={(e) => setCleanupAssessment((prev) => ({ ...prev, lastCleaned: e.target.value }))}
+                                 className="w-full bg-slate-800 border-2 border-slate-600 rounded-2xl px-5 py-4 text-white focus:outline-none focus:border-green-500 font-semibold"
                                >
-                                 <option value="">Select timeframe...</option>
-                                 <option value="Last Spring">Last Spring</option>
-                                 <option value="Last Fall">Last Fall</option>
-                                 <option value="Last Season">Last Season</option>
-                                 <option value="Within the last month">Within the last month</option>
-                                 <option value="1–3 months ago">1–3 months ago</option>
+                                 <option value="">Not sure</option>
+                                 <option value="This season">This season</option>
+                                 <option value="Last season">Last season</option>
                                  <option value="Over a year ago">Over a year ago</option>
-                                 <option value="Never / Not sure">Never / Not sure</option>
+                                 <option value="Never">Never</option>
                                </select>
                              </div>
 
-                             {/* Q2: Condition slider */}
-                             <div className="relative">
-                               <div className="flex items-center justify-between mb-4">
-                                 <label className="text-[10px] font-black italic text-slate-400 uppercase tracking-widest">
-                                   🌿 How bad is the current condition?
-                                 </label>
-                                 <span className={`text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full border ${currentCondition.bg} ${currentCondition.color}`}>
-                                   {cleanupAssessment.conditionLevel}/5 · {currentCondition.label}
+                             <div>
+                               <div className="flex items-center justify-between mb-3">
+                                 <label className="text-sm font-semibold text-slate-300" htmlFor="leaf-cover">How much leaf cover?</label>
+                                 <span className={`text-xs font-bold px-3 py-1.5 rounded-full border ${currentCondition.bg} ${currentCondition.color}`}>
+                                   {currentCondition.label}
                                  </span>
                                </div>
-
-                               {/* Track labels */}
-                               <div className="flex justify-between text-[9px] font-black uppercase tracking-widest text-slate-500 mb-2 px-1">
-                                 <span className="text-green-400">Light</span>
-                                 <span>Moderate</span>
-                                 <span>Heavy</span>
-                                 <span>Overgrown</span>
-                                 <span className="text-red-400">Severe</span>
-                               </div>
-
-                               {/* Range slider */}
                                <input
+                                 id="leaf-cover"
                                  type="range"
-                                 min="1" max="5" step="1"
+                                 min="1"
+                                 max="5"
+                                 step="1"
                                  value={cleanupAssessment.conditionLevel}
-                                 onChange={e => setCleanupAssessment(p => ({ ...p, conditionLevel: Number(e.target.value) }))}
+                                 onChange={(e) => setCleanupAssessment((prev) => ({ ...prev, conditionLevel: Number(e.target.value) }))}
                                  className="cleanup-slider w-full h-2 rounded-full appearance-none cursor-pointer"
                                  style={{
-                                   background: `linear-gradient(to right, #22c55e ${(cleanupAssessment.conditionLevel-1)*25}%, #334155 ${(cleanupAssessment.conditionLevel-1)*25}%)`
+                                   background: `linear-gradient(to right, #22c55e ${(cleanupAssessment.conditionLevel - 1) * 25}%, #334155 ${(cleanupAssessment.conditionLevel - 1) * 25}%)`
                                  }}
                                />
+                               <p className="mt-3 text-sm text-slate-300">{currentCondition.desc}</p>
+                             </div>
 
-                               {/* Live condition card */}
-                               <div className={`mt-4 p-4 rounded-2xl border-2 flex items-center gap-4 transition-all duration-300 ${currentCondition.bg}`}>
-                                 <span className="text-3xl" style={{animation: cleanupAssessment.conditionLevel >= 4 ? 'bounce 1s infinite' : 'none'}}>
-                                   {['🌿','🍃','🍂','🌾','🪵'][cleanupAssessment.conditionLevel - 1]}
-                                 </span>
-                                 <div>
-                                   <p className={`text-sm font-black uppercase tracking-widest ${currentCondition.color}`}>{currentCondition.label} Condition</p>
-                                   <p className="text-[12px] text-slate-600 font-semibold mt-0.5">{currentCondition.desc}</p>
-                                  </div>
-                                  <div className="ml-auto flex gap-1">
-                                    {[1,2,3,4,5].map(i => (
-                                      <div key={i} className={`w-2 h-6 rounded-full transition-all ${i <= cleanupAssessment.conditionLevel ? currentCondition.color.replace('text-','bg-') : 'bg-slate-200'}`} />
-                                    ))}
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                         )}
+                             <p className="rounded-2xl bg-white/10 px-4 py-3 text-sm font-semibold text-white">
+                               We&apos;ll quote: {cleanupSummary}
+                             </p>
+                           </div>
+                        )}
 
                          {/* MULCH & EDGING ASSESSMENT PANEL */}
                          {isMulchService && (

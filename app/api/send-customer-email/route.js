@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { sendEmail } from '@/libs/resend';
+import { emailLayout, signature } from '@/libs/email-template';
 
 export async function POST(request) {
   try {
@@ -18,32 +19,10 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Email, subject, and message are required' }, { status: 400 });
     }
 
-    const emailHtml = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #1f2937;">
-        <div style="padding: 20px 0;">
-          ${message.replace(/\n/g, '<br/>')}
-        </div>
-        <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
-        <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="width: 100%; max-width: 540px; margin: 20px auto 0;">
-          <tr>
-            <td style="padding: 0; vertical-align: middle; padding-right: 16px; border-right: 1px solid #e5e7eb; width: 68px;">
-              <img src="https://floralawn-and-landscaping.com/flora-logo-final.png" alt="Flora Lawn" style="width: 64px; height: 64px; object-fit: contain; display: block;">
-            </td>
-            <td style="padding: 0; vertical-align: middle; padding-left: 16px;">
-              <p style="margin: 0; font-size: 15px; font-weight: 800; color: #0f172a; line-height: 1.3;">Rafael Escobar</p>
-              <p style="margin: 0; font-size: 12px; font-weight: 600; color: #22C55E; text-transform: uppercase; letter-spacing: 0.05em;">Owner &middot; Flora Lawn &amp; Landscaping Inc</p>
-              <div style="height: 8px;"></div>
-              <p style="margin: 0; font-size: 12px; color: #475569; line-height: 1.8;">
-                📞 <a href="tel:4013890913" style="color: #475569; text-decoration: none;">(401) 389-0913</a><br>
-                📧 <a href="mailto:floralawncareri@gmail.com" style="color: #475569; text-decoration: none;">floralawncareri@gmail.com</a><br>
-                🌐 <a href="https://floralawn-and-landscaping.com" style="color: #22C55E; text-decoration: none;">floralawn-and-landscaping.com</a><br>
-                📍 45 Vernon St, Pawtucket, RI 02860
-              </p>
-            </td>
-          </tr>
-        </table>
-      </div>
-    `;
+    const emailHtml = emailLayout({
+      preheader: message.replace(/<[^>]+>/g, '').slice(0, 120),
+      body: `<div style="font-size:15px;line-height:1.7;">${message.replace(/\n/g, '<br/>')}</div>${signature()}`,
+    });
 
     await sendEmail({
       to: email,

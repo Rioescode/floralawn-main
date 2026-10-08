@@ -168,10 +168,6 @@ progress::-webkit-progress-value {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .leaf-season-wiggle,
-  .leaf-season-flutter {
-    animation: none;
-  }
   .leaf-promo-marquee {
     animation-duration: 70s;
   }

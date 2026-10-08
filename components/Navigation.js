@@ -74,7 +74,6 @@ export default function Navigation() {
     { name: 'Gallery', href: '/gallery', icon: PhotoIcon },
     { name: 'Offers', href: '/offers', icon: StarIconSolid },
     { name: 'Reviews', href: '/reviews', icon: StarIconSolid },
-    { name: 'Neighborhood Check', href: '/density-check', icon: MapPinIcon },
     { name: 'Contact', href: '/contact', icon: PhoneIcon },
   ];
 

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { sendEmail } from '@/libs/resend';
+import { emailLayout, heading, textBlock, signature } from '@/libs/email-template';
 
 export async function POST(request) {
   try {
@@ -12,23 +13,14 @@ export async function POST(request) {
       );
     }
 
-    const emailHtml = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #22C55E;">Hello from Flora Lawn & Landscaping!</h2>
-        <p>Hi ${leadName || 'there'},</p>
-        <div style="background-color: #f0f9ff; padding: 15px; border-radius: 8px; margin: 20px 0; white-space: pre-wrap;">
-          ${message.replace(/\n/g, '<br>')}
-        </div>
-        <p>Thank you for your interest in our services!</p>
-        <p>If you have any questions, please don't hesitate to contact us.</p>
-        <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
-        <p style="color: #6b7280; font-size: 12px;">
-          Flora Lawn & Landscaping Inc<br>
-          Phone: (401) 389-0913<br>
-          Email: floralawncareri@gmail.com
-        </p>
-      </div>
-    `;
+    const emailHtml = emailLayout({
+      preheader: message.slice(0, 120),
+      body: [
+        heading(`Hi ${leadName || 'there'},`),
+        textBlock(message),
+        signature(),
+      ].join(''),
+    });
 
     await sendEmail({
       to,
