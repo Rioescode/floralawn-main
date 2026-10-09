@@ -49,5 +49,12 @@ export function generateSitemapUrls() {
     });
   });
 
+  urls.push({
+    url: `${baseUrl}/east-greenwich-ri/how-much-does-fall-cleanup-cost`,
+    lastModified: new Date().toISOString(),
+    changeFrequency: 'weekly',
+    priority: 0.8
+  });
+
   return urls;
 }
