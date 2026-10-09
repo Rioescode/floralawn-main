@@ -8037,6 +8037,12 @@ function CustomerCard({
                 </button>
               </div>
             )}
+            <button
+              onClick={(e) => { e.stopPropagation(); fetchServiceHistory(customer); }}
+              className="px-3 py-1.5 text-[11px] font-medium text-sky-300 bg-sky-500/10 rounded-lg border border-sky-500/20 hover:bg-sky-500/20 transition-all flex items-center gap-1"
+            >
+              <ClockIcon className="h-3.5 w-3.5" />History{customer.service_count ? ` (${customer.service_count})` : ''}
+            </button>
             {day && !isCompleted && !customer.job_started_at && (
               <button
                 onClick={(e) => { e.stopPropagation(); startJob(customer.id); }}
