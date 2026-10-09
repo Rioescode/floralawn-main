@@ -19,6 +19,8 @@ const QUOTE_SERVICES = [
   'Fall Cleanup',
   'Leaf Removal',
   'Snow Removal',
+  'Junk Removal',
+  'Power Washing',
   'Other',
 ];
 

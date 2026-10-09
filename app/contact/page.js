@@ -32,7 +32,7 @@ import { StarIcon as StarIconSolid, CheckBadgeIcon } from '@heroicons/react/24/s
 import ServiceToggleGrid from "@/components/ServiceToggleGrid";
 import CleanupYard from "@/components/CleanupYard";
 import YardSeasonScene from "@/components/YardSeasonScene";
-import { CONTACT_SERVICES, resolveServiceList, serviceDisplayName } from "@/data/quote-services";
+import { OTHER_SERVICES, YARD_SERVICES, resolveServiceList, serviceDisplayName } from "@/data/quote-services";
 
 const CLEANUP_TASKS = [
   { id: 'lawn', label: 'Leaves on the lawn' },
@@ -918,7 +918,9 @@ function ContactForm() {
                               <label className="text-sm font-semibold text-slate-600">Services</label>
                               <p className="text-sm font-bold text-red-800">{pickedServices.length} {pickedServices.length === 1 ? 'service' : 'services'} selected</p>
                            </div>
-                           <ServiceToggleGrid services={CONTACT_SERVICES} selected={pickedServices} onToggle={toggleService} />
+                           <ServiceToggleGrid services={YARD_SERVICES} selected={pickedServices} onToggle={toggleService} />
+                           <p className="mt-5 mb-3 text-sm font-semibold text-slate-600">Other services</p>
+                           <ServiceToggleGrid services={OTHER_SERVICES} selected={pickedServices} onToggle={toggleService} />
                            <input type="hidden" name="service" value={formData.service} />
                         </div>
 

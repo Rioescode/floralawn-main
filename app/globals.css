@@ -7,6 +7,10 @@ body {
   scroll-behavior: smooth !important;
 }
 
+.service-area-map .gm-style-iw-d {
+  overflow: hidden !important;
+}
+
 /* It makes the HTML progress bar filling smooth when value change. */
 progress::-webkit-progress-value {
   transition: 0.6s width ease-out;

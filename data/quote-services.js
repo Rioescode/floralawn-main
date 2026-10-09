@@ -11,11 +11,18 @@ export const MIX_SERVICES = [
   { name: "Weed Control", form: "Weed Control" },
 ];
 
-export const CONTACT_SERVICES = [
+export const YARD_SERVICES = [
   ...MIX_SERVICES,
   { name: "Fall Cleanup", form: "Fall Cleanup" },
   { name: "Snow Removal", form: "Snow Removal" },
 ];
+
+export const OTHER_SERVICES = [
+  { name: "Junk Removal", form: "Junk Removal" },
+  { name: "Power Washing", form: "Power Washing" },
+];
+
+export const CONTACT_SERVICES = [...YARD_SERVICES, ...OTHER_SERVICES];
 
 const SERVICE_ALIASES = {
   "Core Aeration": "Lawn Aeration",
@@ -24,6 +31,10 @@ const SERVICE_ALIASES = {
   "Weekly Lawn Mowing": "Lawn Mowing",
   "Weekly mowing": "Lawn Mowing",
   "Snow removal": "Snow Removal",
+  "Junk removal": "Junk Removal",
+  "Power Wash": "Power Washing",
+  "Power washing": "Power Washing",
+  "Pressure Washing": "Power Washing",
   "spring-dethatch": "Spring Cleanup",
   "first-cut-special": "Lawn Mowing",
   "prepay-unlock": "Lawn Mowing",
