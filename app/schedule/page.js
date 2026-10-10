@@ -105,6 +105,8 @@ export default function SchedulePage() {
   const [loadingProximity, setLoadingProximity] = useState(false);
   const [loadingHomeBase, setLoadingHomeBase] = useState(false);
   const [showMarkDoneModal, setShowMarkDoneModal] = useState(false);
+  const [skipReview, setSkipReview] = useState(null);
+  const [applyingSkip, setApplyingSkip] = useState(false);
   const [selectedCustomerForDone, setSelectedCustomerForDone] = useState(null);
   const [completionMessage, setCompletionMessage] = useState('');
   const [sendEmail, setSendEmail] = useState(true);
@@ -735,6 +737,40 @@ export default function SchedulePage() {
   const getCurrentDayName = () => {
     const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     return days[new Date().getDay()];
+  };
+
+  const weekLabelForDate = (dateStr) => {
+    const now = new Date(`${dateStr}T12:00:00`);
+    const d = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+    const dayNum = d.getUTCDay() || 7;
+    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    const isoWeek = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+    const mod = isoWeek % 3;
+    if (mod === 1) return 'Week 1';
+    if (mod === 2) return 'Week 2';
+    return 'Week 3';
+  };
+
+  const slotForWorkedDate = (dateStr) => {
+    if (!dateStr) return null;
+    const parsed = new Date(`${dateStr}T12:00:00`);
+    if (Number.isNaN(parsed.getTime())) return null;
+    const names = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const slot = `${names[parsed.getDay()]} ${weekLabelForDate(dateStr)}`;
+    return DAYS_OF_WEEK.includes(slot) ? slot : null;
+  };
+
+  const slotsForCustomer = (scheduledDay, frequency) => {
+    const slots = new Set();
+    if (scheduledDay && DAYS_OF_WEEK.includes(scheduledDay)) slots.add(scheduledDay);
+    if (frequency === 'weekly' && scheduledDay) {
+      ['Week 1', 'Week 2'].forEach((week) => {
+        const other = scheduledDay.replace(/Week \d/, week);
+        if (DAYS_OF_WEEK.includes(other)) slots.add(other);
+      });
+    }
+    return [...slots];
   };
 
   // Land on today's route immediately
@@ -2049,6 +2085,37 @@ export default function SchedulePage() {
     }
   };
 
+  // If the job was done on a different weekday than the card, keep them on the day we actually worked.
+  const relocateCustomerToWorkedDay = async (customer, dateStr) => {
+    const workedDay = slotForWorkedDate(dateStr);
+    if (!workedDay || !customer?.id) return workedDay;
+    if (customer.status === 'confirmed' || customer.day === 'One-time Job') return customer.day || workedDay;
+    if (customer.scheduled_day === workedDay) return workedDay;
+
+    const { error } = await supabase
+      .from('customers')
+      .update({ scheduled_day: workedDay })
+      .eq('id', customer.id);
+    if (error) {
+      console.error('Could not move customer to worked day:', error);
+      return customer.scheduled_day || customer.day;
+    }
+
+    const moved = { ...customer, scheduled_day: workedDay, day: workedDay };
+    setCustomers((prev) => prev.map((c) => (c.id === customer.id ? { ...c, scheduled_day: workedDay } : c)));
+    setSchedule((prev) => {
+      const next = {};
+      Object.keys(prev).forEach((key) => {
+        next[key] = (prev[key] || []).filter((c) => c.id !== customer.id);
+      });
+      slotsForCustomer(workedDay, customer.frequency).forEach((slot) => {
+        next[slot] = [...(next[slot] || []), moved];
+      });
+      return next;
+    });
+    return workedDay;
+  };
+
   // Mark customer as done and send message
   const handleMarkCustomerAsDone = async () => {
     if (!selectedCustomerForDone) return;
@@ -2260,8 +2327,8 @@ export default function SchedulePage() {
         console.error('Error awarding loyalty points:', loyaltyError);
       }
 
-      // Mark as completed in local state
-      toggleCustomerCompletion(customer.day, customer.id);
+      const landedDay = await relocateCustomerToWorkedDay(customer, completionDate);
+      toggleCustomerCompletion(landedDay || customer.day, customer.id);
 
       // Send message if requested
       if (sendEmail || sendSMS) {
@@ -2431,7 +2498,8 @@ export default function SchedulePage() {
         }
       } catch (e) {}
 
-      toggleCustomerCompletion(day, customer.id);
+      const landedDay = await relocateCustomerToWorkedDay(customer, localDate);
+      toggleCustomerCompletion(landedDay || day, customer.id);
       const remainingAfter = getRemainingForDay(day).filter(c => c.id !== customer.id);
       const currentIdx = getRemainingForDay(day).findIndex(c => c.id === customer.id);
       const nextStop = (currentIdx >= 0 ? getRemainingForDay(day)[currentIdx + 1] : null) || remainingAfter[0] || null;
@@ -2442,7 +2510,8 @@ export default function SchedulePage() {
       } catch (e) {}
 
       if (!silent) {
-        setSuccessMessage(`Done — ${localDate}`);
+        const movedNote = landedDay && landedDay !== day ? `. Moved to ${landedDay}` : '';
+        setSuccessMessage(`Done — ${localDate}${movedNote}`);
         setShowSuccessModal(true);
         setTimeout(() => setShowSuccessModal(false), 2000);
       }
@@ -2485,6 +2554,95 @@ export default function SchedulePage() {
       if (failed.length) alert(`Failed: ${failed.join(', ')}`);
     } finally {
       setBulkCompleting(false);
+    }
+  };
+
+  const FILL_PER_DAY = 10;
+  const FILL_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+  const nextWeekLabel = (week) => (
+    week === 'Week 1' ? 'Week 2' : week === 'Week 2' ? 'Week 3' : 'Week 1'
+  );
+
+  const buildSkipPlan = () => {
+    const week = selectedWeek || getCurrentWeek();
+    const next = nextWeekLabel(week);
+    const seen = new Set();
+    const skipped = [];
+
+    [...FILL_DAYS, 'Sunday'].forEach((base) => {
+      const full = `${base} ${week}`;
+      const done = new Set(completedCustomers[full] || []);
+      (schedule[full] || []).forEach((customer) => {
+        if (seen.has(customer.id) || done.has(customer.id)) return;
+        if (customer.maintenance_paused) return;
+        if (customer.status === 'confirmed' || customer.day === 'One-time Job') return;
+        if (!customer.scheduled_day) return;
+        seen.add(customer.id);
+        skipped.push(customer);
+      });
+    });
+
+    const staying = {};
+    FILL_DAYS.forEach((base) => {
+      const full = `${base} ${next}`;
+      const ids = new Set((schedule[full] || []).map((c) => c.id));
+      staying[full] = [...ids].filter((id) => !seen.has(id)).length;
+    });
+
+    const plan = {};
+    FILL_DAYS.forEach((base) => { plan[`${base} ${next}`] = []; });
+    const leftover = [];
+    skipped.forEach((customer) => {
+      const target = FILL_DAYS
+        .map((base) => `${base} ${next}`)
+        .find((full) => staying[full] + plan[full].length < FILL_PER_DAY);
+      if (!target) leftover.push(customer);
+      else plan[target].push(customer);
+    });
+
+    return { week, next, plan, leftover, total: skipped.length };
+  };
+
+  const applySkipPlan = async () => {
+    if (!skipReview) return;
+    const moves = [];
+    Object.entries(skipReview.plan).forEach(([day, list]) => {
+      list.forEach((customer) => {
+        if (customer.scheduled_day !== day) moves.push({ id: customer.id, day });
+      });
+    });
+    if (moves.length === 0) {
+      setSkipReview(null);
+      return;
+    }
+
+    setApplyingSkip(true);
+    try {
+      for (const move of moves) {
+        const { error } = await supabase
+          .from('customers')
+          .update({ scheduled_day: move.day })
+          .eq('id', move.id);
+        if (error) throw error;
+      }
+      const moveById = Object.fromEntries(moves.map((move) => [move.id, move.day]));
+      const nextCustomers = customers.map((customer) => (
+        moveById[customer.id] ? { ...customer, scheduled_day: moveById[customer.id] } : customer
+      ));
+      setCustomers(nextCustomers);
+      organizeScheduleWithFiltered(nextCustomers);
+      setSelectedWeek(skipReview.next);
+      setSelectedDay(null);
+      setSkipReview(null);
+      setSuccessMessage(`Moved ${moves.length} to ${skipReview.next}`);
+      setShowSuccessModal(true);
+      setTimeout(() => setShowSuccessModal(false), 2500);
+    } catch (error) {
+      console.error('Error moving skipped customers:', error);
+      alert('Could not move everyone. Refresh and check who already moved.');
+    } finally {
+      setApplyingSkip(false);
     }
   };
 
@@ -4207,6 +4365,13 @@ export default function SchedulePage() {
                   </button>
                 ))}
               </div>
+              <button
+                type="button"
+                onClick={() => setSkipReview(buildSkipPlan())}
+                className="shrink-0 px-3 py-2 rounded-lg text-xs font-bold bg-white/10 text-amber-200 hover:bg-white/20"
+              >
+                Review skipped
+              </button>
             </div>
             {statsExpanded && (
               <div className="flex flex-wrap gap-x-5 gap-y-2 mt-3 pt-3 border-t border-white/5">
@@ -6117,6 +6282,57 @@ export default function SchedulePage() {
         )}
 
         {/* Mark as Done Modal */}
+        {skipReview && (
+          <div className="fixed inset-0 z-[120] flex items-end sm:items-center justify-center p-4 bg-slate-950/80" onClick={() => !applyingSkip && setSkipReview(null)}>
+            <div className="w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-3xl bg-[#121a2b] border border-white/10 p-5 text-white" onClick={(e) => e.stopPropagation()}>
+              <p className="text-[10px] font-black uppercase tracking-widest text-amber-300">Not done in {skipReview.week}</p>
+              <h3 className="mt-1 text-xl font-black">Move to {skipReview.next}, 10 per day</h3>
+              <p className="mt-2 text-sm text-gray-400">
+                {skipReview.total === 0
+                  ? 'Everyone on this week is already done or paused.'
+                  : `${skipReview.total} still open. Nothing moves until you confirm. Weekly customers keep that weekday every week.`}
+              </p>
+              <div className="mt-4 space-y-4">
+                {FILL_DAYS.map((base) => {
+                  const full = `${base} ${skipReview.next}`;
+                  const list = skipReview.plan[full] || [];
+                  if (list.length === 0) return null;
+                  return (
+                    <div key={full}>
+                      <p className="text-sm font-bold text-amber-200">{full} · {list.length}</p>
+                      <p className="mt-1 text-sm text-gray-300">{list.map((c) => c.name).join(', ')}</p>
+                    </div>
+                  );
+                })}
+                {skipReview.leftover.length > 0 && (
+                  <div>
+                    <p className="text-sm font-bold text-red-300">Does not fit (stays put)</p>
+                    <p className="mt-1 text-sm text-gray-300">{skipReview.leftover.map((c) => c.name).join(', ')}</p>
+                  </div>
+                )}
+              </div>
+              <div className="mt-6 flex gap-3">
+                <button
+                  type="button"
+                  disabled={applyingSkip}
+                  onClick={() => setSkipReview(null)}
+                  className="flex-1 py-3 rounded-xl bg-white/10 font-bold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={applyingSkip || skipReview.total === 0 || Object.values(skipReview.plan).every((list) => list.length === 0)}
+                  onClick={applySkipPlan}
+                  className="flex-1 py-3 rounded-xl bg-amber-400 text-slate-900 font-black disabled:opacity-40"
+                >
+                  {applyingSkip ? 'Moving…' : 'Move them'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {showMarkDoneModal && selectedCustomerForDone && (
           <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
             <div className="bg-[#1a1b23] rounded-2xl border border-white/10 max-w-md w-full p-6 shadow-2xl">
