@@ -4094,6 +4094,31 @@ export default function SchedulePage() {
     }
   };
 
+  const doneMoneyForDay = (day) => {
+    if (!day) return 0;
+    const ids = new Set(completedCustomers[day] || []);
+    return (schedule[day] || []).reduce((sum, customer) => (
+      ids.has(customer.id) ? sum + parseFloat(customer.price || 0) : sum
+    ), 0);
+  };
+
+  const doneMoneyForWeek = (week) => {
+    const seen = new Set();
+    let total = 0;
+    DAYS_OF_WEEK.filter((day) => day.endsWith(week)).forEach((day) => {
+      const ids = new Set(completedCustomers[day] || []);
+      (schedule[day] || []).forEach((customer) => {
+        if (!ids.has(customer.id) || seen.has(customer.id)) return;
+        seen.add(customer.id);
+        total += parseFloat(customer.price || 0);
+      });
+    });
+    return total;
+  };
+
+  const dayDoneMoney = selectedDay ? doneMoneyForDay(selectedDay) : 0;
+  const weekDoneMoney = doneMoneyForWeek(selectedWeek);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-[#0b1220] flex items-center justify-center">
@@ -4331,7 +4356,14 @@ export default function SchedulePage() {
                         <span className="text-sky-400 font-bold">{(schedule[selectedDay] || []).filter(c => !(completedCustomers[selectedDay] || []).includes(c.id) && !c.maintenance_paused).length}</span> left
                         <span className="text-gray-600"> · </span>
                         <span className="text-amber-400 font-bold">{completedCustomers[selectedDay]?.length || 0}</span> done
+                        <span className="text-gray-600"> · </span>
+                        <span className="text-emerald-400 font-bold">${dayDoneMoney.toFixed(0)} done</span>
+                        <span className="text-gray-600"> · </span>
+                        <span className="text-emerald-300 font-bold">${weekDoneMoney.toFixed(0)} week</span>
                       </span>
+                    )}
+                    {!selectedDay && (
+                      <span className="text-xs text-emerald-400 font-bold">${weekDoneMoney.toFixed(0)} done this week</span>
                     )}
                     {!selectedDay && (
                       <span className="text-xs text-gray-500">${earnings.grandTotal.toFixed(0)}/mo</span>
