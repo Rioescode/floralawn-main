@@ -4,13 +4,17 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useEffect } from 'react';
-import { 
-  PhoneIcon, 
-  CalendarIcon, 
-  ChatBubbleBottomCenterTextIcon,
+import { supabase } from '@/lib/supabase';
+import YardPhotoChat from '@/components/YardPhotoChat';
+import {
+  PhoneIcon,
+  CalendarIcon,
+  HomeIcon,
   XMarkIcon,
   SparklesIcon
 } from '@heroicons/react/24/solid';
+
+const SIGNED_OUT_SCHEDULE = `/login?redirect=${encodeURIComponent('/customer/dashboard')}`;
 
 export default function BottomNav() {
   const pathname = usePathname();
@@ -25,32 +29,63 @@ export default function BottomNav() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const navItems = [
-    {
-      href: 'tel:4013890913',
-      label: 'CALL NOW',
-      icon: PhoneIcon,
-      color: 'bg-green-600',
-      isExternal: true
-    },
-    {
-      href: '/contact',
-      label: 'GET QUOTE',
-      icon: SparklesIcon,
-      color: 'bg-slate-900',
-    },
-    {
-      href: '/schedule',
-      label: 'SCHEDULE',
-      icon: CalendarIcon,
-      color: 'bg-slate-800',
-    }
-  ];
+  const [scheduleHref, setScheduleHref] = useState(SIGNED_OUT_SCHEDULE);
+  const [customerSignedIn, setCustomerSignedIn] = useState(false);
+  const onCustomerDash = pathname === '/customer/dashboard';
+  const customerBar = customerSignedIn || onCustomerDash;
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const resolve = async (user) => {
+      if (!user) {
+        if (!cancelled) {
+          setScheduleHref(SIGNED_OUT_SCHEDULE);
+          setCustomerSignedIn(false);
+        }
+        return;
+      }
+      const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
+      if (!cancelled) {
+        const isAdmin = profile?.role === 'admin';
+        setScheduleHref(isAdmin ? '/schedule' : '/customer/dashboard');
+        setCustomerSignedIn(!isAdmin);
+      }
+    };
+
+    supabase.auth.getSession().then(({ data }) => resolve(data.session?.user));
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => resolve(session?.user));
+
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  function openAskAi(event) {
+    if (pathname !== '/customer/dashboard') return;
+    event.preventDefault();
+    window.dispatchEvent(new Event('flora-open-ask-ai'));
+  }
+
+  const navItems = customerBar
+    ? [
+        { href: 'tel:4013890913', label: 'CALL NOW', icon: PhoneIcon, isExternal: true },
+        { href: '/customer/dashboard', label: 'DASH', icon: HomeIcon },
+        { href: '/customer/dashboard#ask-ai', label: 'ASK AI', icon: SparklesIcon, onClick: openAskAi, primary: true },
+      ]
+    : [
+        { href: 'tel:4013890913', label: 'CALL NOW', icon: PhoneIcon, isExternal: true },
+        { href: '/contact', label: 'GET QUOTE', icon: SparklesIcon, primary: true },
+        { href: scheduleHref, label: 'SCHEDULE', icon: CalendarIcon },
+      ];
 
   // Hide on schedule page — it has its own nav
-  if (pathname === '/schedule') return null;
+  if (pathname === '/schedule') return <YardPhotoChat sheetOnly />;
 
   return (
+    <>
+    <YardPhotoChat sheetOnly />
     <AnimatePresence>
       {isVisible && (
         <motion.div 
@@ -69,20 +104,20 @@ export default function BottomNav() {
             </button>
 
             <div className="bg-white/95 backdrop-blur-2xl border border-slate-200 rounded-[2.5rem] shadow-2xl p-3 flex justify-between gap-3">
-              {navItems.map((item, idx) => {
-                const isCall = item.isExternal;
-                const Component = isCall ? 'a' : Link;
+              {navItems.map((item) => {
+                const Component = item.isExternal ? 'a' : Link;
 
                 return (
                   <Component
-                    key={idx}
+                    key={item.label}
                     href={item.href}
+                    onClick={item.onClick}
                     className={`flex-1 flex flex-col items-center justify-center py-4 rounded-[2rem] transition-all active:scale-95 ${
-                      idx === 1 ? 'bg-slate-900 ring-4 ring-slate-900/10' : 'bg-slate-50'
+                      item.primary ? 'bg-slate-900 ring-4 ring-slate-900/10' : 'bg-slate-50'
                     }`}
                   >
-                    <item.icon className={`w-6 h-6 mb-1 ${idx === 1 ? 'text-green-400' : 'text-slate-900'}`} />
-                    <span className={`text-[10px] font-black tracking-[0.15em] italic ${idx === 1 ? 'text-white' : 'text-slate-500'}`}>
+                    <item.icon className={`w-6 h-6 mb-1 ${item.primary ? 'text-green-400' : 'text-slate-900'}`} />
+                    <span className={`text-[10px] font-black tracking-[0.15em] italic ${item.primary ? 'text-white' : 'text-slate-500'}`}>
                       {item.label}
                     </span>
                   </Component>
@@ -104,5 +139,6 @@ export default function BottomNav() {
         </motion.button>
       )}
     </AnimatePresence>
+    </>
   );
 }

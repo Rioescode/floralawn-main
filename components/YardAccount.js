@@ -57,6 +57,54 @@ function personName(user, yard) {
   return yard?.name || user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'there';
 }
 
+const SEASONS = [
+  {
+    id: 'spring',
+    label: 'Spring',
+    months: [2, 3, 4],
+    jobs: [
+      { name: 'Spring Cleanup', detail: 'Beds, sticks, and the first mow after winter.' },
+      { name: 'Lawn Dethatching', detail: 'Pull the dead layer so the grass can thicken.' },
+      { name: 'Mulching', detail: 'Fresh mulch on the beds once the ground is workable.' },
+    ],
+  },
+  {
+    id: 'summer',
+    label: 'Summer',
+    months: [5, 6, 7],
+    jobs: [
+      { name: 'Lawn Mowing', detail: 'Weekly or every other week while it is growing.' },
+      { name: 'Hedge Trimming', detail: 'Shape hedges and shrubs in the warm months.' },
+      { name: 'Weed Control', detail: 'Crabgrass and broadleaf while they are active.' },
+      { name: 'Power Washing', detail: 'Walks, siding, and the driveway.' },
+    ],
+  },
+  {
+    id: 'fall',
+    label: 'Fall',
+    months: [8, 9, 10],
+    jobs: [
+      { name: 'Fall Cleanup', detail: 'Leaves, beds, and a last mow before winter.' },
+      { name: 'Leaf Removal', detail: 'Leaves only, blown and hauled away.' },
+      { name: 'Lawn Aeration', detail: 'Best window in Rhode Island is September and October.' },
+      { name: 'Overseeding', detail: 'Seed right after aeration so it takes before frost.' },
+    ],
+  },
+  {
+    id: 'winter',
+    label: 'Winter',
+    months: [11, 0, 1],
+    jobs: [
+      { name: 'Snow Removal', detail: 'Driveway and walk cleared after each storm.' },
+    ],
+  },
+];
+
+function currentSeason(date = new Date()) {
+  const month = date.getMonth();
+  return SEASONS.find((season) => season.months.includes(month)) || SEASONS[2];
+}
+
 export default function YardAccount({
   user,
   userRole,
@@ -89,12 +137,24 @@ export default function YardAccount({
   const [editingQuoteId, setEditingQuoteId] = useState(null);
   const [extraAddresses, setExtraAddresses] = useState([]);
   const [yardSize, setYardSize] = useState(user?.user_metadata?.yard_size || 'medium');
+  const [seasonPicked, setSeasonPicked] = useState([]);
+  const [seasonSending, setSeasonSending] = useState(false);
+  const [seasonMessage, setSeasonMessage] = useState('');
   const addressRef = useRef(null);
   const extraAddressRefs = useRef({});
 
   useEffect(() => {
     setYardSize(user?.user_metadata?.yard_size || 'medium');
   }, [user?.user_metadata?.yard_size]);
+
+  useEffect(() => {
+    function addQuote(event) {
+      if (!event.detail) return;
+      setQuotes((current) => [event.detail, ...current]);
+    }
+    window.addEventListener('flora-quote-saved', addQuote);
+    return () => window.removeEventListener('flora-quote-saved', addQuote);
+  }, []);
 
   useEffect(() => {
     setAddress(yard?.address || '');
@@ -213,6 +273,68 @@ export default function YardAccount({
   }, [showQuote, extraAddresses.length]);
 
   const todayLabel = format(new Date(), 'EEEE, MMMM d');
+  const season = currentSeason();
+
+  async function sendSeasonJobs(event) {
+    event.preventDefault();
+    const quoteName = yard?.name || user?.user_metadata?.full_name || '';
+    const quoteEmail = user?.email || yard?.email || '';
+    const primaryAddress = (address || yard?.address || '').trim();
+    if (!quoteName.trim() || !quoteEmail) {
+      setSeasonMessage('Add a name and email on the account first.');
+      return;
+    }
+    if (!primaryAddress) {
+      setSeasonMessage('Add the yard address above first.');
+      return;
+    }
+    if (seasonPicked.length === 0) {
+      setSeasonMessage('Check at least one job.');
+      return;
+    }
+    const serviceSummary = seasonPicked.join(', ');
+    const quoteBody = [
+      `Services: ${serviceSummary}`,
+      'Sent from: Yard account',
+      `When: This ${season.label.toLowerCase()}`,
+      `Yard size: ${yardSize.charAt(0).toUpperCase()}${yardSize.slice(1)}`,
+      `Property 1: ${primaryAddress} — ${serviceSummary}`,
+      `Note: Seasonal ${season.label.toLowerCase()} checklist`,
+    ].join('\n');
+    setSeasonSending(true);
+    setSeasonMessage('');
+    try {
+      const response = await fetch('/api/send-contact-confirmation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: quoteName,
+          email: quoteEmail,
+          phone: phone || yard?.phone || '',
+          address: primaryAddress,
+          service: serviceSummary,
+          message: quoteBody,
+          estimatePreference: 'walk_around',
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Could not send.');
+      setQuotes((current) => [{
+        id: result.leadId || `new-${Date.now()}`,
+        service_type: serviceSummary,
+        created_at: new Date().toISOString(),
+        status: 'pending',
+        address: primaryAddress,
+        notes: quoteBody,
+      }, ...current]);
+      setSeasonPicked([]);
+      setSeasonMessage('Sent. We reply in 1–6 hours.');
+    } catch (err) {
+      setSeasonMessage(err.message || 'Could not send.');
+    } finally {
+      setSeasonSending(false);
+    }
+  }
 
   if (userRole === 'admin') {
     const start = new Date();
@@ -401,6 +523,65 @@ export default function YardAccount({
       )}
       </div>
       </div>
+
+      <form onSubmit={sendSeasonJobs} className="mt-6 border border-[#C9D4CC] bg-white p-5 sm:p-6">
+        <p className="text-sm text-[#5C6B62]">{season.label}</p>
+        <h2 className="mt-1 text-lg font-semibold">Jobs to do this season</h2>
+        <p className="mt-1 text-sm text-[#5C6B62]">Check what you want. We quote the yard and confirm the price before any work starts.</p>
+        <ul className="mt-4 grid gap-2 sm:grid-cols-2">
+          {season.jobs.map((job) => {
+            const checked = seasonPicked.includes(job.name);
+            return (
+              <li key={job.name}>
+                <label className={`flex gap-3 border p-3 cursor-pointer ${checked ? 'border-[#2F6B4F] bg-[#F3F6F4]' : 'border-[#C9D4CC]'}`}>
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() => {
+                      setSeasonPicked((current) => (
+                        current.includes(job.name)
+                          ? current.filter((name) => name !== job.name)
+                          : [...current, job.name]
+                      ));
+                    }}
+                    className="mt-1"
+                  />
+                  <span>
+                    <span className="block font-semibold">{job.name}</span>
+                    <span className="block text-sm text-[#5C6B62]">{job.detail}</span>
+                  </span>
+                </label>
+              </li>
+            );
+          })}
+        </ul>
+        <button
+          type="submit"
+          disabled={seasonSending || seasonPicked.length === 0}
+          className="mt-4 min-h-11 px-4 bg-[#1B2838] text-white font-semibold disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2F6B4F]"
+        >
+          {seasonSending ? 'Sending' : seasonPicked.length ? `Send ${seasonPicked.length === 1 ? 'this job' : `these ${seasonPicked.length} jobs`}` : 'Check a job to send'}
+        </button>
+        {seasonMessage && <p className="mt-3 text-sm">{seasonMessage}</p>}
+      </form>
+
+      <section className="mt-6 border border-[#C9D4CC] bg-white p-5 sm:p-6">
+        <h2 className="text-lg font-semibold">Ask about the yard</h2>
+        <p className="mt-1 text-sm text-[#5C6B62]">An AI reads the photo and suggests the work. It is not a price. The office confirms before any job is booked.</p>
+        <button
+          type="button"
+          onClick={() => window.dispatchEvent(new Event('flora-open-ask-ai'))}
+          className="mt-4 min-h-11 px-4 bg-[#1B2838] text-white font-semibold"
+        >
+          Open chat
+        </button>
+        <ul className="mt-4 list-disc space-y-1 pl-5 text-sm text-[#1B2838]">
+          <li>Send a photo and see which jobs fit the yard.</li>
+          <li>The chat remembers your yard, so you don’t explain it again.</li>
+          <li>Pick the services and send the quote from the same chat.</li>
+          <li>The office confirms the price before any work starts.</li>
+        </ul>
+      </section>
 
       <div className="mt-6 grid items-start gap-6 lg:grid-cols-2">
       {quotes.length > 0 && (

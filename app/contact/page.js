@@ -762,7 +762,6 @@ function ContactForm() {
                   {/* TRUST STATS */}
                   <div className="grid grid-cols-1 gap-4">
                      {[
-                        { t: 'Fully Insured & Bonded', i: ShieldCheckIcon },
                         { t: '4.9 Google Reputation', i: StarIconSolid },
                         { t: 'Rhode Island Local Experts', i: MapPinIcon },
                         { t: 'Sister Company: RI Junkworks', i: SparklesIcon, link: 'https://rijunkworks.com' }
