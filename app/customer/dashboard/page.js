@@ -600,13 +600,15 @@ export default function CustomerDashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
+      <div className="min-h-screen flex flex-col items-center justify-center gap-3 bg-[#F3F6F4] text-[#1B2838]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#2F6B4F]"></div>
+        <p className="text-sm">Opening your account</p>
       </div>
     );
   }
 
   const formatServiceType = (type) => {
+    if (!type || typeof type !== 'string') return 'Service';
     return type.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
   };
 
@@ -865,7 +867,7 @@ export default function CustomerDashboard() {
                               service.status === 'completed' ? 'bg-blue-100 text-blue-800' :
                               'bg-red-100 text-red-800'
                             }`}>
-                              {service.status.charAt(0).toUpperCase() + service.status.slice(1)}
+                              {(service.status || 'active').charAt(0).toUpperCase() + (service.status || 'active').slice(1)}
                             </span>
                           </div>
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-gray-500 mb-2">
@@ -997,7 +999,7 @@ export default function CustomerDashboard() {
                               appointment.status === 'completed' ? 'bg-blue-100 text-blue-800' :
                               'bg-gray-100 text-gray-800'
                             }`}>
-                              {appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1)}
+                              {(appointment.status || 'scheduled').charAt(0).toUpperCase() + (appointment.status || 'scheduled').slice(1)}
                             </span>
                           </div>
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-gray-500">
@@ -1256,7 +1258,7 @@ export default function CustomerDashboard() {
                 </div>
                 <div>
                   <h3 className="text-sm font-medium text-gray-500">Status</h3>
-                  <p className="mt-1 text-sm text-gray-900">{selectedAppointment.status.charAt(0).toUpperCase() + selectedAppointment.status.slice(1)}</p>
+                  <p className="mt-1 text-sm text-gray-900">{(selectedAppointment.status || 'scheduled').charAt(0).toUpperCase() + (selectedAppointment.status || 'scheduled').slice(1)}</p>
                 </div>
                 {selectedAppointment.notes && (
                   <div>

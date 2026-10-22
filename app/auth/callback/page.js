@@ -174,6 +174,11 @@ export default function AuthCallbackPage() {
         
         if (error) throw error;
         
+        if (!user) {
+          router.replace('/login?error=auth-callback-failed');
+          return;
+        }
+
         if (user) {
           // Check if user profile exists
           const { data: profile, error: profileError } = await supabase

@@ -57,6 +57,21 @@ function personName(user, yard) {
   return yard?.name || user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'there';
 }
 
+function clockLabel(value, pattern) {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return format(date, pattern);
+}
+
+function dayLabel(value, pattern) {
+  if (!value) return '';
+  const text = String(value);
+  const date = new Date(text.includes('T') ? text : `${text}T12:00:00`);
+  if (Number.isNaN(date.getTime())) return '';
+  return format(date, pattern);
+}
+
 const SEASONS = [
   {
     id: 'spring',
@@ -366,7 +381,7 @@ export default function YardAccount({
               ) : (
                 overnight.slice(0, 8).map((lead) => (
                   <li key={lead.id} className="grid grid-cols-1 sm:grid-cols-[5.5rem_1fr] gap-1 sm:gap-4 py-3 border-b border-[#C9D4CC]">
-                    <span className="text-sm text-[#5C6B62]">{format(new Date(lead.created_at), 'h:mm a')}</span>
+                    <span className="text-sm text-[#5C6B62]">{clockLabel(lead.created_at, 'h:mm a')}</span>
                     <span>
                       <span className="block font-semibold">{lead.customer_name || 'New quote'}</span>
                       <span className="block text-sm text-[#5C6B62]">
@@ -454,7 +469,7 @@ export default function YardAccount({
         {nextVisit?.next_service ? (
           <>
             <p className="mt-2 text-3xl sm:text-4xl font-semibold tracking-tight leading-none">
-              {format(new Date(`${nextVisit.next_service}T12:00:00`), 'EEEE, MMMM d')}
+              {dayLabel(nextVisit.next_service, 'EEEE, MMMM d')}
             </p>
             <p className="mt-3 text-lg">{visitLabel(nextVisit)}</p>
             {nextVisit.address && <p className="text-sm text-[#A9C2B3]">{nextVisit.address}</p>}
@@ -592,7 +607,7 @@ export default function YardAccount({
               <li key={quote.id} className="py-3 border-b border-[#C9D4CC] text-sm flex items-center justify-between gap-3">
                 <span>
                   <span className="font-semibold">{serviceLabel(quote.service_type)}</span>
-                  <span className="text-[#5C6B62]"> {format(new Date(quote.created_at), 'MMMM d')}</span>
+                  <span className="text-[#5C6B62]"> {clockLabel(quote.created_at, 'MMMM d')}</span>
                 </span>
                 <button
                   type="button"

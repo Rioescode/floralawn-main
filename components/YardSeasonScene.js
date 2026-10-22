@@ -135,7 +135,10 @@ export function seasonFor(date) {
 }
 
 function atNoon(day) {
-  return new Date(`${day}T12:00:00`);
+  if (!day) return null;
+  const text = String(day);
+  const date = new Date(text.includes("T") ? text : `${text}T12:00:00`);
+  return Number.isNaN(date.getTime()) ? null : date;
 }
 
 function grassGrowth({ lastService, nextService, frequency }, today) {
@@ -143,14 +146,17 @@ function grassGrowth({ lastService, nextService, frequency }, today) {
   if (!days) return null;
   const dayMs = 86400000;
   let value = null;
-  if (lastService) value = (today - atNoon(lastService)) / dayMs / days;
-  else if (nextService) value = 1 - (atNoon(nextService) - today) / dayMs / days;
+  const last = lastService ? atNoon(lastService) : null;
+  const next = nextService ? atNoon(nextService) : null;
+  if (last) value = (today - last) / dayMs / days;
+  else if (next) value = 1 - (next - today) / dayMs / days;
   if (value === null || Number.isNaN(value)) return null;
   return Math.min(1.8, Math.max(0, value));
 }
 
 function statusFor(season, growth, nextService) {
-  const nextLine = nextService ? `Next mow ${format(atNoon(nextService), "EEEE, MMMM d")}.` : "";
+  const nextDate = nextService ? atNoon(nextService) : null;
+  const nextLine = nextDate ? `Next mow ${format(nextDate, "EEEE, MMMM d")}.` : "";
   if (season === "winter") {
     return {
       title: "Your lawn is resting",
