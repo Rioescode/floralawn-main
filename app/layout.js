@@ -3,6 +3,7 @@ import ClientLayout from "@/components/LayoutClient";
 import config from "@/config";
 import "./globals.css";
 import BottomNav from './components/BottomNav';
+import SafeBoundary from '@/components/SafeBoundary';
 import { AuthProvider } from '@/lib/context/AuthContext';
 import { metadata } from './metadata';
 import { generateLocalBusinessSchema } from '@/utils/seo-helpers';
@@ -70,7 +71,7 @@ export default function RootLayout({ children }) {
 					src={`https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=places,drawing,geometry`}
 					strategy="beforeInteractive"
 				/>
-				<BottomNav />
+				<SafeBoundary><BottomNav /></SafeBoundary>
 			</body>
 		</html>
 	);

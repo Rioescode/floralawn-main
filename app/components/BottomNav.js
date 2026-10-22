@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import YardPhotoChat from '@/components/YardPhotoChat';
+import SafeBoundary from '@/components/SafeBoundary';
 import {
   PhoneIcon,
   CalendarIcon,
@@ -54,7 +55,11 @@ export default function BottomNav() {
     };
 
     supabase.auth.getSession().then(({ data }) => resolve(data.session?.user));
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => resolve(session?.user));
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      // Run the profile lookup after the auth callback returns. Awaiting a Supabase query inside
+      // this callback locks the auth client, so every later getSession() hangs and the page stays blank.
+      setTimeout(() => resolve(session?.user), 0);
+    });
 
     return () => {
       cancelled = true;
@@ -81,11 +86,11 @@ export default function BottomNav() {
       ];
 
   // Hide on schedule page — it has its own nav
-  if (pathname === '/schedule') return <YardPhotoChat sheetOnly />;
+  if (pathname === '/schedule') return <SafeBoundary><YardPhotoChat sheetOnly /></SafeBoundary>;
 
   return (
     <>
-    <YardPhotoChat sheetOnly />
+    <SafeBoundary><YardPhotoChat sheetOnly /></SafeBoundary>
     <AnimatePresence>
       {isVisible && (
         <motion.div 

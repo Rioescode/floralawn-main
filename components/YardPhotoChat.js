@@ -105,18 +105,18 @@ export default function YardPhotoChat({ user, yard, address, phone, yardSize, on
       });
       const result = await response.json().catch(() => ({}));
       if (cancelled || !response.ok) return;
-      const savedChats = Array.isArray(result.chats) ? result.chats : [];
+      const savedChats = Array.isArray(result.chats) ? result.chats.filter((chat) => chat && typeof chat === 'object') : [];
       const active = savedChats.find((chat) => chat.id === result.activeId) || savedChats[0];
       setChats(savedChats);
       setActiveId(active?.id || '');
       activeIdRef.current = active?.id || '';
-      setMessages(active?.messages || (Array.isArray(result.messages) ? result.messages : []));
+      setMessages(Array.isArray(active?.messages) ? active.messages : (Array.isArray(result.messages) ? result.messages : []));
       if (active?.note || result.note) setCustomerNote(active?.note || result.note);
-      if (result.memory) setKnown(result.memory);
+      if (result.memory) setKnown(typeof result.memory === 'string' ? result.memory : '1');
       const services = result.services?.length
         ? result.services
         : [...(active?.messages || [])].reverse().find((message) => message.services?.length)?.services;
-      if (services?.length) setPicked(services);
+      if (Array.isArray(services) && services.length) setPicked(services.filter((service) => typeof service === 'string'));
     })();
     return () => { cancelled = true; };
   }, [user?.id]);
@@ -205,7 +205,7 @@ export default function YardPhotoChat({ user, yard, address, phone, yardSize, on
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || 'Could not read those photos.');
-      if (result.memory) setKnown(result.memory);
+      if (result.memory) setKnown(typeof result.memory === 'string' ? result.memory : '1');
       const nextMessages = Array.isArray(result.messages) && result.messages.length
         ? result.messages
         : [...kept, { role: 'user', content: spoken }, { role: 'assistant', content: result.reply, services: result.services || [], suggestions: result.suggestions || [] }];
