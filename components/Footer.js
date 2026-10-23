@@ -3,6 +3,7 @@
 import Link from "next/image"; // Error here? Wait.
 import Image from "next/image";
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { 
   PhoneIcon, 
@@ -19,6 +20,13 @@ import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 
 const Footer = () => {
   const [isAdmin, setIsAdmin] = useState(false);
+  const pathname = usePathname() || "";
+  const spanish = pathname === "/es" || pathname.startsWith("/es/");
+  const badgeSrc = spanish ? "/badges/mgr-badge-es-dark.svg" : "/badges/mgr-badge-en-dark.svg";
+  const badgeAlt = spanish ? "Cotiza con My Green Robot" : "Get quotes with My Green Robot";
+  const badgeCaption = spanish
+    ? "Cotiza jardinería en Rhode Island con My Green Robot"
+    : "Get lawn care quotes in Rhode Island with My Green Robot";
 
   useEffect(() => {
     const checkAdmin = async () => {
@@ -174,8 +182,30 @@ const Footer = () => {
            </div>
         </div>
 
+        {/* My Green Robot quote badge. Dark artwork matches bg-slate-950. */}
+        <div className="pt-10">
+          <a
+            href="https://mygreenrobot.com/?utm_source=crew-badge&utm_medium=referral&utm_campaign=floralawn"
+            title={badgeCaption}
+            target="_blank"
+            rel="noopener"
+            className="inline-flex w-fit max-w-full flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-4"
+          >
+            <img
+              src={badgeSrc}
+              alt={badgeAlt}
+              width={240}
+              height={64}
+              className="block h-auto w-full max-w-[240px]"
+            />
+            <span className="max-w-[16rem] text-xs font-medium leading-snug text-slate-400">
+              {badgeCaption}
+            </span>
+          </a>
+        </div>
+
         {/* BOTTOM LEGAL & COPYRIGHT */}
-        <div className="pt-12 flex flex-col md:flex-row justify-between items-center gap-8">
+        <div className="pt-8 flex flex-col md:flex-row justify-between items-center gap-8">
            <div className="flex gap-8 order-2 md:order-1">
               <p className="text-xs font-black uppercase tracking-widest text-slate-600">© 2025 Flora Lawn & Landscaping Inc.</p>
               <div className="flex gap-6">
