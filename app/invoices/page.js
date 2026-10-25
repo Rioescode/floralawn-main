@@ -29,7 +29,7 @@ function InvoiceMakerContent() {
   const [loading, setLoading] = useState(true);
   const [generatedInvoice, setGeneratedInvoice] = useState(null);
   
-  const [docType, setDocType] = useState('Invoice'); // 'Invoice' | 'Quote'
+  const [docType, setDocType] = useState('Invoice'); // 'Invoice' | 'Quote' | 'Receipt'
   const [isManual, setIsManual] = useState(false);
   const [isManualBalance, setIsManualBalance] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -49,7 +49,8 @@ function InvoiceMakerContent() {
     notes: '',
     payment_terms: '15',
     deposit_amount: '0',
-    manual_balance: '0'
+    manual_balance: '0',
+    payment_method: 'Cash'
   });
 
   const router = useRouter();
@@ -177,7 +178,7 @@ function InvoiceMakerContent() {
 
   const generateInvoiceNumber = () => {
     const now = new Date();
-    const prefix = docType === 'Invoice' ? 'INV' : 'QT';
+    const prefix = docType === 'Receipt' ? 'RCP' : docType === 'Invoice' ? 'INV' : 'QT';
     const year = now.getFullYear();
     const month = String(now.getMonth() + 1).padStart(2, '0');
     const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
@@ -311,25 +312,30 @@ function InvoiceMakerContent() {
     const subtotal = calculateSubtotal();
     const deposit = parseFloat(invoiceData.deposit_amount) || 0;
     const balance = calculateBalanceFormatted();
+    const isReceipt = docType === 'Receipt';
+    const paidAmount = isReceipt ? subtotal : deposit;
+    const paidLabel = paidAmount.toLocaleString('en-US', { minimumFractionDigits: 2 });
 
     let aiSummary = '';
-    try {
-      const breakdown = invoiceData.services.map(s => ({ name: s.description, price: s.amount }));
-      const res = await fetch('/api/quote-summary', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          area: 'Custom Sized Property',
-          breakdown: breakdown,
-          totalQuote: subtotal
-        })
-      });
-      const data = await res.json();
-      if (data.summary) aiSummary = data.summary;
-      else if (data.error) aiSummary = `[AI Generation Failed: ${data.error}]`;
-    } catch (e) {
-      console.error("AI Summary generation failed:", e);
-      aiSummary = `[Network or Code Error: ${e.message}]`;
+    if (!isReceipt) {
+      try {
+        const breakdown = invoiceData.services.map(s => ({ name: s.description, price: s.amount }));
+        const res = await fetch('/api/quote-summary', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            area: 'Custom Sized Property',
+            breakdown: breakdown,
+            totalQuote: subtotal
+          })
+        });
+        const data = await res.json();
+        if (data.summary) aiSummary = data.summary;
+        else if (data.error) aiSummary = `[AI Generation Failed: ${data.error}]`;
+      } catch (e) {
+        console.error("AI Summary generation failed:", e);
+        aiSummary = `[Network or Code Error: ${e.message}]`;
+      }
     }
 
     const invoiceHTML = `
@@ -347,13 +353,16 @@ function InvoiceMakerContent() {
             <p>floralawncareri@gmail.com</p>
             <div style="margin-top: 20px; font-weight: 800; color: #0f172a;">
               <p>DATE: ${new Date(invoiceData.invoice_date).toLocaleDateString()}</p>
-              <p>DUE: ${new Date(invoiceData.due_date).toLocaleDateString()}</p>
+              ${isReceipt
+                ? `<p>PAID WITH: ${invoiceData.payment_method || 'Paid'}</p>
+                   <div style="display: inline-block; margin-top: 14px; padding: 8px 18px; border: 4px solid #059669; color: #059669; font-size: 28px; font-weight: 900; letter-spacing: 0.18em;">PAID</div>`
+                : `<p>DUE: ${new Date(invoiceData.due_date).toLocaleDateString()}</p>`}
             </div>
           </div>
         </div>
 
         <div style="margin-bottom: 40px; padding: 24px; background: #f0fdf4; border-radius: 20px; border: 1px solid #dcfce7;">
-          <h2 style="font-size: 10px; font-weight: 900; text-transform: uppercase; color: #059669; margin-bottom: 12px; letter-spacing: 0.1em;">Bill To:</h2>
+          <h2 style="font-size: 10px; font-weight: 900; text-transform: uppercase; color: #059669; margin-bottom: 12px; letter-spacing: 0.1em;">${isReceipt ? 'Paid by:' : 'Bill To:'}</h2>
           <p style="font-size: 20px; font-weight: 900; color: #064e3b; margin: 0;">${selectedCustomer.name}</p>
           <p style="font-size: 15px; font-weight: 600; color: #374151; margin-top: 6px;">${selectedCustomer.address || 'Rhode Island, USA'}</p>
           ${selectedCustomer.phone ? `<p style="font-size: 14px; color: #4b5563; margin-top: 4px;">${selectedCustomer.phone}</p>` : ''}
@@ -393,14 +402,26 @@ function InvoiceMakerContent() {
               <span>Subtotal</span>
               <span>$${subtotal.toLocaleString()}</span>
             </div>
-            <div style="display: flex; justify-content: space-between; margin-bottom: 20px; font-size: 14px; font-weight: 800; color: #10b981;">
-              <span>Deposit Paid</span>
-              <span>-$${deposit.toLocaleString()}</span>
-            </div>
-            <div style="display: flex; justify-content: space-between; padding-top: 16px; border-top: 3px solid #0f172a;">
-              <span style="font-size: 12px; font-weight: 900; text-transform: uppercase; color: #0f172a;">Balance Due</span>
-              <span style="font-size: 24px; font-weight: 900; color: #059669;">$${balance}</span>
-            </div>
+            ${isReceipt ? `
+              <div style="display: flex; justify-content: space-between; margin-bottom: 20px; font-size: 14px; font-weight: 800; color: #10b981;">
+                <span>Amount paid</span>
+                <span>$${paidLabel}</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; padding-top: 16px; border-top: 3px solid #059669;">
+                <span style="font-size: 12px; font-weight: 900; text-transform: uppercase; color: #059669;">Status</span>
+                <span style="font-size: 24px; font-weight: 900; color: #059669;">PAID</span>
+              </div>
+              <p style="margin: 16px 0 0; font-size: 13px; font-weight: 700; color: #065f46;">Balance due: $0.00. This receipt is proof of payment.</p>
+            ` : `
+              <div style="display: flex; justify-content: space-between; margin-bottom: 20px; font-size: 14px; font-weight: 800; color: #10b981;">
+                <span>Deposit Paid</span>
+                <span>-$${deposit.toLocaleString()}</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; padding-top: 16px; border-top: 3px solid #0f172a;">
+                <span style="font-size: 12px; font-weight: 900; text-transform: uppercase; color: #0f172a;">Balance Due</span>
+                <span style="font-size: 24px; font-weight: 900; color: #059669;">$${balance}</span>
+              </div>
+            `}
           </div>
         </div>
 
@@ -471,7 +492,7 @@ function InvoiceMakerContent() {
                Flora <span className="bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text text-transparent underline decoration-green-500 decoration-8 underline-offset-[1.5rem]">Financials</span>
             </h1>
             <p className="text-xl text-slate-400 max-w-2xl mx-auto font-medium italic">
-               Generate elite invoices, quotes, and deposit requests for Rhode Island properties.
+               Generate invoices, quotes, and paid receipts you can email as proof of payment.
             </p>
          </div>
       </section>
@@ -495,6 +516,12 @@ function InvoiceMakerContent() {
                             >
                                Quote
                             </button>
+                            <button 
+                              onClick={() => setDocType('Receipt')}
+                              className={`px-10 py-5 rounded-[2rem] font-black italic uppercase transition-all ${docType === 'Receipt' ? 'bg-green-600 text-white shadow-xl' : 'text-slate-500 hover:text-white'}`}
+                            >
+                               Receipt
+                            </button>
                          </div>
 
                          <div className="flex flex-wrap items-center gap-8">
@@ -503,12 +530,14 @@ function InvoiceMakerContent() {
                                   <p className="text-[10px] font-black italic text-slate-500 uppercase leading-none mb-1">Total</p>
                                   <p className="text-2xl font-black italic text-green-400">${calculateSubtotal().toLocaleString()}</p>
                                </div>
-                               <div className="text-right group cursor-pointer" onClick={() => setIsManualBalance(!isManualBalance)}>
+                               <div className="text-right group cursor-pointer" onClick={() => docType !== 'Receipt' && setIsManualBalance(!isManualBalance)}>
                                   <div className="flex items-center gap-2 justify-end">
-                                    <p className="text-[10px] font-black italic text-slate-500 uppercase leading-none">Balance Due</p>
+                                    <p className="text-[10px] font-black italic text-slate-500 uppercase leading-none">{docType === 'Receipt' ? 'Status' : 'Balance Due'}</p>
                                     <SparklesIcon className={`w-3 h-3 ${isManualBalance ? 'text-green-400' : 'text-slate-700'}`} />
                                   </div>
-                                  {isManualBalance ? (
+                                  {docType === 'Receipt' ? (
+                                    <p className="text-2xl font-black italic text-green-400">PAID</p>
+                                  ) : isManualBalance ? (
                                     <input 
                                       type="number"
                                       autoFocus
@@ -618,9 +647,29 @@ function InvoiceMakerContent() {
                             <input value={invoiceData.invoice_number} readOnly className="w-full bg-white/5 border-2 border-white/5 rounded-2xl px-8 py-5 font-bold text-slate-500 outline-none" />
                          </div>
                          <div>
-                            <label className="text-[10px] font-black italic text-slate-500 uppercase tracking-widest mb-4 block">Document Date</label>
+                            <label className="text-[10px] font-black italic text-slate-500 uppercase tracking-widest mb-4 block">{docType === 'Receipt' ? 'Paid on' : 'Document Date'}</label>
                             <input type="date" value={invoiceData.invoice_date} onChange={(e) => setInvoiceData({...invoiceData, invoice_date: e.target.value})} className="w-full bg-white/5 border-2 border-white/10 rounded-2xl px-8 py-5 font-bold outline-none [color-scheme:dark]" />
                          </div>
+                         {docType === 'Receipt' ? (
+                           <>
+                             <div>
+                                <label className="text-[10px] font-black italic text-slate-500 uppercase tracking-widest mb-4 block">How they paid</label>
+                                <select value={invoiceData.payment_method} onChange={(e) => setInvoiceData({...invoiceData, payment_method: e.target.value})} className="w-full bg-white/5 border-2 border-white/10 rounded-2xl px-8 py-5 font-bold outline-none">
+                                   <option className="bg-slate-900">Cash</option>
+                                   <option className="bg-slate-900">Check</option>
+                                   <option className="bg-slate-900">Card</option>
+                                   <option className="bg-slate-900">Zelle</option>
+                                   <option className="bg-slate-900">Venmo</option>
+                                   <option className="bg-slate-900">Other</option>
+                                </select>
+                             </div>
+                             <div>
+                                <label className="text-[10px] font-black italic text-green-500 uppercase tracking-widest mb-4 block">Amount paid</label>
+                                <input value={`$${calculateSubtotal().toLocaleString('en-US', { minimumFractionDigits: 2 })}`} readOnly className="w-full bg-green-500/10 border-2 border-green-500/20 rounded-2xl px-8 py-5 font-black text-green-400 outline-none" />
+                             </div>
+                           </>
+                         ) : (
+                           <>
                          <div>
                             <label className="text-[10px] font-black italic text-slate-500 uppercase tracking-widest mb-4 block">Due Date</label>
                             <input type="date" value={invoiceData.due_date} onChange={(e) => setInvoiceData({...invoiceData, due_date: e.target.value})} className="w-full bg-white/5 border-2 border-white/10 rounded-2xl px-8 py-5 font-bold outline-none [color-scheme:dark]" />
@@ -629,6 +678,8 @@ function InvoiceMakerContent() {
                             <label className="text-[10px] font-black italic text-green-500 uppercase tracking-widest mb-4 block">Deposit Paid ($)</label>
                             <input type="number" value={invoiceData.deposit_amount} onChange={(e) => setInvoiceData({...invoiceData, deposit_amount: e.target.value})} className="w-full bg-green-500/10 border-2 border-green-500/20 rounded-2xl px-8 py-5 font-black text-green-400 outline-none" />
                          </div>
+                           </>
+                         )}
                       </div>
 
                       <div className="mb-16">
@@ -782,7 +833,9 @@ function InvoiceMakerContent() {
                                     body: JSON.stringify({
                                       email: selectedCustomer.email,
                                       name: selectedCustomer.name,
-                                      subject: `Elite ${docType}: ${invoiceData.invoice_number} from Flora Lawn`,
+                                      subject: docType === 'Receipt'
+                                        ? `Paid receipt ${invoiceData.invoice_number} from Flora Lawn`
+                                        : `Elite ${docType}: ${invoiceData.invoice_number} from Flora Lawn`,
                                       html: generatedInvoice,
                                       docType: docType
                                     })
@@ -803,7 +856,7 @@ function InvoiceMakerContent() {
                               id="send-email-btn"
                               className="bg-green-600 text-white font-black px-10 py-5 rounded-2xl flex items-center gap-4 hover:bg-green-500 hover:scale-105 transition-all shadow-xl shadow-green-500/20"
                             >
-                               <EnvelopeIcon className="w-6 h-6" /> Send via Email
+                               <EnvelopeIcon className="w-6 h-6" /> {docType === 'Receipt' ? 'Email paid receipt' : 'Send via Email'}
                             </button>
                             <button onClick={printInvoice} className="bg-white text-slate-900 font-black px-10 py-5 rounded-2xl flex items-center gap-4 hover:bg-green-400 hover:scale-105 transition-all shadow-xl">
                                <PrinterIcon className="w-6 h-6" /> Print {docType}
