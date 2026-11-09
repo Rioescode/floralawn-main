@@ -444,7 +444,40 @@ function InvoiceMakerContent() {
           </div>
         ` : ''}
 
-        <div style="margin-top: 60px; padding: 30px; border-radius: 24px; background: #f8fafc; border: 2px solid #e2e8f0; position: relative; overflow: hidden;">
+        <div style="margin-top: 36px; padding: 24px; border-radius: 20px; background: #ffffff; border: 1.5px solid #e2e8f0; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);">
+          <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f1f5f9; padding-bottom: 12px; margin-bottom: 16px; flex-wrap: wrap; gap: 8px;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <span style="display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; background: #fef3c7; color: #d97706; border-radius: 50%; font-size: 16px;">★</span>
+              <div>
+                <h4 style="margin: 0; font-size: 13px; font-weight: 900; text-transform: uppercase; color: #0f172a; letter-spacing: 0.05em;">100+ Verified Reviews • 4.9★ Google & 4.8★ Thumbtack</h4>
+                <p style="margin: 2px 0 0; font-size: 11px; color: #64748b; font-weight: 600;">Trusted by Local Homeowners across Rhode Island & Massachusetts</p>
+              </div>
+            </div>
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <a href="https://g.co/kgs/rU7iLyH" target="_blank" rel="noopener noreferrer" style="display: inline-flex; align-items: center; gap: 4px; padding: 6px 12px; background: #f0fdf4; color: #059669; font-size: 11px; font-weight: 800; border-radius: 999px; text-decoration: none; border: 1px solid #86efac;">
+                Google 4.9★ ↗
+              </a>
+              <span style="display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 800; padding: 6px 12px; background: #eff6ff; color: #2563eb; border-radius: 999px; border: 1px solid #bfdbfe;">
+                Thumbtack 4.8★
+              </span>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px;">
+            <div style="background: #f8fafc; padding: 14px 16px; border-radius: 14px; border-left: 3px solid #10b981;">
+              <div style="color: #f59e0b; font-size: 12px; margin-bottom: 4px; letter-spacing: 1px;">★★★★★</div>
+              <p style="font-size: 12px; font-style: italic; color: #334155; margin: 0 0 6px; line-height: 1.45;">"They were great to work with. Clear communication, cordial and their work was excellent! We're happy to finally have a clean yard! 🙌🏽"</p>
+              <p style="font-size: 11px; font-weight: 800; color: #059669; margin: 0;">— Melissa Debarros <span style="color: #94a3b8; font-weight: 500;">• Verified Customer</span></p>
+            </div>
+            <div style="background: #f8fafc; padding: 14px 16px; border-radius: 14px; border-left: 3px solid #10b981;">
+              <div style="color: #f59e0b; font-size: 12px; margin-bottom: 4px; letter-spacing: 1px;">★★★★★</div>
+              <p style="font-size: 12px; font-style: italic; color: #334155; margin: 0 0 6px; line-height: 1.45;">"We highly recommend Floras Lawn & Landscaping service. They did a beautiful job on our yard and we highly recommend them."</p>
+              <p style="font-size: 11px; font-weight: 800; color: #059669; margin: 0;">— Mary Mcnichols <span style="color: #94a3b8; font-weight: 500;">• Verified Customer</span></p>
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-top: 36px; padding: 30px; border-radius: 24px; background: #f8fafc; border: 2px solid #e2e8f0; position: relative; overflow: hidden;">
           <div style="position: absolute; top: 0; left: 0; width: 4px; height: 100%; background: #10b981;"></div>
           <h3 style="font-size: 14px; font-weight: 900; text-transform: uppercase; color: #0f172a; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>

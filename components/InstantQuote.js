@@ -698,6 +698,8 @@ export default function InstantQuoteMap({ onQuoteComplete, selectedPlace, setSel
       doc.roundedRect(135, totalY, 60, 20, 2, 2, 'FD');
       doc.setTextColor(255, 255, 255); doc.setFontSize(9); doc.text('TOTAL QUOTE', 145, totalY + 8);
       doc.setFontSize(14); doc.setFont('helvetica', 'bold'); doc.text(`$${totalQuote.toLocaleString()}`, 190, totalY + 14, { align: 'right' });
+      doc.setTextColor(16, 185, 129); doc.setFontSize(7.5); doc.setFont('helvetica', 'bold');
+      doc.text('100+ VERIFIED REVIEWS • 4.9★ GOOGLE & 4.8★ THUMBTACK • 100% SATISFACTION GUARANTEE', 15, totalY + 13);
       drawFooter(doc);
       doc.save(`Floralawn_Standard_Quote_${selectedPlace.name.replace(/\s+/g, '_')}.pdf`);
     };
@@ -1075,12 +1077,39 @@ export default function InstantQuoteMap({ onQuoteComplete, selectedPlace, setSel
                         ) : (
                            <div className="bg-green-50 border border-green-200 rounded-xl p-5 relative overflow-hidden">
                               <SparklesIcon className="w-32 h-32 text-green-500/10 absolute -top-10 -right-10 pointer-events-none" />
-                              <p className="text-[10px] font-black text-green-600 uppercase tracking-widest flex items-center gap-2 mb-2"><SparklesIcon className="w-3 h-3" /> Claude AI Quote Summary</p>
+                              <p className="text-[10px] font-black text-green-600 uppercase tracking-widest flex items-center gap-2 mb-2"><SparklesIcon className="w-3 h-3" /> AI Quote Analysis</p>
                               <p className="text-xs text-slate-700 leading-relaxed font-medium relative z-10">{aiQuoteSummary}</p>
                            </div>
                         )}
                      </div>
                      
+                      {/* Google Reviews & Trust Card */}
+                      <div className="mx-2 lg:mx-4 mb-4 p-4 rounded-xl bg-slate-50 border border-slate-200/90 shadow-sm">
+                         <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                               <span className="text-amber-400 text-xs">★★★★★</span>
+                               <span className="text-xs font-black text-slate-800">4.9★ Google</span>
+                               <span className="text-slate-300 text-xs">•</span>
+                               <span className="text-xs font-bold text-blue-600">4.8★ Thumbtack</span>
+                            </div>
+                            <a 
+                               href="https://g.co/kgs/rU7iLyH" 
+                               target="_blank" 
+                               rel="noopener noreferrer" 
+                               className="text-[10px] font-black text-green-600 hover:text-green-700 underline"
+                            >
+                               100+ Verified Reviews ↗
+                            </a>
+                         </div>
+                         <p className="text-[11px] text-slate-600 italic leading-snug">
+                            "Clear communication, cordial and their work was excellent! We're happy to finally have a clean yard!"
+                         </p>
+                         <p className="text-[10px] font-bold text-slate-400 mt-1.5 flex items-center justify-between">
+                            <span>— Melissa D., Verified Homeowner</span>
+                            <span className="text-emerald-600 font-black">✓ 100% Guarantee</span>
+                         </p>
+                      </div>
+
                      {mapImageUrl && (
                         <div className="mb-4 mt-2 px-2 lg:px-4">
                            <p className="text-[9px] lg:text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Map Snapshot Attached</p>
