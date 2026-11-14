@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import CustomerMap from '@/app/components/CustomerMap';
 import { sendNotification } from '@/lib/notifications';
+import { exportAllCustomersToCSV } from '@/lib/exportCustomers';
 import {
   CalendarDaysIcon,
   UserIcon,
@@ -37,7 +38,8 @@ import {
   SparklesIcon,
   CloudIcon,
   PaperAirplaneIcon,
-  ArrowUturnLeftIcon
+  ArrowUturnLeftIcon,
+  ArrowDownTrayIcon
 } from '@heroicons/react/24/outline';
 
 const DAYS_OF_WEEK = [
@@ -66,6 +68,7 @@ const DAYS_OF_WEEK = [
 
 export default function SchedulePage() {
   const [customers, setCustomers] = useState([]);
+  const [exportingCustomers, setExportingCustomers] = useState(false);
   const [filteredCustomers, setFilteredCustomers] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [daySearchTerms, setDaySearchTerms] = useState({});
@@ -1026,6 +1029,22 @@ export default function SchedulePage() {
     } catch (error) {
       console.error('Auth error:', error);
       router.push('/login');
+    }
+  };
+
+  const handleExportAllCustomers = async () => {
+    if (exportingCustomers) return;
+    setExportingCustomers(true);
+    try {
+      const { count } = await exportAllCustomersToCSV();
+      if (count === 0) {
+        alert('No customers found to export.');
+      }
+    } catch (error) {
+      console.error('Error exporting customers:', error);
+      alert('Failed to export customers: ' + error.message);
+    } finally {
+      setExportingCustomers(false);
     }
   };
 
@@ -4160,6 +4179,19 @@ export default function SchedulePage() {
                 <span className="text-[10px] font-black uppercase tracking-widest text-green-400">Quick BI</span>
               </button>
               
+              <button
+                type="button"
+                onClick={handleExportAllCustomers}
+                disabled={exportingCustomers}
+                className="flex items-center gap-1.5 px-3 py-1 bg-sky-500/10 border border-sky-500/20 rounded-full hover:bg-sky-500/20 transition-all group disabled:opacity-50"
+                title="Export all customers to CSV"
+              >
+                <ArrowDownTrayIcon className="h-3.5 w-3.5 text-sky-400" />
+                <span className="text-[10px] font-black uppercase tracking-widest text-sky-400">
+                  {exportingCustomers ? 'Exporting...' : 'Export All'}
+                </span>
+              </button>
+
               <button 
                 onClick={handleLogout}
                 className="flex items-center gap-2 px-3 py-1 bg-red-500/10 border border-red-500/20 rounded-full hover:bg-red-500/20 transition-all group ml-2"

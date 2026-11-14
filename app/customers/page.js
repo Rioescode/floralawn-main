@@ -5,6 +5,7 @@ import { supabase, supabaseAdmin } from '@/lib/supabase';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import Navigation from '@/components/Navigation';
+import { exportAllCustomersToCSV } from '@/lib/exportCustomers';
 import { ErrorBoundary } from '@/app/admin/error-boundary';
 import '@/lib/error-handler';
 import {
@@ -1273,7 +1274,7 @@ export default function CustomersPage() {
     ]);
 
     const csvContent = [headers, ...csvData]
-      .map(row => row.map(field => `"${field}"`).join(','))
+      .map(row => row.map(field => `"${String(field ?? '').replace(/"/g, '""')}"`).join(','))
       .join('\n');
 
     const blob = new Blob([csvContent], { type: 'text/csv' });
@@ -1427,7 +1428,7 @@ export default function CustomersPage() {
 
     const headers = ['Name', 'Email', 'Phone', 'Service', 'Frequency', 'Price', 'Status', 'Address'];
     const csvContent = [headers, ...emailData.map(row => Object.values(row))]
-      .map(row => row.map(field => `"${field}"`).join(','))
+      .map(row => row.map(field => `"${String(field ?? '').replace(/"/g, '""')}"`).join(','))
       .join('\n');
 
     const blob = new Blob([csvContent], { type: 'text/csv' });
@@ -1785,6 +1786,15 @@ Flora Landscaping`
                 <ArrowDownTrayIcon className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-1.5" />
                 <span className="hidden sm:inline">Export CSV</span>
                 <span className="sm:hidden">Export</span>
+              </button>
+              <button
+                onClick={() => exportAllCustomersToCSV().catch((err) => alert('Failed to export customers: ' + err.message))}
+                className="inline-flex items-center justify-center px-2 sm:px-3 py-1.5 sm:py-2 border border-blue-300 rounded-md shadow-sm text-xs sm:text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 transition-colors"
+                title="Export all customers in database"
+              >
+                <ArrowDownTrayIcon className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-1.5" />
+                <span className="hidden sm:inline">Export All</span>
+                <span className="sm:hidden">All</span>
               </button>
               <button
                 onClick={() => setShowEmailList(true)}

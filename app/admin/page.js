@@ -5,6 +5,7 @@ import { supabase, supabaseAdmin } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Navigation from '@/components/Navigation';
+import { exportAllCustomersToCSV } from '@/lib/exportCustomers';
 import { ErrorBoundary } from './error-boundary';
 import {
   PlusIcon,
@@ -557,7 +558,7 @@ export default function AdminDashboard() {
       c.name, c.email, c.phone, c.address, c.service_type, c.frequency, c.price, c.status
     ]);
     
-    const csvContent = [headers, ...csvData].map(row => row.join(',')).join('\n');
+    const csvContent = [headers, ...csvData].map(row => row.map(field => `"${String(field ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -1448,7 +1449,7 @@ export default function AdminDashboard() {
               View New Leads
             </Link>
             <button
-              onClick={exportToCSV}
+              onClick={() => exportAllCustomersToCSV().catch((err) => alert('Failed to export customers: ' + err.message))}
               className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium"
             >
               <ArrowDownTrayIcon className="w-5 h-5" />
