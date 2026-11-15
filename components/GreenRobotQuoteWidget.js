@@ -7,11 +7,9 @@ export default function GreenRobotQuoteWidget({
   slug = 'flora-lawn-and-landscaping-inc',
   color = '#16a34a',
   baseRate = '35',
-  brandName = 'Flora Lawn & Landscaping Inc',
-  proEmail = 'floralawncareri@gmail.com'
+  brandName = 'Flora Lawn & Landscaping Inc'
 }) {
-  const [iframeHeight, setIframeHeight] = useState('520px');
-  const [isLoading, setIsLoading] = useState(true);
+  const [iframeHeight, setIframeHeight] = useState('460px');
 
   useEffect(() => {
     const handleMessage = (ev) => {
@@ -29,37 +27,30 @@ export default function GreenRobotQuoteWidget({
 
   const params = new URLSearchParams({
     color,
-    baseRate,
-    brandName,
-    proEmail
+    baseRate
   });
+  if (brandName) params.set('brandName', brandName);
 
   const widgetUrl = `https://mygreenrobot.com/widget/${encodeURIComponent(slug)}?${params.toString()}`;
 
   return (
-    <div className={`w-full relative ${className}`}>
-      {isLoading && (
-        <div className="w-full h-80 flex flex-col items-center justify-center bg-slate-50 rounded-3xl border border-slate-100 text-slate-400 gap-3">
-          <div className="w-8 h-8 border-4 border-green-500 border-t-transparent rounded-full animate-spin" />
-          <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-            Loading Satellite Yard Quoter...
-          </span>
-        </div>
-      )}
+    <div className={`w-full max-w-3xl mx-auto relative ${className}`}>
       <iframe
         src={widgetUrl}
-        onLoad={() => setIsLoading(false)}
         title={`${brandName} Instant Satellite Lawn Quote`}
-        className={`w-full transition-all duration-300 ${isLoading ? 'hidden' : 'block'}`}
+        className="w-full transition-all duration-300 rounded-3xl"
         style={{
           width: '100%',
-          maxWidth: '100%',
+          maxWidth: '720px',
           height: iframeHeight,
+          minHeight: '420px',
           border: 'none',
           background: 'transparent',
           borderRadius: '24px',
-          display: isLoading ? 'none' : 'block',
-          overflow: 'hidden'
+          display: 'block',
+          margin: '0 auto',
+          overflow: 'hidden',
+          transition: 'height 0.25s ease'
         }}
         allow="geolocation; microphone"
         loading="lazy"
