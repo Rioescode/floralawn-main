@@ -32,6 +32,7 @@ import { StarIcon as StarIconSolid, CheckBadgeIcon } from '@heroicons/react/24/s
 import ServiceToggleGrid from "@/components/ServiceToggleGrid";
 import CleanupYard from "@/components/CleanupYard";
 import YardSeasonScene from "@/components/YardSeasonScene";
+import GreenRobotQuoteWidget from "@/components/GreenRobotQuoteWidget";
 import { OTHER_SERVICES, YARD_SERVICES, resolveServiceList, serviceDisplayName } from "@/data/quote-services";
 
 const CLEANUP_TASKS = [
@@ -145,6 +146,7 @@ function ContactForm() {
   const [pickedServices, setPickedServices] = useState([]);
   const [accountUser, setAccountUser] = useState(null);
   const [prefilledFromAccount, setPrefilledFromAccount] = useState(false);
+  const [formMode, setFormMode] = useState("instant");
   
   // Media Upload State
   const [mediaFiles, setMediaFiles] = useState([]);
@@ -162,6 +164,12 @@ function ContactForm() {
     const service = searchParams.get('service');
     const ref = searchParams.get('ref');
     const promo = searchParams.get('promo');
+    const formParam = searchParams.get('form');
+    if (formParam === 'instant') {
+      setFormMode('instant');
+    } else if (formParam === 'manual' || service) {
+      setFormMode('manual');
+    }
     if (location) setFormData(prev => ({ ...prev, city: location }));
     const picked = resolveServiceList(service, searchParams.get('services'));
     if (picked.length) {
@@ -788,7 +796,62 @@ function ContactForm() {
                <div className="lg:col-span-8 order-1 lg:order-2 w-full">
                   <div className="bg-white p-6 md:p-20 rounded-[2.5rem] md:rounded-[4rem] shadow-2xl border border-slate-50 relative">
                      
-                      <form onSubmit={handleSubmit} className="space-y-8">
+                      {/* FORM MODE SELECTOR */}
+                     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8 pb-6 border-b border-slate-100">
+                        <div>
+                           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-green-50 border border-green-200 text-green-700 text-[10px] font-black uppercase tracking-wider mb-2">
+                              <SparklesIcon className="w-3.5 h-3.5" /> Satellite Lawn Quoter
+                           </div>
+                           <h3 className="text-2xl font-black text-slate-900 italic tracking-tight">
+                              {formMode === 'instant' ? 'Instant Satellite Quote' : 'Detailed Service Request'}
+                           </h3>
+                           <p className="text-xs text-slate-500 font-medium">
+                              {formMode === 'instant'
+                                 ? 'Type your property address below to scan your yard by satellite and get a fast quote.'
+                                 : 'Select specific services, custom requirements, or upload photos of your property.'}
+                           </p>
+                        </div>
+                        <div className="inline-flex p-1.5 bg-slate-100 rounded-2xl shrink-0 self-stretch sm:self-auto">
+                           <button
+                              type="button"
+                              onClick={() => setFormMode('instant')}
+                              className={`flex-1 sm:flex-initial px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${
+                                 formMode === 'instant'
+                                    ? 'bg-green-600 text-white shadow-lg shadow-green-600/30'
+                                    : 'text-slate-600 hover:text-slate-900'
+                              }`}
+                           >
+                              Instant Quote ✨
+                           </button>
+                           <button
+                              type="button"
+                              onClick={() => setFormMode('manual')}
+                              className={`flex-1 sm:flex-initial px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${
+                                 formMode === 'manual'
+                                    ? 'bg-white text-slate-900 shadow-md'
+                                    : 'text-slate-600 hover:text-slate-900'
+                              }`}
+                           >
+                              Detailed Form
+                           </button>
+                        </div>
+                     </div>
+
+                     {formMode === 'instant' ? (
+                        <div className="space-y-6">
+                           <GreenRobotQuoteWidget />
+                           <div className="pt-4 text-center">
+                              <button
+                                 type="button"
+                                 onClick={() => setFormMode('manual')}
+                                 className="text-xs font-bold text-slate-500 hover:text-green-600 underline underline-offset-4 transition-colors"
+                              >
+                                 Need custom cleanups, mulch, or want to upload yard photos? Switch to Detailed Form →
+                              </button>
+                           </div>
+                        </div>
+                     ) : (
+                     <form onSubmit={handleSubmit} className="space-y-8">
                         {prefilledFromAccount && (
                           <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border-2 border-green-200 bg-green-50 px-5 py-4">
                             <p className="text-sm font-semibold text-green-900">
@@ -1537,6 +1600,7 @@ function ContactForm() {
                            </div>
                         )}
                      </form>
+                     )}
                   </div>
                </div>
             </div>
