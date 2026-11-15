@@ -71,6 +71,11 @@ export default function RootLayout({ children }) {
 					src={`https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=places,drawing,geometry`}
 					strategy="beforeInteractive"
 				/>
+				<Script
+					src="https://mygreenrobot.com/pro-widget-embed.js"
+					data-pro="flora-lawn-and-landscaping-inc"
+					strategy="afterInteractive"
+				/>
 				<SafeBoundary><BottomNav /></SafeBoundary>
 			</body>
 		</html>
