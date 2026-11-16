@@ -23,7 +23,7 @@ import {
   ArrowRightIcon
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
-import SpringPromoBanner from './SpringPromoBanner';
+import WeatherTopBar from './WeatherTopBar';
 
 export default function Navigation() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -83,7 +83,7 @@ export default function Navigation() {
 
   return (
     <>
-      {!accountPage && <SpringPromoBanner />}
+      {!accountPage && <WeatherTopBar />}
       <header 
         className={`sticky top-0 left-0 right-0 z-[1000] transition-all duration-500 bg-white/95 backdrop-blur-2xl border-b border-slate-200 ${
           isScrolled ? 'py-3 shadow-lg' : 'py-5'

@@ -33,7 +33,6 @@ import ServiceAreaMap from "@/components/ServiceAreaMap";
 import LeafSeason from "@/components/LeafSeason";
 import FallHero from "@/components/FallHero";
 import FallPackages from "@/components/FallPackages";
-import WeatherAdvisoryBanner from "@/components/WeatherAdvisoryBanner";
 
 export default function HomePage() {
   const [address, setAddress] = useState('');
@@ -126,10 +125,6 @@ export default function HomePage() {
     <div className="min-h-screen bg-white text-slate-900 overflow-x-hidden">
       <Navigation />
       
-      {/* LIVE AI PREDICTIVE TURF & WEATHER ADVISORY */}
-      <section className="bg-[#1c0a0e] py-4 border-b border-yellow-400/20">
-        <WeatherAdvisoryBanner />
-      </section>
 
       <FallHero />
 
