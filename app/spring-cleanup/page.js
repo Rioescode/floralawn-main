@@ -821,7 +821,7 @@ export default function SpringCleanupFunnel() {
                         <span className="text-base font-medium text-gray-800">📱 Yes, send me a text message confirmation</span>
                         <p className="text-sm text-gray-600 mt-1">
                           Get instant confirmation via text when you submit your inquiry. 
-                          <span className="font-semibold text-blue-700"> Standard message and data rates may apply.</span> Reply STOP to opt-out.
+                          <span className="font-semibold text-blue-700"> Standard message and data rates may apply.</span> Reply HELP for help, Reply STOP to opt out.
                         </p>
                       </div>
                     </label>
@@ -841,7 +841,7 @@ export default function SpringCleanupFunnel() {
                     <div className="mt-3 p-2 bg-blue-50 rounded-lg border border-blue-200">
                       <p className="text-xs text-blue-700">
                         📱 By checking the text message box, you consent to receive text messages from Flora Lawn & Landscaping. 
-                        Message and data rates may apply. Reply STOP to opt-out.
+                        Message and data rates may apply. Reply HELP for help, Reply STOP to opt out.
                       </p>
                     </div>
                   )}
