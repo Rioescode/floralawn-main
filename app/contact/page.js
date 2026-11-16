@@ -32,6 +32,7 @@ import { StarIcon as StarIconSolid, CheckBadgeIcon } from '@heroicons/react/24/s
 import ServiceToggleGrid from "@/components/ServiceToggleGrid";
 import CleanupYard from "@/components/CleanupYard";
 import YardSeasonScene from "@/components/YardSeasonScene";
+import WeatherAdvisoryBanner from "@/components/WeatherAdvisoryBanner";
 import { OTHER_SERVICES, YARD_SERVICES, resolveServiceList, serviceDisplayName } from "@/data/quote-services";
 
 const CLEANUP_TASKS = [
@@ -714,6 +715,8 @@ function ContactForm() {
 
       <section className="py-24">
          <div className="max-w-7xl mx-auto px-4">
+              {/* LIVE AI PREDICTIVE TURF & WEATHER ADVISORY */}
+              <WeatherAdvisoryBanner className="mb-12" />
              {/* MOBILE SPEED STATUS - HIGH VISIBILITY WHITE */}
              <div className="lg:hidden mb-10 bg-white p-8 rounded-[3rem] flex items-center justify-between border-2 border-slate-100 shadow-2xl">
                 <div className="flex items-center gap-5 relative z-10">
