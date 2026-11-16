@@ -127,7 +127,7 @@ export default function HomePage() {
       <Navigation />
       
       {/* LIVE AI PREDICTIVE TURF & WEATHER ADVISORY */}
-      <section className="bg-slate-950 py-4 border-b border-slate-800">
+      <section className="bg-[#1c0a0e] py-4 border-b border-yellow-400/20">
         <WeatherAdvisoryBanner />
       </section>
 
