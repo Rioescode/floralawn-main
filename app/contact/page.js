@@ -137,6 +137,7 @@ function ContactForm() {
   const [estimatePreference, setEstimatePreference] = useState('walk_around');
   const [emailPreferences, setEmailPreferences] = useState({ subscribe: false, frequency: 'monthly' });
   const [smsPreferences, setSmsPreferences] = useState({ subscribe: false });
+  const [partnerReferralConsent, setPartnerReferralConsent] = useState(true);
   const [status, setStatus] = useState({ type: '', message: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showMessageHelper, setShowMessageHelper] = useState(true);
@@ -461,7 +462,8 @@ function ContactForm() {
         user_phone: formData.phone,
         user_address: `${formData.address}${formData.state ? `, ${formData.state}` : ''}${formData.zipCode ? ` ${formData.zipCode}` : ''}`,
         service_type: formData.service.toLowerCase().replace(/\s+/g, '_'),
-        message: `[PREFERS: ${estimatePreference === 'meet_person' ? 'Meet In Person' : 'Walk Around & Email Pricing'}]\n\n` + servicesLine + jobContext + packageContext + cleanupContext + mulchContext + formData.message,
+        message: `[PREFERS: ${estimatePreference === 'meet_person' ? 'Meet In Person' : 'Walk Around & Email Pricing'}]\n\n` + servicesLine + jobContext + packageContext + cleanupContext + mulchContext + (partnerReferralConsent ? '[BACKUP PROVIDER: YES - Help connect with trusted partner if fully booked/out of area]\n\n' : '') + formData.message,
+        partner_backup_requested: partnerReferralConsent ? 'YES' : 'NO',
         to_name: process.env.NEXT_PUBLIC_APP_NAME,
         reply_to: formData.email,
         promo_code: formData.promoCode || 'NONE',
@@ -534,7 +536,8 @@ function ContactForm() {
             promoCode: formData.promoCode || null,
             estimatePreference: estimatePreference,
             emailPreferences,
-            smsPreferences
+            smsPreferences,
+            partnerBackupConsent: partnerReferralConsent
           }),
         });
 
@@ -1445,6 +1448,27 @@ function ContactForm() {
                               Stay Connected
                            </h4>
                            <div className="space-y-6">
+                              {/* BACKUP COVERAGE ASSISTANCE IF FULL */}
+                              <label className="flex items-start gap-4 cursor-pointer group p-4 -mx-4 rounded-2xl bg-white border border-slate-200 hover:border-green-400 transition-all shadow-sm">
+                                 <div className={`w-8 h-8 rounded-lg flex items-center justify-center border-2 transition-all shrink-0 mt-0.5 ${partnerReferralConsent ? 'bg-green-600 border-green-600 text-white' : 'bg-white border-slate-300 text-transparent'}`}>
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7"/></svg>
+                                 </div>
+                                 <input type="checkbox" className="hidden" checked={partnerReferralConsent} onChange={(e) => setPartnerReferralConsent(e.target.checked)} />
+                                 <div>
+                                    <div className="flex items-center gap-2">
+                                       <p className="font-black text-xs uppercase tracking-tight italic text-slate-900">
+                                          Backup Coverage Assistance
+                                       </p>
+                                       <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-amber-100 text-amber-900 border border-amber-200">
+                                          No Extra Charge
+                                       </span>
+                                    </div>
+                                    <p className="text-[11px] text-slate-600 font-semibold leading-relaxed mt-1">
+                                       If our schedule is full or we cannot service your specific date/area, help connect me with a trusted, vetted local Rhode Island / MA partner so my property doesn't wait.
+                                    </p>
+                                 </div>
+                              </label>
+
                               <label className="flex items-center gap-4 cursor-pointer group">
                                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center border-2 transition-all ${emailPreferences.subscribe ? 'bg-green-600 border-green-600 text-white' : 'bg-white border-slate-200 text-transparent'}`}>
                                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7"/></svg>
