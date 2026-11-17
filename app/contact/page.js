@@ -1464,7 +1464,7 @@ function ContactForm() {
                                        </span>
                                     </div>
                                     <p className="text-[11px] text-slate-600 font-semibold leading-relaxed mt-1">
-                                       If our schedule is full or we cannot service your specific date/area, help connect me with a trusted, vetted local Rhode Island / MA partner so my property doesn't wait.
+                                       If our schedule is full or we cannot service your specific date/area, help connect me with a trusted local Rhode Island / MA partner so my property doesn't wait.
                                     </p>
                                  </div>
                               </label>

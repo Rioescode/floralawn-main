@@ -152,7 +152,7 @@ export async function POST(request) {
                   <span style="display:inline-block;width:20px;height:20px;line-height:20px;text-align:center;background:#2F6B4F;color:#ffffff;font-size:11px;font-weight:700;border-radius:50%;">2</span>
                 </td>
                 <td style="padding:4px 0 8px 0;vertical-align:top;font-size:13.5px;color:#1B2838;line-height:1.5;">
-                  <strong>Vetted Partner Referral:</strong> If our calendar is at capacity, we introduce your request to a licensed, insured local lawn care partner in Rhode Island or Southern Massachusetts from our trusted network.
+                  <strong>Partner Referral:</strong> If our calendar is at capacity, we introduce your request to an independent local lawn care partner in Rhode Island or Southern Massachusetts from our network.
                 </td>
               </tr>
               <tr>
@@ -239,7 +239,7 @@ export async function POST(request) {
         city: sanitizedCity,
         address: address ? `${address}${sanitizedState ? `, ${sanitizedState}` : ''}${sanitizedZip ? ` ${sanitizedZip}` : ''}` : null,
         status: 'pending',
-        notes: `${message}${partnerBackupRequested ? '\n\n[PARTNER REFERRAL: CONSENTED - OK to dispatch to vetted partner if booked]' : '\n\n[PARTNER REFERRAL: DECLINED - Direct Flora Lawn only]'}`,
+        notes: `${message}${partnerBackupRequested ? '\n\n[PARTNER REFERRAL: CONSENTED - OK to dispatch to partner if booked]' : '\n\n[PARTNER REFERRAL: DECLINED - Direct Flora Lawn only]'}`,
         estimate_preference: body.estimatePreference || 'walk_around',
         cleanup_last_cleaned: cleanupData?.lastCleaned || null,
         cleanup_condition_level: cleanupData?.conditionLevel || null,
@@ -344,7 +344,7 @@ export async function POST(request) {
                 'BACKUP COVERAGE ASSISTANCE (ACTIVE):',
                 'You opted in for backup coverage assistance. If Flora Lawn is fully booked for your requested date:',
                 '1. Flora Lawn evaluates your property first for direct service.',
-                '2. If at capacity, we connect you with an insured, vetted local partner in RI / Southern MA.',
+                '2. If at capacity, we connect you with an independent local partner in RI / Southern MA.',
                 '3. The partner reaches out directly with their estimate and schedule.',
                 '4. 100% free with zero obligation to accept.',
                 'Prefer Flora Lawn only? Reply to this email or call (401) 389-0913.',
@@ -398,7 +398,7 @@ export async function POST(request) {
           { label: 'Email', value: sanitizedEmail },
           { label: 'Address', value: fullAddress || 'Not provided' },
           { label: 'Estimate', value: estimateLabel(body.estimatePreference) },
-          { label: 'Partner Backup', value: partnerBackupRequested ? 'YES — Consented to vetted partner referral if booked' : 'NO — Flora Lawn direct crew only' },
+          { label: 'Partner Backup', value: partnerBackupRequested ? 'YES — Consented to partner referral if booked' : 'NO — Flora Lawn direct crew only' },
         ])),
         leadSections(parsed),
         cleanupData?.conditionLevel
@@ -409,7 +409,7 @@ export async function POST(request) {
         discountApplied ? callout('<strong>10% photo credit</strong> is on this lead.') : '',
         promoCode ? callout(`<strong>Promo code: ${escapeHtml(promoCode)}</strong>`, 'gold') : '',
         partnerBackupRequested
-          ? callout('<strong>🤝 Partner Backup Referral: YES</strong><br>Customer agreed to connect with a vetted local partner if Flora Lawn is booked or unavailable. Safe to dispatch via Crew Desk / MyGreenRobot network if needed.', 'gold')
+          ? callout('<strong>🤝 Partner Backup Referral: YES</strong><br>Customer agreed to connect with an independent local partner if Flora Lawn is booked or unavailable. Safe to dispatch via Crew Desk / MyGreenRobot network if needed.', 'gold')
           : '',
         buttonRow([button(siteUrl('/leads'), 'Open in leads', 'gold')]),
       ].join('');
@@ -431,7 +431,7 @@ export async function POST(request) {
           `Email: ${sanitizedEmail}`,
           `Address: ${fullAddress || 'Not provided'}`,
           `Estimate: ${estimateLabel(body.estimatePreference)}`,
-          `Partner Backup: ${partnerBackupRequested ? 'YES (Consented to vetted partner referral)' : 'NO (Direct only)'}`,
+          `Partner Backup: ${partnerBackupRequested ? 'YES (Consented to partner referral)' : 'NO (Direct only)'}`,
           plainSummary(parsed),
           parsed.note ? `Customer note:\n${parsed.note}` : '',
         ].filter(Boolean).join('\n'),
