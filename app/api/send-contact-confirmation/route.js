@@ -77,7 +77,13 @@ export async function POST(request) {
       );
     }
     
-    const { email, name, service, message, phone, address, city, state, zipCode, sendSMS, hasMedia, mediaUrls, discountApplied, cleanupData, promoCode } = body;
+    const { email, name, service, message, phone, address, city, state, zipCode, sendSMS, hasMedia, mediaUrls, discountApplied, cleanupData, promoCode, partnerBackupConsent } = body;
+    const partnerBackupRequested = Boolean(
+      partnerBackupConsent === true ||
+      partnerBackupConsent === 'true' ||
+      body.partnerReferralConsent === true ||
+      body.partnerReferralConsent === 'true'
+    );
 
     // Input validation
     if (!email || !name) {
@@ -125,6 +131,54 @@ export async function POST(request) {
     const placeLine = [sanitizedCity, sanitizedState].filter(Boolean).join(', ');
     const photoCount = Array.isArray(mediaUrls) ? mediaUrls.length : 0;
 
+    const partnerBackupSection = partnerBackupRequested
+      ? section(
+          'Backup Coverage Assistance · What to Expect',
+          `<div style="background:#F4F8F5;border:1px solid #D5E5DA;border-left:4px solid #2F6B4F;padding:16px 18px;margin-top:6px;">
+            <p style="margin:0 0 10px 0;font-size:14px;color:#1B2838;line-height:1.5;">
+              <strong>You selected our Backup Coverage option.</strong> If Flora Lawn's schedule is fully booked or outside our route for your requested date, here is how we ensure your property gets taken care of without delay:
+            </p>
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+              <tr>
+                <td style="width:28px;vertical-align:top;padding:4px 0;">
+                  <span style="display:inline-block;width:20px;height:20px;line-height:20px;text-align:center;background:#2F6B4F;color:#ffffff;font-size:11px;font-weight:700;border-radius:50%;">1</span>
+                </td>
+                <td style="padding:4px 0 8px 0;vertical-align:top;font-size:13.5px;color:#1B2838;line-height:1.5;">
+                  <strong>Flora Lawn reviews first:</strong> Our direct team reviews your property and route availability first. If we have an opening, you will receive our direct quote and scheduling.
+                </td>
+              </tr>
+              <tr>
+                <td style="width:28px;vertical-align:top;padding:4px 0;">
+                  <span style="display:inline-block;width:20px;height:20px;line-height:20px;text-align:center;background:#2F6B4F;color:#ffffff;font-size:11px;font-weight:700;border-radius:50%;">2</span>
+                </td>
+                <td style="padding:4px 0 8px 0;vertical-align:top;font-size:13.5px;color:#1B2838;line-height:1.5;">
+                  <strong>Vetted Partner Referral:</strong> If our calendar is at capacity, we introduce your request to a licensed, insured local lawn care partner in Rhode Island or Southern Massachusetts from our trusted network.
+                </td>
+              </tr>
+              <tr>
+                <td style="width:28px;vertical-align:top;padding:4px 0;">
+                  <span style="display:inline-block;width:20px;height:20px;line-height:20px;text-align:center;background:#2F6B4F;color:#ffffff;font-size:11px;font-weight:700;border-radius:50%;">3</span>
+                </td>
+                <td style="padding:4px 0 8px 0;vertical-align:top;font-size:13.5px;color:#1B2838;line-height:1.5;">
+                  <strong>Direct Introduction &amp; Pricing:</strong> The matched partner contacts you directly by phone, SMS, or email with their estimate and booking availability.
+                </td>
+              </tr>
+              <tr>
+                <td style="width:28px;vertical-align:top;padding:4px 0;">
+                  <span style="display:inline-block;width:20px;height:20px;line-height:20px;text-align:center;background:#2F6B4F;color:#ffffff;font-size:11px;font-weight:700;border-radius:50%;">4</span>
+                </td>
+                <td style="padding:4px 0 0 0;vertical-align:top;font-size:13.5px;color:#1B2838;line-height:1.5;">
+                  <strong>100% Free &amp; Zero Obligation:</strong> There are never any referral fees or surcharges to you, and you are under no obligation to accept the quote.
+                </td>
+              </tr>
+            </table>
+            <p style="margin:12px 0 0 0;font-size:12px;color:#5C6B62;border-top:1px dashed #DDE5DF;padding-top:10px;line-height:1.5;">
+              <em>Prefer Flora Lawn direct only?</em> If you prefer not to connect with a partner and would rather wait for an opening with our team, simply reply to this email or call <a href="tel:4013890913" style="color:#2F6B4F;font-weight:700;text-decoration:none;">(401) 389-0913</a>.
+            </p>
+          </div>`
+        )
+      : '';
+
     const customerBody = [
       heading(`Thanks, ${firstName}. We got your request.`, 'We reply with your price in 1 to 6 hours.'),
       section('What you asked for', chips(serviceList)),
@@ -138,13 +192,14 @@ export async function POST(request) {
         '<strong>You get the price by email</strong>, usually within 1 to 6 hours.',
         '<strong>Pick a day</strong> that works and we put you on the schedule.',
       ])),
+      partnerBackupSection,
       callout(
         `<strong>See this quote in your account.</strong><br>Sign in with Google to see when it is ready, change the date, or skip a visit.<br>${button(siteUrl('/login?redirect=/customer/dashboard'), 'Open your yard account')}`,
         'navy'
       ),
       paragraph('Questions before then? Reply to this email or call <a href="tel:4013890913" style="color:#2F6B4F;font-weight:700;">(401) 389-0913</a>.'),
       signature(),
-    ].join('');
+    ].filter(Boolean).join('');
 
     const emailHtml = emailLayout({
       preheader: `We got your request for ${serviceText}. Your price arrives in 1 to 6 hours.`,
@@ -184,7 +239,7 @@ export async function POST(request) {
         city: sanitizedCity,
         address: address ? `${address}${sanitizedState ? `, ${sanitizedState}` : ''}${sanitizedZip ? ` ${sanitizedZip}` : ''}` : null,
         status: 'pending',
-        notes: message,
+        notes: `${message}${partnerBackupRequested ? '\n\n[PARTNER REFERRAL: CONSENTED - OK to dispatch to vetted partner if booked]' : '\n\n[PARTNER REFERRAL: DECLINED - Direct Flora Lawn only]'}`,
         estimate_preference: body.estimatePreference || 'walk_around',
         cleanup_last_cleaned: cleanupData?.lastCleaned || null,
         cleanup_condition_level: cleanupData?.conditionLevel || null,
@@ -209,7 +264,7 @@ export async function POST(request) {
           service_type: sanitizedService,
           city: sanitizedCity,
           status: 'pending',
-          notes: `[Pref: ${body.estimatePreference || 'walk_around'}] [Source: contact_form]\n\n${message}`,
+          notes: `[Pref: ${body.estimatePreference || 'walk_around'}] [Partner Backup: ${partnerBackupRequested ? 'YES' : 'NO'}] [Source: contact_form]\n\n${message}`,
         }]).select('id').maybeSingle();
         if (fallbackError) console.error('❌ Fallback lead insert also failed:', fallbackError.message);
         else {
@@ -284,6 +339,17 @@ export async function POST(request) {
           'We reply with your price in 1 to 6 hours.',
           plainSummary(parsed),
           parsed.note ? `Your note:\n${parsed.note}` : '',
+          partnerBackupRequested
+            ? [
+                'BACKUP COVERAGE ASSISTANCE (ACTIVE):',
+                'You opted in for backup coverage assistance. If Flora Lawn is fully booked for your requested date:',
+                '1. Flora Lawn evaluates your property first for direct service.',
+                '2. If at capacity, we connect you with an insured, vetted local partner in RI / Southern MA.',
+                '3. The partner reaches out directly with their estimate and schedule.',
+                '4. 100% free with zero obligation to accept.',
+                'Prefer Flora Lawn only? Reply to this email or call (401) 389-0913.',
+              ].join('\n')
+            : '',
           `See this quote in your account: ${siteUrl('/login?redirect=/customer/dashboard')}`,
           'Questions? Call (401) 389-0913.',
         ].filter(Boolean).join('\n\n'),
@@ -332,6 +398,7 @@ export async function POST(request) {
           { label: 'Email', value: sanitizedEmail },
           { label: 'Address', value: fullAddress || 'Not provided' },
           { label: 'Estimate', value: estimateLabel(body.estimatePreference) },
+          { label: 'Partner Backup', value: partnerBackupRequested ? 'YES — Consented to vetted partner referral if booked' : 'NO — Flora Lawn direct crew only' },
         ])),
         leadSections(parsed),
         cleanupData?.conditionLevel
@@ -341,6 +408,9 @@ export async function POST(request) {
         photos ? section(`Photos (${photoCount})`, photos) : '',
         discountApplied ? callout('<strong>10% photo credit</strong> is on this lead.') : '',
         promoCode ? callout(`<strong>Promo code: ${escapeHtml(promoCode)}</strong>`, 'gold') : '',
+        partnerBackupRequested
+          ? callout('<strong>🤝 Partner Backup Referral: YES</strong><br>Customer agreed to connect with a vetted local partner if Flora Lawn is booked or unavailable. Safe to dispatch via Crew Desk / MyGreenRobot network if needed.', 'gold')
+          : '',
         buttonRow([button(siteUrl('/leads'), 'Open in leads', 'gold')]),
       ].join('');
 
@@ -361,6 +431,7 @@ export async function POST(request) {
           `Email: ${sanitizedEmail}`,
           `Address: ${fullAddress || 'Not provided'}`,
           `Estimate: ${estimateLabel(body.estimatePreference)}`,
+          `Partner Backup: ${partnerBackupRequested ? 'YES (Consented to vetted partner referral)' : 'NO (Direct only)'}`,
           plainSummary(parsed),
           parsed.note ? `Customer note:\n${parsed.note}` : '',
         ].filter(Boolean).join('\n'),
