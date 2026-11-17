@@ -107,9 +107,8 @@ function ChoiceRow({ label, value, options, onChange }) {
 
 function ContactForm() {
   const [formData, setFormData] = useState({
-    name: '', email: '', phone: '', address: '', city: '', state: '', zipCode: '', unit: '', service: '', message: '', promoCode: '', preferredMeetingDate: ''
+    name: '', email: '', phone: '', address: '', city: '', state: '', zipCode: '', service: '', message: '', promoCode: '', preferredMeetingDate: ''
   });
-  const [showManualAddressEdit, setShowManualAddressEdit] = useState(false);
   const [submissionStep, setSubmissionStep] = useState('');
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
   const [cleanupAssessment, setCleanupAssessment] = useState({
@@ -454,15 +453,8 @@ function ContactForm() {
       return;
     }
     if (!formData.address?.trim()) {
-      setStatus({ type: 'error', message: 'Please enter your street address.' });
+      setStatus({ type: 'error', message: 'Please enter your property address.' });
       if (addressRef.current) addressRef.current.focus();
-      return;
-    }
-    if (!formData.city?.trim() || !formData.zipCode?.trim()) {
-      setStatus({ 
-        type: 'error', 
-        message: 'Please confirm your Town/City and ZIP code below so our satellite tools can measure your lot accurately.' 
-      });
       return;
     }
     setIsSubmitting(true);
@@ -471,15 +463,11 @@ function ContactForm() {
       // Small delay for perceived reliability
       await new Promise(r => setTimeout(r, 500));
 
-      // Build effective address with unit if specified
-      const effectiveStreet = formData.unit?.trim() 
-        ? `${formData.address.trim()}${formData.address.toLowerCase().includes(formData.unit.toLowerCase()) ? '' : ` (Unit ${formData.unit.trim()})`}`
-        : formData.address.trim();
       const fullFormattedAddress = [
-        effectiveStreet,
-        formData.city && !effectiveStreet.toLowerCase().includes(formData.city.toLowerCase()) ? formData.city : '',
-        formData.state || 'RI',
-        formData.zipCode
+        formData.address.trim(),
+        formData.city && !formData.address.toLowerCase().includes(formData.city.toLowerCase()) ? formData.city : '',
+        formData.state && !formData.address.toLowerCase().includes(formData.state.toLowerCase()) ? formData.state : '',
+        formData.zipCode && !formData.address.includes(formData.zipCode) ? formData.zipCode : ''
       ].filter(Boolean).join(', ');
 
       // Build assessment context
@@ -638,7 +626,7 @@ function ContactForm() {
         
         setSubmissionStep('Success!');
         // Clear form
-        setFormData({ name: '', email: '', phone: '', address: '', city: '', state: '', zipCode: '', unit: '', service: '', message: '', promoCode: '', preferredMeetingDate: '' });
+        setFormData({ name: '', email: '', phone: '', address: '', city: '', state: '', zipCode: '', service: '', message: '', promoCode: '', preferredMeetingDate: '' });
         setPickedServices([]);
         setSelectedPackage(null);
         
@@ -912,20 +900,9 @@ function ContactForm() {
 
                         {/* LOCATION INFO */}
                         <div className="md:col-span-2">
-                           <div className="flex items-center justify-between mb-3">
-                              <label className="text-[10px] font-black italic text-slate-500 uppercase tracking-widest block">
-                                 Property Address Search *
-                              </label>
-                              {formData.address && (
-                                <button
-                                  type="button"
-                                  onClick={() => setShowManualAddressEdit(prev => !prev)}
-                                  className="text-[9px] font-bold text-green-700 hover:text-green-800 bg-green-50 hover:bg-green-100 px-2 py-1 rounded-md transition-colors"
-                                >
-                                  {showManualAddressEdit ? 'Done Editing' : 'Edit Town / ZIP'}
-                                </button>
-                              )}
-                           </div>
+                           <label className="text-[10px] font-black italic text-slate-500 uppercase tracking-widest mb-3 block">
+                              Property Address Search *
+                           </label>
                            <div className="relative group">
                               <div className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-green-600 transition-colors">
                                  <MapPinIcon className="w-6 h-6" />
@@ -939,151 +916,43 @@ function ContactForm() {
                                 onChange={handleChange} 
                                 onBlur={handleAddressBlur}
                                 className="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl pl-16 pr-36 py-6 text-slate-900 focus:outline-none focus:border-green-500 transition-all font-bold placeholder-slate-300 shadow-sm" 
-                                placeholder="Search Your Address (e.g. 45 Vernon St)..." 
+                                placeholder="Search Your Address (e.g. 45 Vernon St, Pawtucket)..." 
                               />
-                              {formData.zipCode && formData.city ? (
+                              {(formData.zipCode && formData.city) || (formData.address?.trim().length > 10 && /\d+/.test(formData.address) && (formData.city || /\b(RI|MA|02\d{3})\b/i.test(formData.address))) ? (
                                 <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-1.5 bg-green-100 text-green-800 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest animate-in fade-in zoom-in duration-300">
-                                   <CheckBadgeIcon className="w-4 h-4 text-green-600" /> Confirmed
+                                   <CheckBadgeIcon className="w-4 h-4 text-green-600" /> Full Address Verified
                                 </div>
-                              ) : formData.address?.trim().length > 3 ? (
-                                <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-1.5 bg-amber-100 text-amber-800 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest animate-in fade-in zoom-in duration-300">
-                                   Confirm Below
+                              ) : formData.address?.trim().length > 2 ? (
+                                <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-1.5 text-slate-400 px-3 py-1.5 text-[10px] font-bold italic">
+                                   Pick from dropdown...
                                 </div>
                               ) : null}
                            </div>
-
-                           <p className="text-[10px] text-slate-400 font-bold italic mt-2">
-                              Select from the autocomplete list or confirm your Town &amp; ZIP below so our satellite tools can measure your lot accurately.
-                           </p>
-
-                           {/* ADDRESS CONFIRMATION CARD */}
-                           {formData.address?.trim().length > 2 && (
-                             <div className={`mt-4 p-5 rounded-2xl border-2 transition-all duration-300 ${formData.city && formData.zipCode && !showManualAddressEdit ? 'bg-gradient-to-br from-green-50/80 to-emerald-50/40 border-green-200' : 'bg-gradient-to-br from-amber-50/90 to-orange-50/40 border-amber-300 shadow-sm'}`}>
-                                <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-                                   <div className="flex items-center gap-2">
-                                      <span className="text-base">{formData.city && formData.zipCode ? '🏡' : '📍'}</span>
-                                      <p className="text-xs font-black uppercase tracking-tight text-slate-900">
-                                         {formData.city && formData.zipCode ? 'Confirmed Service Location' : 'Confirm Your Town & ZIP Code'}
-                                      </p>
-                                   </div>
-                                   {formData.city && formData.zipCode ? (
-                                      <div className="flex items-center gap-2">
-                                         <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-green-200/90 text-green-800">
-                                            ✓ Ready for Satellite Quote
-                                         </span>
-                                         <button
-                                            type="button"
-                                            onClick={() => setShowManualAddressEdit(prev => !prev)}
-                                            className="text-[10px] font-bold text-slate-600 hover:text-green-700 underline underline-offset-2 ml-1"
-                                         >
-                                            {showManualAddressEdit ? 'Done' : 'Change'}
-                                         </button>
-                                      </div>
-                                   ) : (
-                                      <span className="text-[9px] font-black uppercase tracking-wider px-2.5 py-1 rounded-md bg-amber-200 text-amber-900 font-bold animate-pulse">
-                                         Required for Quote
-                                      </span>
-                                   )}
+                           <div className="flex flex-wrap items-center justify-between gap-3 mt-3">
+                              <p className="text-[10px] text-slate-400 font-bold italic">
+                                 {(formData.zipCode && formData.city)
+                                    ? '✓ Address verified with satellite data for accurate lawn sizing.'
+                                    : 'Start typing to find your property. Pick from the dropdown for satellite accuracy.'}
+                              </p>
+                              {formData.city && (
+                                <div className="flex gap-2">
+                                  <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md font-bold uppercase">
+                                     {formData.city}{formData.state ? `, ${formData.state}` : ''}
+                                  </span>
+                                  {formData.zipCode && (
+                                    <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md font-bold uppercase">
+                                       {formData.zipCode}
+                                    </span>
+                                  )}
                                 </div>
+                              )}
+                           </div>
+                        </div>
 
-                                {(!formData.city || !formData.zipCode || showManualAddressEdit) && (
-                                   <div className="mb-4">
-                                      <p className="text-[11px] text-amber-900 font-semibold mb-2">
-                                         Quick Select Local Town (RI &amp; Nearby MA):
-                                      </p>
-                                      <div className="flex flex-wrap gap-1.5">
-                                         {[
-                                            { name: 'Pawtucket', state: 'RI', zip: '02860' },
-                                            { name: 'Providence', state: 'RI', zip: '02906' },
-                                            { name: 'Cranston', state: 'RI', zip: '02910' },
-                                            { name: 'Warwick', state: 'RI', zip: '02886' },
-                                            { name: 'East Providence', state: 'RI', zip: '02914' },
-                                            { name: 'North Providence', state: 'RI', zip: '02911' },
-                                            { name: 'Lincoln', state: 'RI', zip: '02865' },
-                                            { name: 'Cumberland', state: 'RI', zip: '02864' },
-                                            { name: 'Smithfield', state: 'RI', zip: '02917' },
-                                            { name: 'Attleboro', state: 'MA', zip: '02703' }
-                                         ].map(town => (
-                                            <button
-                                               key={town.name}
-                                               type="button"
-                                               onClick={() => setFormData(prev => ({ 
-                                                 ...prev, 
-                                                 city: town.name, 
-                                                 state: town.state, 
-                                                 zipCode: prev.zipCode || town.zip 
-                                               }))}
-                                               className={`text-[10px] font-bold px-2.5 py-1 rounded-lg border transition-all ${formData.city === town.name ? 'bg-green-700 text-white border-green-700 shadow-sm' : 'bg-white text-slate-700 border-slate-300 hover:border-green-500 hover:bg-green-50'}`}
-                                            >
-                                               {town.name}
-                                            </button>
-                                         ))}
-                                      </div>
-                                   </div>
-                                )}
-
-                                <div className="grid grid-cols-1 md:grid-cols-4 gap-3 pt-2 border-t border-slate-200/80">
-                                   <div className="md:col-span-2">
-                                      <label className="text-[9px] font-black uppercase text-slate-500 tracking-wider block mb-1">
-                                         Town / City *
-                                      </label>
-                                      <input 
-                                         type="text" 
-                                         required
-                                         name="city" 
-                                         value={formData.city} 
-                                         onChange={handleChange} 
-                                         placeholder="e.g. Pawtucket" 
-                                         className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-900 focus:outline-none focus:border-green-600 shadow-sm"
-                                      />
-                                   </div>
-                                   <div>
-                                      <label className="text-[9px] font-black uppercase text-slate-500 tracking-wider block mb-1">
-                                         State
-                                      </label>
-                                      <select 
-                                         name="state" 
-                                         value={formData.state || 'RI'} 
-                                         onChange={handleChange}
-                                         className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-900 focus:outline-none focus:border-green-600 shadow-sm"
-                                      >
-                                         <option value="RI">RI</option>
-                                         <option value="MA">MA</option>
-                                         <option value="CT">CT</option>
-                                      </select>
-                                   </div>
-                                   <div>
-                                      <label className="text-[9px] font-black uppercase text-slate-500 tracking-wider block mb-1">
-                                         ZIP Code *
-                                      </label>
-                                      <input 
-                                         type="text" 
-                                         required
-                                         maxLength={5}
-                                         name="zipCode" 
-                                         value={formData.zipCode} 
-                                         onChange={handleChange} 
-                                         placeholder="02860" 
-                                         className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-900 focus:outline-none focus:border-green-600 shadow-sm"
-                                      />
-                                   </div>
-                                </div>
-
-                                <div className="mt-3 pt-3 border-t border-slate-200/80">
-                                   <label className="text-[9px] font-black uppercase text-slate-500 tracking-wider block mb-1">
-                                      Apt / Unit / Gate / Access Instructions (Optional)
-                                   </label>
-                                   <input 
-                                      type="text" 
-                                      name="unit" 
-                                      value={formData.unit || ''} 
-                                      onChange={handleChange} 
-                                      placeholder="e.g. Apt 2B, Side Gate Unlocked, Driveway on right..." 
-                                      className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2 text-xs font-medium text-slate-800 focus:outline-none focus:border-green-600 shadow-sm"
-                                   />
-                                </div>
-                             </div>
-                           )}
+                        <div className="hidden">
+                           <input type="hidden" name="city" value={formData.city} />
+                           <input type="hidden" name="state" value={formData.state} />
+                           <input type="hidden" name="zipCode" value={formData.zipCode} />
                         </div>
 
                         {selectedPackage && (
