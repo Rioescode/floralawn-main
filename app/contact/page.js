@@ -9,6 +9,11 @@ import { businessInfo } from "@/utils/business-info";
 import Footer from "@/components/Footer";
 import Link from "next/link";
 import { sendNotification } from '@/lib/notifications';
+import {
+  BACKUP_REFERRAL_CONSENT_TITLE,
+  BACKUP_REFERRAL_CONSENT_BADGE,
+  BACKUP_REFERRAL_CONSENT_BODY,
+} from '@/lib/backup-referral-consent';
 import Image from 'next/image';
 import { supabase, supabaseAdmin } from '@/lib/supabase';
 import GoogleSignInButton from '@/components/GoogleSignInButton';
@@ -1525,14 +1530,14 @@ function ContactForm() {
                                  <div>
                                     <div className="flex items-center gap-2">
                                        <p className="font-black text-xs uppercase tracking-tight italic text-slate-900">
-                                          Backup Coverage Assistance
+                                          {BACKUP_REFERRAL_CONSENT_TITLE}
                                        </p>
                                        <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-amber-100 text-amber-900 border border-amber-200">
-                                          No Extra Charge
+                                          {BACKUP_REFERRAL_CONSENT_BADGE}
                                        </span>
                                     </div>
                                     <p className="text-[11px] text-slate-600 font-semibold leading-relaxed mt-1">
-                                       If our schedule is full or we cannot service your specific date/area, help connect me with a trusted local Rhode Island / MA partner so my property doesn't wait.
+                                       {BACKUP_REFERRAL_CONSENT_BODY}
                                     </p>
                                  </div>
                               </label>
