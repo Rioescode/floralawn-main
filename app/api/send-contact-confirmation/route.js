@@ -21,6 +21,8 @@ import {
   leadSections,
   siteUrl,
 } from '@/libs/email-template';
+import { forwardConsentedFloraLead } from '@/libs/mgr-partner-lead';
+import { BACKUP_REFERRAL_CONSENT_TEXT } from '@/lib/backup-referral-consent';
 
 function getClientIP(request) {
   const forwarded = request.headers.get('x-forwarded-for');
@@ -40,6 +42,19 @@ function plainSummary(parsed) {
   return parsed.sections
     .map((block) => `${block.title}\n${block.rows.map((row) => (row.label ? `- ${row.label}: ${row.value}` : `- ${row.value}`)).join('\n')}`)
     .join('\n\n');
+}
+
+function yardSizeFromParsed(parsed) {
+  const sections = parsed && Array.isArray(parsed.sections) ? parsed.sections : [];
+  for (const block of sections) {
+    const rows = block && Array.isArray(block.rows) ? block.rows : [];
+    for (const row of rows) {
+      if (String((row && row.label) || '').trim().toLowerCase() !== 'yard size') continue;
+      const value = String((row && row.value) || '').trim();
+      if (value) return value;
+    }
+  }
+  return '';
 }
 
 export async function POST(request) {
@@ -276,6 +291,33 @@ export async function POST(request) {
       }
     } catch (dbErr) {
       console.error('❌ Database save exception (leads):', dbErr);
+    }
+
+    // After a successful insert only. Consent is the request flag
+    // partnerBackupConsent (also accepted as partnerReferralConsent). There is
+    // no contact_leads column for it. A partner-forward failure must not
+    // change the form response.
+    if (savedLeadId && partnerBackupRequested) {
+      const yardSize = yardSizeFromParsed(parsed);
+      const jobs = (Array.isArray(serviceList) ? serviceList : [])
+        .map((item) => String(item || '').trim())
+        .filter(Boolean);
+      const partnerPhone = typeof phone === 'string' ? phone.trim() : phone ? String(phone).trim() : '';
+      await forwardConsentedFloraLead({
+        source: 'flora',
+        external_id: savedLeadId,
+        name: sanitizedName,
+        email: sanitizedEmail,
+        phone: partnerPhone,
+        address: sanitizeText(typeof address === 'string' ? address : '', 500),
+        town: sanitizedCity,
+        jobs,
+        ...(yardSize ? { size: yardSize } : {}),
+        notes: sanitizedMessage,
+        consent_backup_referral: true,
+        consent_text: BACKUP_REFERRAL_CONSENT_TEXT,
+        submitted_at: new Date().toISOString(),
+      });
     }
 
     // --- SAVE TO COMMUNICATION PREFERENCES (10DLC AUDIT TRAIL) ---
