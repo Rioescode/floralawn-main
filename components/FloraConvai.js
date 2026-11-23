@@ -12,7 +12,43 @@ const WIDGET_CSS = `
 .overlay > *:not(.sheet):not(:has(.sheet)) { display: none !important; }
 .overlay { overflow: hidden !important; height: 100% !important; }
 .sheet { max-height: 100% !important; height: 100% !important; }
+input, textarea, [contenteditable="true"] { font-size: 16px !important; }
 `;
+
+let stopViewport = () => {};
+
+function fitOpenPanel() {
+  const el = widgetEl();
+  if (!el?.classList.contains('flora-chat-open')) return;
+  if (window.innerWidth >= 1024) return;
+  const vv = window.visualViewport;
+  const viewH = vv ? vv.height : window.innerHeight;
+  const offsetTop = vv ? vv.offsetTop : 0;
+  const header = document.querySelector('header');
+  const headerBottom = header ? Math.max(0, header.getBoundingClientRect().bottom) : 0;
+  const bar = document.querySelector('.flora-mobile-bar');
+  const barTop = bar ? bar.getBoundingClientRect().top : viewH;
+  const bottomGap = Math.max(0, viewH - barTop);
+  const height = Math.max(160, viewH - headerBottom - bottomGap);
+  const top = offsetTop + headerBottom;
+  document.documentElement.style.setProperty('--flora-chat-top', `${top}px`);
+  document.documentElement.style.setProperty('--flora-chat-height', `${height}px`);
+}
+
+function bindViewport() {
+  stopViewport();
+  const vv = window.visualViewport;
+  const onChange = () => fitOpenPanel();
+  window.addEventListener('resize', onChange);
+  vv?.addEventListener('resize', onChange);
+  vv?.addEventListener('scroll', onChange);
+  onChange();
+  stopViewport = () => {
+    window.removeEventListener('resize', onChange);
+    vv?.removeEventListener('resize', onChange);
+    vv?.removeEventListener('scroll', onChange);
+  };
+}
 
 function widgetEl() {
   return document.querySelector('elevenlabs-convai');
@@ -29,6 +65,8 @@ function hideLauncher(el) {
 
 function setChatOpen(open) {
   document.documentElement.classList.toggle('flora-chat-open', open);
+  if (open) bindViewport();
+  else stopViewport();
   window.dispatchEvent(new CustomEvent('flora-convai-visibility', { detail: { open } }));
 }
 
@@ -74,8 +112,10 @@ function expandWidget() {
     hideLauncher(widgetEl());
   };
   fire();
+  fitOpenPanel();
   setTimeout(fire, 200);
   setTimeout(fire, 700);
+  setTimeout(fitOpenPanel, 50);
   setTimeout(() => watchDismiss(widgetEl()), 800);
 }
 
