@@ -331,150 +331,90 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* FINAL CTA SECTION — ILLUMINATED PAPER-CUT SHADOW BOX FINALE */}
-      <section className="relative py-20 md:py-28 bg-gradient-to-b from-[#060a12] via-[#080d18] to-[#05080f] overflow-hidden border-t border-white/5">
-        <div className="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[960px] h-[520px] rounded-full bg-amber-500/20 blur-[170px]" />
+      {/* FINAL CTA SECTION — EXECUTIVE PROFESSIONAL ESTIMATE BANNER */}
+      <section className="relative py-20 md:py-28 bg-[#060a12] border-t border-white/10 overflow-hidden">
+        <div className="pointer-events-none absolute -top-24 right-0 w-[600px] h-[400px] rounded-full bg-emerald-500/10 blur-[140px]" />
+        <div className="pointer-events-none absolute -bottom-24 left-0 w-[500px] h-[350px] rounded-full bg-amber-500/10 blur-[140px]" />
 
-        <div className="max-w-6xl mx-auto px-4 relative z-10">
-          <div className="relative overflow-hidden rounded-[2.6rem] border-4 border-[#3f2416] bg-gradient-to-br from-[#2a180e] via-[#150c07] to-[#0a0503] p-3.5 md:p-5 shadow-[0_40px_110px_rgba(0,0,0,0.85),inset_0_2px_8px_rgba(255,210,120,0.22)]">
-            {/* BRASS CORNER HARDWARE */}
-            <div className="pointer-events-none absolute left-3 top-3 h-5 w-5 border-l-2 border-t-2 border-amber-600/75" />
-            <div className="pointer-events-none absolute right-3 top-3 h-5 w-5 border-r-2 border-t-2 border-amber-600/75" />
-            <div className="pointer-events-none absolute bottom-3 left-3 h-5 w-5 border-b-2 border-l-2 border-amber-600/75" />
-            <div className="pointer-events-none absolute bottom-3 right-3 h-5 w-5 border-b-2 border-r-2 border-amber-600/75" />
-
-            {/* RECESSED ILLUMINATED CAVITY */}
-            <div className="relative overflow-hidden rounded-[1.85rem] border-2 border-black/90 bg-[#080d16] px-6 py-16 md:px-14 md:py-20 text-center shadow-[inset_0_20px_55px_rgba(0,0,0,0.95)]">
-              {/* WARM BACKLIGHT RADIAL DIFFUSION */}
-              <div
-                className="pointer-events-none absolute inset-0"
-                style={{
-                  background:
-                    'radial-gradient(ellipse at 50% 28%, rgba(254, 240, 138, 0.36) 0%, rgba(245, 158, 11, 0.22) 32%, rgba(20, 83, 45, 0.18) 62%, rgba(6, 10, 18, 0.96) 95%)',
-                }}
-              />
-
-              {/* LAYERED PAPER-CUT HORIZON SILHOUETTES */}
-              <svg
-                viewBox="0 0 1200 420"
-                preserveAspectRatio="xMidYMax slice"
-                className="pointer-events-none absolute inset-0 h-full w-full opacity-75"
-                aria-hidden="true"
-              >
-                {/* Back Sun Halo */}
-                <circle cx="600" cy="115" r="95" fill="#fef08a" opacity="0.22" />
-                <circle cx="600" cy="115" r="58" fill="#fef08a" opacity="0.32" />
-
-                {/* Distant Hills */}
-                <path
-                  d="M0,290 Q280,220 580,270 T1200,245 L1200,420 L0,420 Z"
-                  fill="#15382a"
-                  opacity="0.7"
-                />
-
-                {/* Mid Ridge + Colonial Home Silhouette + Pine Trees */}
-                <path
-                  d="M0,335 Q340,285 680,322 T1200,300 L1200,420 L0,420 Z"
-                  fill="#0f291f"
-                />
-                {/* Left Pines */}
-                <path d="M90,325 L112,265 L134,325 Z M128,332 L152,255 L176,332 Z" fill="#0f291f" />
-                {/* Right Cozy Home with Glowing Windows */}
-                <path d="M975,288 L1030,242 L1085,288 L1085,332 L975,332 Z" fill="#0f291f" />
-                <rect x="996" y="294" width="14" height="18" rx="2" fill="#fef08a" opacity="0.85" />
-                <rect x="1048" y="294" width="14" height="18" rx="2" fill="#fef08a" opacity="0.85" />
-                <rect x="1022" y="264" width="14" height="14" rx="2" fill="#fef08a" opacity="0.8" />
-
-                {/* Deep Foreground Framing Turf */}
-                <path
-                  d="M0,378 Q420,348 840,374 T1200,360 L1200,420 L0,420 Z"
-                  fill="#06120d"
-                />
-              </svg>
-
-              {/* SUBTLE GLASS SHEEN */}
-              <div
-                className="pointer-events-none absolute inset-0"
-                style={{
-                  background:
-                    'linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.015) 28%, transparent 55%)',
-                }}
-              />
-
-              {/* FOREGROUND CONTENT */}
-              <div className="relative z-10 max-w-3xl mx-auto">
-                <div className="inline-flex flex-wrap items-center justify-center gap-2 rounded-full border border-amber-400/30 bg-slate-950/70 px-4 py-1.5 text-[11px] font-black uppercase tracking-widest text-amber-300 backdrop-blur-md mb-6">
-                  <SparklesIcon className="w-4 h-4 text-amber-400" />
-                  Free Satellite Quote · Confirmed Before Work Starts
+        <div className="max-w-7xl mx-auto px-4 relative z-10">
+          <div className="rounded-[2rem] border border-white/10 bg-gradient-to-br from-[#0e1624] via-[#0b121e] to-[#080d16] p-8 md:p-14 shadow-[0_30px_90px_rgba(0,0,0,0.65)]">
+            <div className="grid lg:grid-cols-12 gap-10 lg:gap-12 items-center">
+              {/* LEFT: AUTHORITATIVE VALUE PROPOSITION */}
+              <div className="lg:col-span-7 text-left">
+                <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-3.5 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-emerald-300 mb-5">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                  Direct Digital Estimates · RI &amp; Southern MA
                 </div>
 
-                <h2 className="text-4xl sm:text-5xl md:text-7xl font-black text-white tracking-tight uppercase italic leading-[1.04]">
-                  Ready For A{' '}
-                  <span className="inline-block pr-2 text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-amber-400 to-amber-500">
-                    Clean Lawn?
-                  </span>
+                <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-white tracking-tight leading-[1.08]">
+                  Ready for a cleaner, healthier property?
                 </h2>
 
-                <p className="mt-5 text-base md:text-xl text-slate-300 font-medium max-w-2xl mx-auto leading-relaxed">
-                  Get a transparent digital quote in <strong className="text-white">1 to 6 hours</strong>. No surprise charges—we confirm your exact price before any crew arrives.
+                <p className="mt-4 text-base md:text-lg text-slate-400 font-medium leading-relaxed max-w-2xl">
+                  Enter your property address in under a minute. We measure your lawn via satellite and deliver a flat-rate quote in <span className="text-slate-200 font-semibold">1 to 6 hours</span>—confirmed before any crew arrives.
                 </p>
 
-                {/* ACTION BUTTONS */}
-                <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
+                {/* CLEAN 3-PILLAR TRUST BAR */}
+                <div className="mt-8 pt-7 border-t border-white/10 grid grid-cols-1 sm:grid-cols-3 gap-5">
+                  <div>
+                    <div className="flex items-center gap-2 text-sm font-bold text-white">
+                      <ClockIcon className="w-4 h-4 text-amber-400 shrink-0" />
+                      1–6 Hr Quotes
+                    </div>
+                    <p className="mt-1 text-xs text-slate-400">
+                      Fast satellite-measured pricing
+                    </p>
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 text-sm font-bold text-white">
+                      <ShieldCheckIcon className="w-4 h-4 text-emerald-400 shrink-0" />
+                      Price Confirmed
+                    </div>
+                    <p className="mt-1 text-xs text-slate-400">
+                      Zero surprise fees or contracts
+                    </p>
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 text-sm font-bold text-white">
+                      <StarIconSolid className="w-4 h-4 text-amber-400 shrink-0" />
+                      4.9 Google Rated
+                    </div>
+                    <p className="mt-1 text-xs text-slate-400">
+                      Licensed &amp; insured local crews
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* RIGHT: CLEAN CONVERSION PANEL */}
+              <div className="lg:col-span-5">
+                <div className="rounded-2xl border border-white/10 bg-slate-950/75 p-6 md:p-8 backdrop-blur-md space-y-4">
+                  <div className="flex items-center justify-between text-xs font-semibold text-slate-400 pb-2 border-b border-white/5">
+                    <span>Residential &amp; Commercial</span>
+                    <span className="text-emerald-400 font-bold">Accepting New Properties</span>
+                  </div>
+
                   <Link
                     href="/contact"
-                    className="w-full sm:w-auto px-10 py-5 rounded-2xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 hover:from-amber-400 hover:to-amber-300 text-slate-950 font-black text-sm md:text-base uppercase tracking-wider flex items-center justify-center gap-3 shadow-[0_14px_40px_rgba(245,158,11,0.35)] transition-all hover:-translate-y-0.5 active:scale-95"
+                    className="w-full py-4 px-6 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2.5 shadow-lg shadow-amber-500/15 transition-all active:scale-[0.99]"
                   >
-                    Get My Free Quote
-                    <ArrowRightIcon className="w-5 h-5" />
+                    Request Free Estimate
+                    <ArrowRightIcon className="w-4 h-4" />
                   </Link>
 
                   <a
                     href="tel:4013890913"
-                    className="w-full sm:w-auto flex items-center justify-center gap-3.5 px-6 py-3.5 rounded-2xl border border-white/15 bg-slate-950/80 hover:border-amber-400/50 hover:bg-slate-900/90 text-white backdrop-blur-md transition-all group"
+                    className="w-full py-3.5 px-6 rounded-xl border border-white/15 bg-white/[0.03] hover:bg-white/[0.07] hover:border-white/25 text-white font-bold text-sm flex items-center justify-center gap-3 transition-all"
                   >
-                    <div className="w-11 h-11 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 group-hover:scale-105 transition-transform">
-                      <PhoneIcon className="w-5 h-5" />
-                    </div>
-                    <div className="text-left">
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">
-                        Direct Call Line
-                      </p>
-                      <p className="text-lg font-black text-white italic leading-none">
-                        (401) 389-0913
-                      </p>
-                    </div>
+                    <PhoneIcon className="w-4 h-4 text-emerald-400" />
+                    <span>Call (401) 389-0913</span>
                   </a>
-                </div>
 
-                {/* TRUST METRICS STRIP */}
-                <div className="mt-10 pt-6 border-t border-white/10 flex flex-wrap items-center justify-center gap-x-8 gap-y-2 text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                  <span className="flex items-center gap-1.5">
-                    <StarIconSolid className="w-4 h-4 text-amber-400" />
-                    4.9 Google Rated
-                  </span>
-                  <span className="flex items-center gap-1.5">
-                    <ShieldCheckIcon className="w-4 h-4 text-emerald-400" />
-                    Licensed &amp; Insured RI/MA
-                  </span>
-                  <span className="flex items-center gap-1.5">
-                    <ClockIcon className="w-4 h-4 text-amber-400" />
-                    Quotes in 1–6 Hours
-                  </span>
+                  <p className="text-center text-[11px] text-slate-500 font-medium pt-1">
+                    Mon–Sat · 7:00 AM – 7:00 PM · Direct Local Dispatch
+                  </p>
                 </div>
               </div>
-            </div>
-
-            {/* EMBOSSED BRASS PLAQUE */}
-            <div className="mt-3 flex items-center justify-between px-2 text-[10px] font-black uppercase tracking-[0.2em] text-[#b38f65]">
-              <span className="flex items-center gap-1.5">
-                <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
-                Flora Lawn &amp; Landscaping Inc
-              </span>
-              <span className="hidden sm:inline opacity-75">
-                All Four Seasons · Guaranteed Quality
-              </span>
-              <span>RI &amp; Southern MA</span>
             </div>
           </div>
         </div>
