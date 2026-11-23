@@ -659,23 +659,39 @@ export default function PapercutLightbox() {
       0.45
     );
 
-    // SPRING CHAPTER: Luminous Alternating Diamond Turf Stripes (0.0s -> 4.1s)
+    // SPRING CHAPTER: Soft Estate Diamond Stripes clipped cleanly inside Layer 4 hill
     const stripeVis = 1 - smoothstep(3.3, 4.1, t);
     if (stripeVis > 0.01) {
-      const mowerProgress = smoothstep(0.2, 3.3, t);
-      const revealX = lerp(120, 1180, mowerProgress);
+      const mowerProgress = smoothstep(0.15, 3.45, t);
+      const revealX = lerp(90, 1240, mowerProgress);
       ctx.save();
+      // Clip strictly to Layer 4's exact curved hill silhouette
       ctx.beginPath();
-      ctx.rect(0, 435, revealX, 120);
+      ctx.moveTo(-80, 468);
+      ctx.quadraticCurveTo(360, 430, 740, 462);
+      ctx.quadraticCurveTo(1060, 485, W + 120, 448);
+      ctx.lineTo(W + 120, H + 80);
+      ctx.lineTo(-80, H + 80);
+      ctx.closePath();
       ctx.clip();
-      ctx.fillStyle = `rgba(255, 255, 255, ${0.22 * stripeVis * flicker})`;
-      for (let i = 0; i < 9; i++) {
-        const sx = 120 + i * 118;
+
+      // Secondary clip to progressive reveal behind mower
+      ctx.beginPath();
+      ctx.rect(-80, 420, revealX + 80, 180);
+      ctx.clip();
+
+      for (let i = -1; i < 12; i++) {
+        const topX = 160 + i * 96;
+        const botX = 60 + i * 124;
+        ctx.fillStyle =
+          i % 2 === 0
+            ? `rgba(215, 255, 210, ${0.18 * stripeVis * flicker})`
+            : `rgba(8, 45, 22, ${0.12 * stripeVis})`;
         ctx.beginPath();
-        ctx.moveTo(sx, 448);
-        ctx.lineTo(sx + 54, 448);
-        ctx.lineTo(sx + 128, 535);
-        ctx.lineTo(sx + 64, 535);
+        ctx.moveTo(topX, 430);
+        ctx.lineTo(topX + 48, 430);
+        ctx.lineTo(botX + 62, 550);
+        ctx.lineTo(botX, 550);
         ctx.closePath();
         ctx.fill();
       }
@@ -689,54 +705,76 @@ export default function PapercutLightbox() {
     ctx.save();
     ctx.translate(-driftX * 0.92, -driftY * 0.78);
 
-    // Main Foreground Working Lawn Shelf
-    drawPaperSheet(
-      () => {
-        ctx.moveTo(-80, 535);
-        ctx.quadraticCurveTo(420, 495, 860, 528);
-        ctx.quadraticCurveTo(1120, 545, W + 120, 518);
-        ctx.lineTo(W + 120, H + 80);
-        ctx.lineTo(-80, H + 80);
-        ctx.closePath();
-      },
-      pal.l5,
-      5,
-      0.48
-    );
+    // Exact analytic contour for Layer 5 working lawn so every wheel, bed & blade sits 100% grounded
+    const getHill5Y = (x) =>
+      534 - 22 * Math.sin(((x + 80) / 1440) * Math.PI) + 9 * Math.sin(x * 0.0052);
 
-    // --- ACT 1 (0.0s – 4.0s): COMMERCIAL ZERO-TURN MOWER & LIVE TURF CUTTING ---
+    const traceHill5Path = () => {
+      ctx.moveTo(-100, getHill5Y(-100));
+      for (let x = -60; x <= W + 120; x += 40) {
+        ctx.lineTo(x, getHill5Y(x));
+      }
+      ctx.lineTo(W + 120, H + 100);
+      ctx.lineTo(-100, H + 100);
+      ctx.closePath();
+    };
+
+    // Main Foreground Working Lawn Shelf
+    drawPaperSheet(traceHill5Path, pal.l5, 5, 0.48);
+
+    // --- ACT 1 (0.0s – 4.0s): REFINED PAPER-CUT SPRING MOWING & VELVET STRIPING ---
     const act1Vis = 1 - smoothstep(3.35, 3.95, t);
     if (act1Vis > 0.01) {
-      const p = smoothstep(0.1, 3.5, t);
-      const mxPos = lerp(110, 1110, p);
-      const myPos = 452 + Math.sin(p * Math.PI) * -12 + Math.sin(t * 52) * 1.1;
+      const p = smoothstep(0.08, 3.55, t);
+      const mxPos = lerp(125, 1100, p);
+      const groundY = getHill5Y(mxPos);
+      // Slope tangent angle so the mower tilts naturally over the rolling hill
+      const slopeAngle = Math.atan2(
+        getHill5Y(mxPos + 20) - getHill5Y(mxPos - 20),
+        40
+      );
 
       ctx.save();
       ctx.globalAlpha = act1Vis;
 
-      // 1) Volumetric Dawn Sunbeams & Morning Dew Pollen Sparkles
+      // 1) Graceful Paper-Cut Morning Swallows & Volumetric Dawn Sunbeams
       if (isLit) {
         ctx.save();
         for (let b = 0; b < 3; b++) {
-          const bx = 260 + b * 270 + Math.sin(t * 0.8 + b) * 18;
-          const ray = ctx.createLinearGradient(bx, 60, bx + 140, 560);
-          ray.addColorStop(0, `rgba(255, 250, 215, ${0.14 * flicker})`);
-          ray.addColorStop(0.65, `rgba(255, 245, 200, ${0.05 * flicker})`);
+          const bx = 240 + b * 290 + Math.sin(t * 0.7 + b) * 16;
+          const ray = ctx.createLinearGradient(bx, 50, bx + 150, 560);
+          ray.addColorStop(0, `rgba(255, 250, 215, ${0.13 * flicker})`);
+          ray.addColorStop(0.65, `rgba(255, 245, 200, ${0.04 * flicker})`);
           ray.addColorStop(1, "rgba(255, 245, 200, 0)");
           ctx.fillStyle = ray;
           ctx.beginPath();
-          ctx.moveTo(bx - 35, 60);
-          ctx.lineTo(bx + 45, 60);
-          ctx.lineTo(bx + 210, 560);
-          ctx.lineTo(bx + 80, 560);
+          ctx.moveTo(bx - 30, 50);
+          ctx.lineTo(bx + 50, 50);
+          ctx.lineTo(bx + 220, 560);
+          ctx.lineTo(bx + 85, 560);
           ctx.closePath();
           ctx.fill();
         }
+        // Gliding paper-cut birds across morning sky
+        ctx.strokeStyle = rgb(pal.l4, 0.75);
+        ctx.lineWidth = 2.4;
+        ctx.lineCap = "round";
+        for (let i = 0; i < 3; i++) {
+          const birdX = 280 + i * 110 + t * (48 + i * 8);
+          const birdY = 175 + i * 24 + Math.sin(t * 3 + i) * 12;
+          const flap = Math.sin(t * 9 + i * 1.6) * 7;
+          ctx.beginPath();
+          ctx.moveTo(birdX - 14, birdY - flap);
+          ctx.quadraticCurveTo(birdX - 6, birdY - 6, birdX, birdY);
+          ctx.quadraticCurveTo(birdX + 6, birdY - 6, birdX + 14, birdY - flap);
+          ctx.stroke();
+        }
+        // Twinkling morning dew pollen
         for (const sp of SPRING_POLLEN) {
           const px = (sp.x0 + t * sp.driftX) % W;
           const py = ((sp.y0 + t * sp.driftY) % 440 + 440) % 440 + 90;
-          const twinkle = 0.4 + 0.6 * Math.sin(t * 4.5 + sp.phase);
-          ctx.fillStyle = `rgba(255, 252, 220, ${twinkle * 0.72 * flicker})`;
+          const twinkle = 0.35 + 0.65 * Math.sin(t * 4.5 + sp.phase);
+          ctx.fillStyle = `rgba(255, 252, 220, ${twinkle * 0.65 * flicker})`;
           ctx.beginPath();
           ctx.arc(px, py, sp.size, 0, Math.PI * 2);
           ctx.fill();
@@ -744,473 +782,596 @@ export default function PapercutLightbox() {
         ctx.restore();
       }
 
-      // 2) Live Manicured Diamond Stripes Revealed Right Behind the Mower Deck on Layer 5
+      // 2) Velvet Estate Diamond Stripes — Clipped Strictly Inside Layer 5's Curved Hill!
       ctx.save();
       ctx.beginPath();
-      ctx.rect(0, 495, Math.max(0, mxPos + 15), 115);
+      traceHill5Path();
       ctx.clip();
-      for (let i = 0; i < 12; i++) {
-        const sx = 40 + i * 102;
+
+      ctx.beginPath();
+      ctx.rect(-80, 480, Math.max(0, mxPos + 100), 260);
+      ctx.clip();
+
+      for (let i = -2; i < 14; i++) {
+        const topX = 110 + i * 88;
+        const botX = 10 + i * 116;
         ctx.fillStyle =
           i % 2 === 0
-            ? `rgba(220, 255, 210, ${0.26 * flicker})`
-            : `rgba(6, 40, 20, ${0.22})`;
+            ? `rgba(210, 255, 198, ${0.24 * flicker})`
+            : `rgba(4, 34, 16, ${0.24})`;
         ctx.beginPath();
-        ctx.moveTo(sx, 502);
-        ctx.lineTo(sx + 52, 502);
-        ctx.lineTo(sx + 108, 605);
-        ctx.lineTo(sx + 52, 605);
+        ctx.moveTo(topX, 490);
+        ctx.lineTo(topX + 44, 490);
+        ctx.lineTo(botX + 58, 635);
+        ctx.lineTo(botX, 635);
         ctx.closePath();
         ctx.fill();
       }
       ctx.restore();
 
-      // 3) Before-vs-After Grass Blades: Tall Overgrown Ahead, Crisp Trimmed Behind!
+      // 3) Organic Meadow Grass & Wildflowers Ahead -> Crisp Trimmed Velvet Behind
       ctx.save();
       ctx.lineCap = "round";
-      for (let gx = 40; gx < 1240; gx += 11) {
-        const ridgeY =
-          532 -
-          Math.sin(((gx + 80) / 1360) * Math.PI) * 26 +
-          Math.sin(gx * 0.04) * 3;
-        const cutDist = gx - (mxPos + 45);
-        // Smoothly shear tall grass down to crisp 5px turf as deck passes
-        const tallFactor = smoothstep(-20, 28, cutDist);
-        const bladeH = lerp(6, 26 + (gx % 5) * 3.5, tallFactor);
-        const sway = Math.sin(t * 3.8 + gx * 0.07) * (1.5 + tallFactor * 4.5);
+      for (let gx = 40; gx < 1240; gx += 10) {
+        const gy = getHill5Y(gx);
+        const cutDist = gx - (mxPos + 46);
+        const tall = smoothstep(-14, 24, cutDist);
+        const h = lerp(5, 24 + (gx % 5) * 3.8, tall);
+        const sway = Math.sin(t * 3.5 + gx * 0.06) * (1 + tall * 5);
 
-        ctx.strokeStyle =
-          tallFactor > 0.5
-            ? rgb(pal.l4, 0.95)
-            : rgb(pal.rim, 0.65 * flicker);
-        ctx.lineWidth = tallFactor > 0.5 ? 2.6 : 1.8;
+        ctx.strokeStyle = tall > 0.45 ? rgb(pal.l4, 0.92) : rgb(pal.rim, 0.52 * flicker);
+        ctx.lineWidth = tall > 0.45 ? 2.4 : 1.5;
         ctx.beginPath();
-        ctx.moveTo(gx, ridgeY + 6);
-        ctx.quadraticCurveTo(
-          gx + sway * 0.6,
-          ridgeY - bladeH * 0.5,
-          gx + sway,
-          ridgeY - bladeH
-        );
+        ctx.moveTo(gx, gy + 4);
+        ctx.quadraticCurveTo(gx + sway * 0.5, gy - h * 0.5, gx + sway, gy - h);
         ctx.stroke();
+
+        // Delicate backlit dandelion / spring wildflower tips in uncut grass ahead
+        if (tall > 0.85 && gx % 70 === 0) {
+          ctx.fillStyle = `rgba(255, 246, 175, ${0.85 * flicker})`;
+          ctx.beginPath();
+          ctx.arc(gx + sway, gy - h - 2, 3, 0, Math.PI * 2);
+          ctx.fill();
+        }
       }
       ctx.restore();
 
-      // 4) Commercial Zero-Turn Mower Silhouette + Dawn Headlight + Spinning Deck
+      // 4) Sculpted Paper-Cut Commercial Zero-Turn Mower (Grounded to Hill Slope)
       ctx.save();
-      ctx.translate(mxPos, myPos);
+      ctx.translate(mxPos, groundY + Math.sin(t * 50) * 0.6);
+      ctx.rotate(slopeAngle);
 
-      // Front warm LED work-light cone illuminating tall grass ahead
+      // Soft contact shadow directly under tires & deck so it sits flush on the hill
+      ctx.fillStyle = "rgba(0, 0, 0, 0.42)";
+      ctx.beginPath();
+      ctx.ellipse(12, 3, 76, 8, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Soft warm dawn headlight cone illuminating uncut grass ahead
       if (isLit) {
-        const beam = ctx.createLinearGradient(74, 24, 290, 56);
-        beam.addColorStop(0, `rgba(255, 250, 210, ${0.42 * flicker})`);
-        beam.addColorStop(0.7, `rgba(255, 248, 200, ${0.1 * flicker})`);
+        const beam = ctx.createLinearGradient(68, -22, 275, 4);
+        beam.addColorStop(0, `rgba(255, 250, 210, ${0.36 * flicker})`);
+        beam.addColorStop(0.65, `rgba(255, 248, 200, ${0.08 * flicker})`);
         beam.addColorStop(1, "rgba(255, 248, 200, 0)");
         ctx.fillStyle = beam;
         ctx.beginPath();
-        ctx.moveTo(72, 22);
-        ctx.lineTo(290, 2);
-        ctx.lineTo(290, 76);
-        ctx.lineTo(72, 42);
+        ctx.moveTo(68, -26);
+        ctx.lineTo(275, -48);
+        ctx.lineTo(275, 16);
+        ctx.lineTo(68, -10);
         ctx.closePath();
         ctx.fill();
       }
 
-      ctx.shadowColor = "rgba(0,0,0,0.58)";
-      ctx.shadowBlur = 14;
-      ctx.shadowOffsetY = 8;
+      ctx.shadowColor = "rgba(0,0,0,0.48)";
+      ctx.shadowBlur = 12;
+      ctx.shadowOffsetY = 6;
 
+      // Angled Tubular ROPS Roll Bar (Sleek double-post silhouette)
+      ctx.strokeStyle = rgb(pal.l6);
+      ctx.lineWidth = 5;
+      ctx.lineJoin = "round";
+      ctx.beginPath();
+      ctx.moveTo(-42, -30);
+      ctx.lineTo(-50, -96);
+      ctx.lineTo(-34, -96);
+      ctx.lineTo(-28, -32);
+      ctx.stroke();
+
+      // Sculpted Operator Silhouette (Natural curved back, brimmed cap, lap-bar arms, bent knee)
       ctx.fillStyle = rgb(pal.l6);
-      // ROPS Roll Bar
+      // Head & curved cap brim
       ctx.beginPath();
-      ctx.moveTo(-42, -56);
-      ctx.lineTo(-26, -56);
-      ctx.lineTo(-32, 18);
-      ctx.lineTo(-44, 18);
+      ctx.arc(-8, -76, 12.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(-14, -85);
+      ctx.quadraticCurveTo(6, -88, 16, -79);
+      ctx.lineTo(-10, -79);
+      ctx.closePath();
+      ctx.fill();
+      // Contoured torso & shoulders
+      ctx.beginPath();
+      ctx.moveTo(-22, -62);
+      ctx.quadraticCurveTo(-8, -66, 4, -60);
+      ctx.quadraticCurveTo(10, -42, 4, -26);
+      ctx.lineTo(-22, -26);
+      ctx.quadraticCurveTo(-27, -42, -22, -62);
+      ctx.closePath();
+      ctx.fill();
+      // Arm gripping angled steering lap-bar
+      ctx.beginPath();
+      ctx.moveTo(-2, -55);
+      ctx.quadraticCurveTo(14, -48, 28, -42);
+      ctx.lineTo(25, -34);
+      ctx.quadraticCurveTo(10, -40, -6, -45);
+      ctx.closePath();
+      ctx.fill();
+      // Steering lap bar lever
+      ctx.strokeStyle = rgb(pal.l7);
+      ctx.lineWidth = 3.5;
+      ctx.beginPath();
+      ctx.moveTo(27, -40);
+      ctx.lineTo(18, -18);
+      ctx.stroke();
+      // Bent leg & boot resting on footplate
+      ctx.fillStyle = rgb(pal.l6);
+      ctx.beginPath();
+      ctx.moveTo(-6, -32);
+      ctx.lineTo(24, -28);
+      ctx.lineTo(36, -12);
+      ctx.lineTo(24, -10);
+      ctx.lineTo(14, -20);
+      ctx.lineTo(-8, -22);
       ctx.closePath();
       ctx.fill();
 
-      // Operator torso, head, cap & steering lap-bar arms
+      // Contoured High-Back Seat & Sloped Commercial Rear Engine Hood
       ctx.beginPath();
-      ctx.arc(-6, -34, 14, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillRect(-16, -44, 28, 6);
-      ctx.beginPath();
-      ctx.moveTo(-20, -18);
-      ctx.lineTo(8, -18);
-      ctx.lineTo(2, 22);
-      ctx.lineTo(-22, 22);
-      ctx.closePath();
-      ctx.fill();
-      ctx.beginPath();
-      ctx.moveTo(2, -10);
-      ctx.lineTo(32, 2);
-      ctx.lineTo(28, 10);
-      ctx.lineTo(-2, 0);
+      ctx.moveTo(-64, -12);
+      ctx.quadraticCurveTo(-60, -34, -36, -36);
+      ctx.lineTo(48, -28);
+      ctx.quadraticCurveTo(66, -24, 74, -10);
+      ctx.lineTo(-64, -10);
       ctx.closePath();
       ctx.fill();
 
-      // Mower Chassis & Engine Deck
-      ctx.beginPath();
-      ctx.moveTo(-54, 16);
-      ctx.lineTo(54, 16);
-      ctx.lineTo(72, 42);
-      ctx.lineTo(-64, 42);
-      ctx.closePath();
-      ctx.fill();
-
-      // High-speed spinning blade motion blur glowing beneath the 60" deck
+      // Subtle Blade Motion Glow under Deck
       ctx.save();
-      ctx.shadowBlur = 10;
-      ctx.shadowColor = "rgba(250, 204, 21, 0.7)";
-      ctx.fillStyle = `rgba(254, 249, 195, ${0.45 + 0.35 * Math.sin(t * 60)})`;
-      ctx.fillRect(10, 50, 66, 4);
+      ctx.shadowBlur = 8;
+      ctx.shadowColor = "rgba(250, 204, 21, 0.65)";
+      ctx.fillStyle = `rgba(254, 249, 195, ${0.38 + 0.3 * Math.sin(t * 62)})`;
+      ctx.fillRect(6, -3, 62, 3);
       ctx.restore();
 
-      // Commercial 60" Cutting Deck (Accent Gold with crisp rim)
+      // Floating 60" Commercial Deck (Sleek sloped gold fascia + anti-scalp roller)
       ctx.fillStyle = rgb(pal.accent);
       ctx.beginPath();
-      ctx.roundRect(4, 37, 78, 15, 3);
+      ctx.moveTo(2, -16);
+      ctx.lineTo(66, -16);
+      ctx.lineTo(74, -4);
+      ctx.lineTo(-2, -4);
+      ctx.closePath();
       ctx.fill();
-      ctx.strokeStyle = rgb(pal.rim, 0.65 * flicker);
-      ctx.lineWidth = 1.4;
+      ctx.strokeStyle = rgb(pal.rim, 0.7 * flicker);
+      ctx.lineWidth = 1.2;
       ctx.stroke();
 
-      // Rear Drive Wheel (Spinning spokes)
+      // Front Anti-Scalp Deck Roller
       ctx.fillStyle = rgb(pal.l7);
       ctx.beginPath();
-      ctx.arc(-34, 44, 24, 0, Math.PI * 2);
+      ctx.arc(64, -4, 5.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Chunky Deep-Tread Rear Turf Tire (Grounded at y=0)
+      ctx.fillStyle = rgb(pal.l7);
+      ctx.beginPath();
+      ctx.arc(-36, -20, 21, 0, Math.PI * 2);
       ctx.fill();
       ctx.save();
-      ctx.translate(-34, 44);
+      ctx.translate(-36, -20);
       ctx.rotate(t * 9.5);
       ctx.strokeStyle = rgb(pal.l4);
-      ctx.lineWidth = 3;
+      ctx.lineWidth = 2.6;
       ctx.beginPath();
-      ctx.arc(0, 0, 10, 0, Math.PI * 2);
-      ctx.moveTo(-10, 0);
-      ctx.lineTo(10, 0);
-      ctx.moveTo(0, -10);
-      ctx.lineTo(0, 10);
+      ctx.arc(0, 0, 9, 0, Math.PI * 2);
+      ctx.moveTo(-9, 0);
+      ctx.lineTo(9, 0);
+      ctx.moveTo(0, -9);
+      ctx.lineTo(0, 9);
       ctx.stroke();
       ctx.restore();
 
-      // Front Caster Wheel (Spinning faster)
+      // Front Swivel Caster Fork & Wheel (Grounded at y=0)
+      ctx.strokeStyle = rgb(pal.l6);
+      ctx.lineWidth = 3.5;
+      ctx.beginPath();
+      ctx.moveTo(74, -14);
+      ctx.lineTo(78, -9);
+      ctx.stroke();
       ctx.fillStyle = rgb(pal.l7);
       ctx.beginPath();
-      ctx.arc(74, 52, 12, 0, Math.PI * 2);
+      ctx.arc(78, -9, 9.5, 0, Math.PI * 2);
       ctx.fill();
-      ctx.save();
-      ctx.translate(74, 52);
-      ctx.rotate(t * 18);
-      ctx.strokeStyle = rgb(pal.l3);
-      ctx.lineWidth = 2;
+      ctx.fillStyle = rgb(pal.l4);
       ctx.beginPath();
-      ctx.moveTo(-5, 0);
-      ctx.lineTo(5, 0);
-      ctx.stroke();
-      ctx.restore();
+      ctx.arc(78, -9, 3.5, 0, Math.PI * 2);
+      ctx.fill();
 
-      // 5) Kinetic Backlit Cut-Grass Blade Plume shooting from side discharge
+      // 5) Crisp Backlit Cut-Grass Rooster-Tail Plume arcing out from side chute
       ctx.shadowBlur = 0;
       for (const gm of GRASS_MIST) {
-        const gp = (t * 2.6 + gm.phase) % 1;
-        const gx = 18 - gp * gm.speed * 1.15;
-        const gy = 46 + Math.sin(gm.angle) * gp * 68 + gp * gp * 38;
+        const gp = (t * 2.5 + gm.phase) % 1;
+        const gx = 12 - gp * gm.speed * 1.05;
+        const gy = -8 + Math.sin(gm.angle) * gp * 54 + gp * gp * 34;
         ctx.save();
         ctx.translate(gx, gy);
         ctx.rotate(gp * gm.rot + gm.angle);
-        ctx.globalAlpha = act1Vis * (1 - gp) * 0.92;
+        ctx.globalAlpha = act1Vis * (1 - gp) * 0.9;
         ctx.strokeStyle = gp < 0.45 ? rgb(pal.rim) : rgb(pal.l3);
-        ctx.lineWidth = 2.2;
+        ctx.lineWidth = 2;
         ctx.beginPath();
         ctx.moveTo(-gm.len * 0.5, 0);
         ctx.lineTo(gm.len * 0.5, 0);
         ctx.stroke();
         ctx.restore();
       }
+
       ctx.restore();
       ctx.restore();
     }
 
-    // --- ACT 2 (3.5s – 7.6s): ACTIVE MULCH SPADING, TRENCH EDGING & CORE AERATION ---
+    // --- ACT 2 (3.5s – 7.6s): ARCHITECTURAL MULCH GARDEN BED & CORE AERATION ---
     const act2Vis = smoothstep(3.45, 4.0, t) * (1 - smoothstep(7.05, 7.65, t));
     if (act2Vis > 0.01) {
       ctx.save();
       ctx.globalAlpha = act2Vis;
 
-      // 1) Progressively Carved 3" Hand-Spaded Vertical Trench & Growing Mulch Bed
-      const bedGrow = smoothstep(3.6, 5.8, t);
+      const bedGrow = smoothstep(3.55, 5.4, t);
+
+      // 1) Sculpted S-Curve 3" Trench-Edged Estate Mulch Bed (Grounded cleanly into Layer 5)
       ctx.save();
       ctx.beginPath();
-      ctx.moveTo(90, 548);
+      ctx.moveTo(40, getHill5Y(40) + 18);
       ctx.bezierCurveTo(
-        260,
-        525 - bedGrow * 34,
-        460,
-        568 - bedGrow * 16,
-        660,
-        522 - bedGrow * 12
+        210,
+        getHill5Y(210) - 24 * bedGrow,
+        420,
+        getHill5Y(420) - 18 * bedGrow,
+        595,
+        getHill5Y(595) + 16
       );
-      ctx.bezierCurveTo(860, 488, 1080, 526, 1230, 545);
-      ctx.lineTo(1230, 625);
-      ctx.lineTo(90, 625);
+      ctx.lineTo(595, H + 60);
+      ctx.lineTo(40, H + 60);
       ctx.closePath();
       ctx.fillStyle = rgb(pal.l6);
       ctx.fill();
-      // Crisp sunlit 3" vertical trench edge highlight
+      // Deep 3" vertical trench bevel shadow + warm backlit lip
       ctx.strokeStyle = rgb(pal.rim, 0.72 * flicker);
       ctx.lineWidth = 2.4;
       ctx.stroke();
-      ctx.restore();
 
-      // Warm Glowing Brass Garden Pathway Lantern beside the mulched bed
-      ctx.save();
-      ctx.translate(185, 488);
-      ctx.fillStyle = rgb(pal.l7);
-      ctx.fillRect(-3, 0, 6, 48);
-      ctx.beginPath();
-      ctx.moveTo(-14, 2);
-      ctx.lineTo(0, -10);
-      ctx.lineTo(14, 2);
-      ctx.closePath();
-      ctx.fill();
-      if (isLit) {
-        const lanGlow = 0.85 + 0.15 * Math.sin(t * 6.5);
-        ctx.shadowColor = "rgba(255, 220, 120, 0.95)";
-        ctx.shadowBlur = 22 * lanGlow;
-        ctx.fillStyle = `rgba(255, 240, 175, ${lanGlow * flicker})`;
+      // Subtle layered bark texture ripples inside the freshly mulched bed
+      ctx.strokeStyle = rgb(pal.l5, 0.42);
+      ctx.lineWidth = 1.6;
+      for (let r = 0; r < 3; r++) {
         ctx.beginPath();
-        ctx.arc(0, 6, 6.5, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      ctx.restore();
-
-      // 2) Wheelbarrow + Active Landscaper Shoveling Cascading Mulch Bark!
-      const scoopCycle = (t * 1.45) % 1;
-      const throwSwing = Math.sin(scoopCycle * Math.PI * 2);
-
-      // Wheelbarrow with Mound of Triple-Shredded Bark
-      ctx.save();
-      ctx.translate(275, 456);
-      ctx.shadowColor = "rgba(0,0,0,0.5)";
-      ctx.shadowBlur = 12;
-      ctx.shadowOffsetY = 6;
-      ctx.fillStyle = rgb(pal.l6);
-      ctx.beginPath();
-      ctx.moveTo(0, 22);
-      ctx.lineTo(88, 22);
-      ctx.lineTo(72, 54);
-      ctx.lineTo(8, 54);
-      ctx.closePath();
-      ctx.fill();
-      // Rich Bark Mound
-      ctx.fillStyle = rgb(pal.l7);
-      ctx.beginPath();
-      ctx.moveTo(2, 22);
-      ctx.quadraticCurveTo(44, -14, 86, 22);
-      ctx.closePath();
-      ctx.fill();
-      // Wheel & handles
-      ctx.beginPath();
-      ctx.arc(90, 62, 16, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = rgb(pal.l6);
-      ctx.lineWidth = 6;
-      ctx.beginPath();
-      ctx.moveTo(4, 34);
-      ctx.lineTo(-32, 40);
-      ctx.moveTo(16, 54);
-      ctx.lineTo(8, 74);
-      ctx.stroke();
-      ctx.restore();
-
-      // Active Landscaper Silhouette pitching dark mulch onto the bed
-      ctx.save();
-      ctx.translate(396, 444);
-      ctx.fillStyle = rgb(pal.l6);
-      // Head & Cap
-      ctx.beginPath();
-      ctx.arc(throwSwing * 4, -22, 13, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillRect(-6 + throwSwing * 4, -31, 24, 5);
-      // Leaning Torso
-      ctx.beginPath();
-      ctx.moveTo(-12 + throwSwing * 5, -8);
-      ctx.lineTo(12 + throwSwing * 5, -8);
-      ctx.lineTo(8, 36);
-      ctx.lineTo(-14, 36);
-      ctx.closePath();
-      ctx.fill();
-      // Planted Legs
-      ctx.strokeStyle = rgb(pal.l6);
-      ctx.lineWidth = 10;
-      ctx.lineCap = "round";
-      ctx.beginPath();
-      ctx.moveTo(-6, 35);
-      ctx.lineTo(-18, 76);
-      ctx.moveTo(5, 35);
-      ctx.lineTo(18, 76);
-      ctx.stroke();
-
-      // Animated Pitching Spade pivoting from wheelbarrow toward bed
-      ctx.save();
-      ctx.translate(4 + throwSwing * 6, 8);
-      ctx.rotate(-0.45 + throwSwing * 0.55);
-      ctx.strokeStyle = rgb(pal.l4);
-      ctx.lineWidth = 5;
-      ctx.beginPath();
-      ctx.moveTo(-22, 0);
-      ctx.lineTo(48, 8);
-      ctx.stroke();
-      // Steel Spade Blade with bright glint
-      ctx.fillStyle = rgb(pal.accent);
-      ctx.beginPath();
-      ctx.roundRect(46, 0, 20, 15, 3);
-      ctx.fill();
-      const glint = Math.pow(Math.max(0, Math.sin(t * 5.5)), 5);
-      if (glint > 0.05) {
-        ctx.fillStyle = `rgba(255,255,255,${glint})`;
-        ctx.beginPath();
-        ctx.arc(58, 6, 3.5 + glint * 6, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      ctx.restore();
-
-      // Cascading Dark Bark Chips arcing off the shovel into the garden bed
-      for (const mc of MULCH_CHIPS) {
-        const mp = (t * 1.45 + mc.phase) % 1;
-        const cx = 42 + mp * mc.vx;
-        const cy = 6 + mp * mc.vy + mp * mp * 175;
-        ctx.save();
-        ctx.translate(cx, cy);
-        ctx.rotate(mp * mc.rot);
-        ctx.globalAlpha = act2Vis * (1 - mp * 0.85);
-        ctx.fillStyle = mp < 0.35 ? rgb(pal.l5) : rgb(pal.l7);
-        ctx.fillRect(-mc.w * 0.5, -mc.h * 0.5, mc.w, mc.h);
-        ctx.restore();
-      }
-      ctx.restore();
-
-      // 3) Commercial Walk-Behind Core Aerator + Flying Soil Core Plugs!
-      const aeroP = smoothstep(3.65, 7.25, t);
-      const ax = lerp(555, 1020, aeroP);
-      ctx.save();
-      ctx.translate(ax, 444 + Math.sin(t * 42) * 1.0);
-      ctx.shadowColor = "rgba(0,0,0,0.5)";
-      ctx.shadowBlur = 12;
-      ctx.shadowOffsetY = 6;
-      ctx.fillStyle = rgb(pal.l6);
-      // Operator
-      ctx.beginPath();
-      ctx.arc(-44, -22, 13, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillRect(-52, -31, 24, 5);
-      ctx.beginPath();
-      ctx.moveTo(-54, -8);
-      ctx.lineTo(-32, -8);
-      ctx.lineTo(-38, 36);
-      ctx.lineTo(-56, 36);
-      ctx.closePath();
-      ctx.fill();
-      // Walking Legs
-      const stride = Math.sin(t * 9.5) * 11;
-      ctx.strokeStyle = rgb(pal.l6);
-      ctx.lineWidth = 10;
-      ctx.lineCap = "round";
-      ctx.beginPath();
-      ctx.moveTo(-46, 34);
-      ctx.lineTo(-56 + stride, 74);
-      ctx.moveTo(-40, 34);
-      ctx.lineTo(-30 - stride, 74);
-      ctx.stroke();
-      // Handle & machine frame
-      ctx.lineWidth = 5;
-      ctx.beginPath();
-      ctx.moveTo(-36, 4);
-      ctx.lineTo(14, 16);
-      ctx.lineTo(38, 56);
-      ctx.stroke();
-      // Engine block (emerald accent + rim)
-      ctx.fillStyle = rgb(pal.accent);
-      ctx.beginPath();
-      ctx.roundRect(14, 24, 38, 28, 4);
-      ctx.fill();
-      // Rotating Hollow-Tine Drum
-      ctx.save();
-      ctx.translate(36, 62);
-      ctx.rotate(t * 7.2);
-      ctx.fillStyle = rgb(pal.l7);
-      ctx.beginPath();
-      ctx.arc(0, 0, 19, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = rgb(pal.l7);
-      ctx.lineWidth = 5;
-      for (let k = 0; k < 4; k++) {
-        const ang = (k * Math.PI) / 4;
-        ctx.beginPath();
-        ctx.moveTo(Math.cos(ang) * -26, Math.sin(ang) * -26);
-        ctx.lineTo(Math.cos(ang) * 26, Math.sin(ang) * 26);
+        ctx.moveTo(110 + r * 35, 545 + r * 14);
+        ctx.quadraticCurveTo(310, 526 + r * 14, 515 - r * 20, 548 + r * 14);
         ctx.stroke();
       }
       ctx.restore();
 
-      // Popping Soil Core Plugs ejecting upward behind the rotating tine drum!
-      ctx.shadowBlur = 0;
-      for (const cp of CORE_PLUGS) {
-        const pTime = (t * 2.1 + cp.phase) % 1;
-        const px = 22 + pTime * cp.vx;
-        const py = 68 + pTime * cp.vy + pTime * pTime * 110;
+      // 2) Ornamental Japanese Maple & Graceful Swaying Fountain Grasses in the Mulch Bed
+      ctx.save();
+      const bedBaseY = getHill5Y(255) - 6;
+      const breeze = Math.sin(t * 2.4) * 5;
+
+      // Sculpted Ornamental Dwarf Maple Silhouette (Paper-cut layered canopy)
+      ctx.fillStyle = rgb(pal.l6);
+      ctx.beginPath();
+      ctx.moveTo(248, bedBaseY + 14);
+      ctx.quadraticCurveTo(254, bedBaseY - 38, 240, bedBaseY - 72);
+      ctx.quadraticCurveTo(260, bedBaseY - 42, 266, bedBaseY + 14);
+      ctx.closePath();
+      ctx.fill();
+      // Graceful tiered foliage clouds
+      const drawCanopyCloud = (cx, cy, rx, ry) => {
+        ctx.beginPath();
+        ctx.ellipse(cx + breeze * 0.6, cy, rx, ry, -0.08, 0, Math.PI * 2);
+        ctx.fill();
+      };
+      ctx.fillStyle = rgb(pal.l6);
+      drawCanopyCloud(236, bedBaseY - 78, 46, 20);
+      drawCanopyCloud(268, bedBaseY - 94, 38, 17);
+      drawCanopyCloud(214, bedBaseY - 66, 30, 14);
+      // Warm backlit top highlight on maple leaves
+      ctx.strokeStyle = rgb(pal.rim, 0.45 * flicker);
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.arc(268 + breeze * 0.6, bedBaseY - 94, 34, Math.PI * 1.1, Math.PI * 1.9);
+      ctx.stroke();
+
+      // Graceful Weeping Fountain Grasses flanking the bed
+      ctx.strokeStyle = rgb(pal.l7, 0.92);
+      ctx.lineWidth = 2.4;
+      ctx.lineCap = "round";
+      for (const fx of [152, 342]) {
+        const fy = getHill5Y(fx) + 4;
+        for (let b = -3; b <= 3; b++) {
+          const arcH = (34 - Math.abs(b) * 4) * (0.65 + 0.35 * bedGrow);
+          ctx.beginPath();
+          ctx.moveTo(fx, fy);
+          ctx.quadraticCurveTo(
+            fx + b * 8 + breeze * 0.4,
+            fy - arcH,
+            fx + b * 17 + breeze,
+            fy - arcH * 0.55
+          );
+          ctx.stroke();
+        }
+      }
+
+      // Wrought-Iron Shepherd's Hook Garden Lantern with Warm Amber Bloom
+      const lanX = 430;
+      const lanY = getHill5Y(lanX) + 4;
+      ctx.strokeStyle = rgb(pal.l7);
+      ctx.lineWidth = 3.2;
+      ctx.beginPath();
+      ctx.moveTo(lanX, lanY);
+      ctx.lineTo(lanX, lanY - 62);
+      ctx.bezierCurveTo(lanX, lanY - 78, lanX + 20, lanY - 78, lanX + 20, lanY - 62);
+      ctx.stroke();
+      // Hanging lantern housing
+      ctx.fillStyle = rgb(pal.l7);
+      ctx.beginPath();
+      ctx.moveTo(lanX + 12, lanY - 58);
+      ctx.lineTo(lanX + 20, lanY - 65);
+      ctx.lineTo(lanX + 28, lanY - 58);
+      ctx.closePath();
+      ctx.fill();
+      if (isLit) {
+        const lanPulse = 0.86 + 0.14 * Math.sin(t * 6.2);
+        // Warm spill halo onto mulch bed
+        const spill = ctx.createRadialGradient(lanX + 20, lanY - 52, 2, lanX + 20, lanY - 40, 56);
+        spill.addColorStop(0, `rgba(255, 236, 165, ${0.75 * lanPulse * flicker})`);
+        spill.addColorStop(0.45, `rgba(255, 200, 110, ${0.22 * lanPulse * flicker})`);
+        spill.addColorStop(1, "rgba(255, 200, 110, 0)");
+        ctx.fillStyle = spill;
+        ctx.beginPath();
+        ctx.arc(lanX + 20, lanY - 46, 56, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = `rgba(255, 248, 210, ${lanPulse * flicker})`;
+        ctx.beginPath();
+        ctx.roundRect(lanX + 15.5, lanY - 57, 9, 12, 2);
+        ctx.fill();
+      }
+      ctx.restore();
+
+      // 3) Refined Paper-Cut Gardener Silhouette Raking Smooth Mulch Waves
+      const rakeSwing = Math.sin(t * 4.2);
+      const gxPos = 515;
+      const gyPos = getHill5Y(gxPos);
+      ctx.save();
+      ctx.translate(gxPos, gyPos);
+      ctx.fillStyle = "rgba(0,0,0,0.35)";
+      ctx.beginPath();
+      ctx.ellipse(0, 3, 28, 6, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = rgb(pal.l6);
+      // Brimmed Sun Hat & Head
+      ctx.beginPath();
+      ctx.arc(-4 + rakeSwing * 3, -76, 11, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(-4 + rakeSwing * 3, -84, 19, 4.5, -0.1, 0, Math.PI * 2);
+      ctx.fill();
+      // Natural Curved Leaning Torso
+      ctx.beginPath();
+      ctx.moveTo(-14 + rakeSwing * 4, -64);
+      ctx.quadraticCurveTo(0 + rakeSwing * 4, -66, 8 + rakeSwing * 4, -60);
+      ctx.quadraticCurveTo(10, -40, 4, -26);
+      ctx.lineTo(-14, -26);
+      ctx.quadraticCurveTo(-20, -42, -14 + rakeSwing * 4, -64);
+      ctx.closePath();
+      ctx.fill();
+      // Planted Stance Legs
+      ctx.beginPath();
+      ctx.moveTo(-12, -28);
+      ctx.lineTo(-22, 2);
+      ctx.lineTo(-12, 2);
+      ctx.lineTo(-2, -26);
+      ctx.lineTo(12, 2);
+      ctx.lineTo(22, 2);
+      ctx.lineTo(6, -28);
+      ctx.closePath();
+      ctx.fill();
+
+      // Sweeping Landscape Rake smoothing fresh dark mulch
+      const rakeTipX = -58 + rakeSwing * 22;
+      ctx.strokeStyle = rgb(pal.l5);
+      ctx.lineWidth = 3.8;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(12 + rakeSwing * 5, -52);
+      ctx.lineTo(rakeTipX, -2);
+      ctx.stroke();
+      // Rake Head
+      ctx.strokeStyle = rgb(pal.accent);
+      ctx.lineWidth = 4.5;
+      ctx.beginPath();
+      ctx.moveTo(rakeTipX - 10, -4);
+      ctx.lineTo(rakeTipX + 10, 2);
+      ctx.stroke();
+
+      // Delicate sunlit bark chips & dust rising from the rake sweep
+      for (const mc of MULCH_CHIPS) {
+        const mp = (t * 1.4 + mc.phase) % 1;
+        const cx = rakeTipX - mp * mc.vx * 0.55;
+        const cy = -4 + mp * mc.vy * 0.45 + mp * mp * 75;
         ctx.save();
-        ctx.translate(px, py);
-        ctx.rotate(pTime * cp.rot);
-        ctx.globalAlpha = act2Vis * (1 - pTime * 0.7);
-        ctx.fillStyle = rgb(pal.l4);
-        ctx.fillRect(-3, -6, 6, 12);
+        ctx.translate(cx, cy);
+        ctx.rotate(mp * mc.rot);
+        ctx.globalAlpha = act2Vis * (1 - mp) * 0.85;
+        ctx.fillStyle = mp < 0.4 ? rgb(pal.rim) : rgb(pal.l7);
+        ctx.fillRect(-mc.w * 0.45, -mc.h * 0.45, mc.w * 0.9, mc.h * 0.9);
         ctx.restore();
       }
       ctx.restore();
 
-      // Extracted Core Plugs resting visibly on the lawn behind the aerator
-      ctx.fillStyle = rgb(pal.l4, 0.9);
-      for (let rx = 540; rx < ax - 20; rx += 34) {
-        const ry = 524 + Math.sin(rx * 0.05) * 6;
+      // 4) Sleek Walk-Behind Commercial Core Aerator Gliding Across Right Turf
+      const aeroP = smoothstep(3.6, 7.25, t);
+      const ax = lerp(665, 1085, aeroP);
+      const ay = getHill5Y(ax);
+      const aSlope = Math.atan2(getHill5Y(ax + 20) - getHill5Y(ax - 20), 40);
+
+      ctx.save();
+      ctx.translate(ax, ay + Math.sin(t * 42) * 0.6);
+      ctx.rotate(aSlope);
+
+      // Ground contact shadow
+      ctx.fillStyle = "rgba(0,0,0,0.38)";
+      ctx.beginPath();
+      ctx.ellipse(-6, 3, 56, 7, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.shadowColor = "rgba(0,0,0,0.45)";
+      ctx.shadowBlur = 10;
+      ctx.shadowOffsetY = 5;
+
+      // Refined Operator Silhouette walking smoothly
+      ctx.fillStyle = rgb(pal.l6);
+      ctx.beginPath();
+      ctx.arc(-44, -76, 11.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(-50, -84);
+      ctx.quadraticCurveTo(-34, -86, -24, -79);
+      ctx.lineTo(-46, -79);
+      ctx.closePath();
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(-54, -63);
+      ctx.quadraticCurveTo(-40, -66, -32, -60);
+      ctx.lineTo(-36, -26);
+      ctx.lineTo(-56, -26);
+      ctx.closePath();
+      ctx.fill();
+
+      const stride = Math.sin(t * 8.5) * 10;
+      ctx.strokeStyle = rgb(pal.l6);
+      ctx.lineWidth = 9;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(-48, -28);
+      ctx.lineTo(-56 + stride, 0);
+      ctx.moveTo(-40, -28);
+      ctx.lineTo(-32 - stride, 0);
+      ctx.stroke();
+
+      // Curved Ergonomic Handlebar Loop
+      ctx.strokeStyle = rgb(pal.l7);
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(-34, -48);
+      ctx.quadraticCurveTo(-8, -44, 14, -18);
+      ctx.stroke();
+
+      // Sloped Commercial Aerator Hood & Emerald Engine Shroud
+      ctx.fillStyle = rgb(pal.l6);
+      ctx.beginPath();
+      ctx.roundRect(6, -34, 48, 22, 6);
+      ctx.fill();
+      ctx.fillStyle = rgb(pal.accent);
+      ctx.beginPath();
+      ctx.roundRect(14, -44, 30, 14, 4);
+      ctx.fill();
+      ctx.strokeStyle = rgb(pal.rim, 0.55 * flicker);
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+
+      // Rotating Hollow-Tine Drum (Grounded at y=0)
+      ctx.save();
+      ctx.translate(34, -14);
+      ctx.rotate(t * 6.8);
+      ctx.fillStyle = rgb(pal.l7);
+      ctx.beginPath();
+      ctx.arc(0, 0, 14, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = rgb(pal.l7);
+      ctx.lineWidth = 3.8;
+      for (let k = 0; k < 4; k++) {
+        const ang = (k * Math.PI) / 4;
+        ctx.beginPath();
+        ctx.moveTo(Math.cos(ang) * -20, Math.sin(ang) * -20);
+        ctx.lineTo(Math.cos(ang) * 20, Math.sin(ang) * 20);
+        ctx.stroke();
+      }
+      ctx.restore();
+
+      // Rear Transport Wheel
+      ctx.fillStyle = rgb(pal.l7);
+      ctx.beginPath();
+      ctx.arc(4, -10, 10, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Popping Cylindrical Soil Core Plugs arcing upward from the tines
+      ctx.shadowBlur = 0;
+      for (const cp of CORE_PLUGS) {
+        const pTime = (t * 2.0 + cp.phase) % 1;
+        const px = 22 + pTime * cp.vx;
+        const py = -8 + pTime * cp.vy * 0.8 + pTime * pTime * 90;
+        ctx.save();
+        ctx.translate(px, py);
+        ctx.rotate(pTime * cp.rot);
+        ctx.globalAlpha = act2Vis * (1 - pTime * 0.72);
+        ctx.fillStyle = rgb(pal.l4);
+        ctx.fillRect(-2.5, -5.5, 5, 11);
+        ctx.restore();
+      }
+      ctx.restore();
+
+      // Settled Core Plugs resting cleanly on the hill contour behind the aerator
+      ctx.fillStyle = rgb(pal.l4, 0.88);
+      for (let rx = 640; rx < ax - 24; rx += 32) {
+        const ry = getHill5Y(rx) + 4;
         ctx.save();
         ctx.translate(rx, ry);
         ctx.rotate((rx % 7) * 0.35 - 0.8);
-        ctx.fillRect(-2.5, -6, 5, 12);
+        ctx.fillRect(-2.2, -5, 4.4, 10);
         ctx.restore();
       }
 
-      // 4) Luminous Golden Overseed Rain + Lush Multi-Blade Emerald Grass Tufts
+      // 5) Luminous Golden Overseed Veil & Sprouting Multi-Blade Emerald Turf
       for (const sd of SEEDS) {
-        const sp = (t * 1.15 + sd.phase) % 1;
-        ctx.fillStyle = rgb(pal.sun, (1 - sp) * 0.95 * act2Vis * flicker);
+        const sp = (t * 1.1 + sd.phase) % 1;
+        ctx.fillStyle = rgb(pal.sun, (1 - sp) * 0.9 * act2Vis * flicker);
         ctx.beginPath();
-        ctx.arc(sd.x + sp * 18, sd.y0 + sp * 115, sd.size, 0, Math.PI * 2);
+        ctx.arc(sd.x + sp * 16, sd.y0 + sp * 120, sd.size, 0, Math.PI * 2);
         ctx.fill();
       }
 
-      // Lush Multi-Blade Sprouting Tufts springing up across aerated turf
       const sproutGrow = smoothstep(4.2, 6.4, t);
       ctx.lineCap = "round";
-      for (let i = 0; i < 16; i++) {
-        const bx = 480 + i * 40;
-        const by = 546 + Math.sin(i * 1.4) * 6;
+      for (let i = 0; i < 14; i++) {
+        const bx = 620 + i * 40;
+        const by = getHill5Y(bx) + 5;
         const localGrow = clamp(sproutGrow * 1.4 - i * 0.04, 0, 1);
         if (localGrow <= 0.02) continue;
-        const baseH = (20 + (i % 3) * 9) * localGrow;
-        const sw = Math.sin(t * 3.4 + i) * 4.5;
-        ctx.strokeStyle = i % 2 === 0 ? rgb(pal.accent, 0.95) : rgb(pal.rim, 0.8 * flicker);
-        ctx.lineWidth = 3.2;
+        const baseH = (18 + (i % 3) * 8) * localGrow;
+        const sw = Math.sin(t * 3.2 + i) * 4;
+        ctx.strokeStyle = i % 2 === 0 ? rgb(pal.accent, 0.92) : rgb(pal.rim, 0.75 * flicker);
+        ctx.lineWidth = 2.6;
         for (let b = -1; b <= 1; b++) {
           ctx.beginPath();
           ctx.moveTo(bx, by);
           ctx.quadraticCurveTo(
-            bx + b * 6 + sw * 0.6,
+            bx + b * 5 + sw * 0.5,
             by - baseH * 0.55,
-            bx + b * 12 + sw,
-            by - baseH * (b === 0 ? 1.15 : 0.85)
+            bx + b * 10 + sw,
+            by - baseH * (b === 0 ? 1.15 : 0.82)
           );
           ctx.stroke();
         }
