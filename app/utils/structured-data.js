@@ -26,7 +26,7 @@ export function generateStructuredData({ type, name, description, areaServed, se
         "postalCode": "02860",
         "addressCountry": "US"
       },
-      "telephone": "(401) 389-0913",
+      "telephone": "(401) 205-3853",
       "email": "floralawncareri@gmail.com",
       "areaServed": "Rhode Island",
       "openingHours": [
@@ -57,7 +57,7 @@ export const generateBusinessStructuredData = () => {
     ],
     "@id": "https://floralawn.com",
     "url": "https://floralawn.com",
-    "telephone": "+14013890913",
+    "telephone": "+14012053853",
     "address": {
       "@type": "PostalAddress",
       "streetAddress": "45 Vernon St",

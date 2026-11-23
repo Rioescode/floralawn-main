@@ -109,7 +109,7 @@ export async function POST(request) {
                   <p style="margin: 0; font-size: 12px; font-weight: 600; color: #22c55e; text-transform: uppercase; letter-spacing: 0.05em;">Owner &middot; Flora Lawn &amp; Landscaping Inc</p>
                   <div style="height: 8px;"></div>
                   <p style="margin: 0; font-size: 12px; color: #475569; line-height: 1.8;">
-                    📞 <a href="tel:4013890913" style="color: #475569; text-decoration: none;">(401) 389-0913</a><br>
+                    📞 <a href="tel:4012053853" style="color: #475569; text-decoration: none;">(401) 205-3853</a><br>
                     📧 <a href="mailto:floralawncareri@gmail.com" style="color: #475569; text-decoration: none;">floralawncareri@gmail.com</a><br>
                     🌐 <a href="https://floralawn-and-landscaping.com" style="color: #22c55e; text-decoration: none;">floralawn-and-landscaping.com</a><br>
                     📍 45 Vernon St, Pawtucket, RI 02860
@@ -120,7 +120,7 @@ export async function POST(request) {
           </div>
         </div>
         <div style="background-color: #f8fafc; padding: 20px; text-align: center; font-size: 10px; color: #94a3b8;">
-          Flora Lawn &amp; Landscaping • (401) 389-0913
+          Flora Lawn &amp; Landscaping • (401) 205-3853
         </div>
       </div>
     `;

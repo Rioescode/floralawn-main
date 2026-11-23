@@ -33,7 +33,7 @@ export async function POST(request) {
           '<strong>Watch your lawn</strong> through the seasons on your yard picture.',
         ]),
         buttonRow([button(siteUrl('/customer/dashboard'), 'Open your yard')]),
-        paragraph('Questions? Reply to this email or call <a href="tel:4013890913" style="color:#2F6B4F;font-weight:700;">(401) 389-0913</a>.'),
+        paragraph('Questions? Reply to this email or call <a href="tel:4012053853" style="color:#2F6B4F;font-weight:700;">(401) 205-3853</a>.'),
         signature(),
       ].join(''),
     });
@@ -41,7 +41,7 @@ export async function POST(request) {
     await sendEmail({
       to: email,
       subject: 'Your Flora Lawn yard account is ready',
-      text: `Welcome to Flora Lawn. Your yard account is ready. See your next visit, skip or change a date, and ask for quotes at ${siteUrl('/customer/dashboard')}. Questions? Call (401) 389-0913.`,
+      text: `Welcome to Flora Lawn. Your yard account is ready. See your next visit, skip or change a date, and ask for quotes at ${siteUrl('/customer/dashboard')}. Questions? Call (401) 205-3853.`,
       html: emailHtml,
       replyTo: 'floralawncareri@gmail.com'
     });

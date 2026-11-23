@@ -19,7 +19,7 @@ export async function POST(request) {
     const companyInfo = {
       name: 'Flora Lawn & Landscaping Inc.',
       address: '45 Vernon St, Pawtucket, RI 02860',
-      phone: '(401) 389-0913',
+      phone: '(401) 205-3853',
       email: 'floralawncareri@gmail.com',
       logo: 'https://floralawn-and-landscaping.com/flora-logo-final.png'
     };

@@ -246,7 +246,7 @@ function mulberry32(seed) {
 }
 
 // Pre-generate particle tables once
-const rand = mulberry32(4013890913);
+const rand = mulberry32(4012053853);
 const FALL_LEAVES = Array.from({ length: 42 }, () => ({
   x0: rand() * 1100 - 100,
   y0: 140 + rand() * 440,
@@ -2301,10 +2301,10 @@ export default function PapercutLightbox() {
             <div className="bg-slate-900/50 border border-slate-800/70 rounded-2xl p-4 flex items-center justify-between text-xs backdrop-blur-md">
               <span className="text-slate-400 font-semibold">Need custom scheduling?</span>
               <a
-                href="tel:4013890913"
+                href="tel:4012053853"
                 className="text-amber-400 hover:text-amber-300 font-black flex items-center gap-1.5 transition-colors"
               >
-                (401) 389-0913 &rarr;
+                (401) 205-3853 &rarr;
               </a>
             </div>
           </div>

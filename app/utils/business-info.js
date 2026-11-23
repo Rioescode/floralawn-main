@@ -1,6 +1,6 @@
 export const businessInfo = {
   name: "Flora Lawn & Landscaping Inc",
-  phone: "(401) 389-0913",
+  phone: "(401) 205-3853",
   email: "floralawncareri@gmail.com",
   secondaryEmail: "riyardworks@gmail.com",
   address: {

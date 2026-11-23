@@ -84,7 +84,7 @@ export default function InstantQuotePage() {
 
                 <div className="space-y-6">
                    <a 
-                     href={`https://wa.me/14013890913?text=Hi! I just got a quote for $${quoteData.price} for my property at ${quoteData.address}. I measured ${quoteData.area} sqft. I want to schedule now.`}
+                     href={`https://wa.me/14012053853?text=Hi! I just got a quote for $${quoteData.price} for my property at ${quoteData.address}. I measured ${quoteData.area} sqft. I want to schedule now.`}
                      target="_blank"
                      className="w-full bg-slate-900 hover:bg-green-600 text-white p-8 rounded-[2rem] text-2xl font-black italic flex items-center justify-center gap-6 shadow-2xl transition-all group active:scale-95"
                    >

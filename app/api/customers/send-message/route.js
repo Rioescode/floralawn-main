@@ -76,7 +76,7 @@ export async function POST(request) {
                 
                 <p style="font-size: 12px; color: #94a3b8; line-height: 1.6;">
                   Flora Lawn & Landscaping Inc.<br>
-                  (401) 389-0913 • floralawncareri@gmail.com<br>
+                  (401) 205-3853 • floralawncareri@gmail.com<br>
                   Rhode Island's Lawn Care Experts
                 </p>
               </div>
@@ -128,7 +128,7 @@ export async function POST(request) {
                   <p style="margin: 0; font-size: 16px; font-weight: 800; color: #1e293b;">Flora Lawn & Landscaping</p>
                   <p style="margin: 4px 0 0; font-size: 13px; color: #64748b; font-weight: 500;">Rhode Island's Lawn Care Experts</p>
                   <div style="margin-top: 20px; border-top: 1px solid #e2e8f0; padding-top: 20px;">
-                    <p style="margin: 0; font-size: 12px; color: #94a3b8;">(401) 389-0913 • floralawncareri@gmail.com</p>
+                    <p style="margin: 0; font-size: 12px; color: #94a3b8;">(401) 205-3853 • floralawncareri@gmail.com</p>
                     <p style="margin: 8px 0 0; font-size: 11px; color: #cbd5e1;">&copy; ${new Date().getFullYear()} Flora Lawn & Landscaping Inc. All rights reserved.</p>
                   </div>
                 </div>

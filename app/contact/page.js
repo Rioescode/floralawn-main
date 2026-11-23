@@ -650,7 +650,7 @@ function ContactForm() {
       }
     } catch (err) {
       console.error('Submission crash:', err);
-      setStatus({ type: 'error', message: 'Transmission failed. Direct line: (401) 389-0913' });
+      setStatus({ type: 'error', message: 'Transmission failed. Direct line: (401) 205-3853' });
     } finally {
       setIsSubmitting(false);
     }
@@ -763,10 +763,10 @@ function ContactForm() {
                   <ShieldCheckIcon className="w-5 h-5 text-yellow-300" /> Free, no obligation
                </span>
                <a
-                  href="tel:4013890913"
+                  href="tel:4012053853"
                   className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-yellow-400 hover:bg-yellow-300 text-stone-900 text-sm font-black transition-colors"
                >
-                  <PhoneIcon className="w-5 h-5" /> (401) 389-0913
+                  <PhoneIcon className="w-5 h-5" /> (401) 205-3853
                </a>
             </div>
          </div>
@@ -799,13 +799,14 @@ function ContactForm() {
                <div className="lg:col-span-4 space-y-8 order-2 lg:order-1 w-full">
                   <div className="bg-slate-50 p-6 md:p-10 rounded-[3rem] border border-slate-100">
                      <h2 className="text-2xl font-black italic mb-10 tracking-tight">Direct Support</h2>
-                     <a href="tel:4013890913" className="flex items-center gap-6 group mb-10">
+                     <a href="tel:4012053853" className="flex items-center gap-6 group mb-10">
                         <div className="w-14 h-14 bg-white rounded-2xl shadow-xl flex items-center justify-center text-green-600 transition-all group-hover:bg-green-600 group-hover:text-white">
                            <PhoneIcon className="w-6 h-6" />
                         </div>
                         <div>
                            <p className="text-[10px] font-black italic text-slate-400 uppercase tracking-widest leading-none mb-1">Direct Line</p>
-                           <p className="text-2xl font-black">(401) 389-0913</p>
+                           <p className="text-2xl font-black">(401) 205-3853</p>
+                           <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mt-1">Se habla español</p>
                         </div>
                      </a>
                      <div className="flex items-center gap-6 mb-10">

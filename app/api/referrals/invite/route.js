@@ -205,7 +205,7 @@ export async function POST(request) {
           <p style="color: #6b7280; font-size: 12px; margin: 0 0 10px 0;">
             Flora Lawn and Landscaping Inc<br>
             45 Vernon Street, Pawtucket, RI 02860<br>
-            📞 (401) 389-0913
+            📞 (401) 205-3853
           </p>
           <p style="color: #9ca3af; font-size: 11px; margin: 0;">
             You received this email because ${referrerName} thought you'd be interested in our services.
@@ -243,7 +243,7 @@ Why Choose Flora Lawn?
 ---
 Flora Lawn and Landscaping Inc
 45 Vernon Street, Pawtucket, RI 02860
-Phone: (401) 389-0913
+Phone: (401) 205-3853
     `;
 
     // Send the email

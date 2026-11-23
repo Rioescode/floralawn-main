@@ -155,9 +155,10 @@ const Footer = () => {
            <div className="col-span-2 lg:col-span-1 border-l border-white/5 pl-0 lg:pl-12 pt-12 lg:pt-0">
               <h4 className="text-white font-black uppercase tracking-widest text-xs mb-8">Priority Contact</h4>
               <div className="space-y-8">
-                 <a href="tel:4013890913" className="block group">
+                 <a href="tel:4012053853" className="block group">
                     <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-600 mb-1">Direct Line</p>
-                    <p className="text-2xl font-black text-white group-hover:text-green-500 transition-colors tracking-tighter">(401) 389-0913</p>
+                    <p className="text-2xl font-black text-white group-hover:text-green-500 transition-colors tracking-tighter">(401) 205-3853</p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mt-1">Se habla español</p>
                  </a>
                  <div className="flex items-center gap-4">
                     <div className="p-3 bg-white/5 rounded-xl text-green-500">

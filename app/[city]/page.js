@@ -107,8 +107,8 @@ export default function LocationPage({ params }) {
                 <Link href="/contact" className="bg-green-600 hover:bg-green-500 text-white px-12 py-6 rounded-2xl font-black text-2xl transition-all shadow-2xl shadow-green-900/40">
                    Get Instant Quote
                 </Link>
-                <a href="tel:4013890913" className="flex items-center justify-center bg-white/5 hover:bg-white/10 text-white border border-white/20 px-10 py-6 rounded-2xl font-black text-2xl transition-all">
-                   (401) 389-0913
+                <a href="tel:4012053853" className="flex items-center justify-center bg-white/5 hover:bg-white/10 text-white border border-white/20 px-10 py-6 rounded-2xl font-black text-2xl transition-all">
+                   (401) 205-3853
                 </a>
              </div>
           </div>

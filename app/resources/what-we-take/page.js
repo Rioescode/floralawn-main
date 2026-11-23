@@ -89,10 +89,10 @@ export default function WhatWeTakePage() {
                 Contact us to discuss your specific items. We're happy to help determine what we can remove.
               </p>
               <a 
-                href="tel:4013890913"
+                href="tel:4012053853"
                 className="inline-block bg-white text-[#FF5733] px-6 py-3 rounded-lg font-medium"
               >
-                Call (401) 389-0913
+                Call (401) 205-3853
               </a>
             </div>
           </div>

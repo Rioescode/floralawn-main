@@ -176,7 +176,7 @@ export default function AutoLawnPage() {
         throw new Error('Submission failed');
       }
     } catch (err) {
-      setBookingStatus({ type: 'error', message: 'Transmission failed. Direct line: (401) 389-0913' });
+      setBookingStatus({ type: 'error', message: 'Transmission failed. Direct line: (401) 205-3853' });
     } finally {
       setIsBookingSubmitting(false);
     }

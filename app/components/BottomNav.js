@@ -75,12 +75,12 @@ export default function BottomNav() {
 
   const navItems = customerBar
     ? [
-        { href: 'tel:4013890913', label: 'CALL NOW', icon: PhoneIcon, isExternal: true },
+        { href: 'tel:4012053853', label: 'CALL NOW', icon: PhoneIcon, isExternal: true },
         { href: '/customer/dashboard', label: 'DASH', icon: HomeIcon },
         { href: '/customer/dashboard#ask-ai', label: 'ASK AI', icon: SparklesIcon, onClick: openAskAi, primary: true },
       ]
     : [
-        { href: 'tel:4013890913', label: 'CALL NOW', icon: PhoneIcon, isExternal: true },
+        { href: 'tel:4012053853', label: 'CALL NOW', icon: PhoneIcon, isExternal: true },
         { href: '/contact', label: 'GET QUOTE', icon: SparklesIcon, primary: true },
         { href: scheduleHref, label: 'SCHEDULE', icon: CalendarIcon },
       ];

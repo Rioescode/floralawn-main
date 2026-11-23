@@ -295,9 +295,9 @@ export default function OffersPage() {
                <Link href="/contact" className="bg-slate-950 hover:bg-slate-900 text-white font-black px-14 py-6 rounded-2xl flex items-center gap-4 transition-all active:scale-95 shadow-4xl uppercase text-lg">
                  Start Priority Quote <ArrowRightIcon className="w-6 h-6" />
                </Link>
-               <a href="tel:4013890913" className="flex flex-col items-center sm:items-start text-white group">
+               <a href="tel:4012053853" className="flex flex-col items-center sm:items-start text-white group">
                   <p className="text-[10px] font-black uppercase tracking-widest leading-none mb-1 opacity-60">Call Direct</p>
-                  <p className="text-2xl font-black italic underline decoration-white/30">(401) 389-0913</p>
+                  <p className="text-2xl font-black italic underline decoration-white/30">(401) 205-3853</p>
                </a>
             </div>
          </div>
