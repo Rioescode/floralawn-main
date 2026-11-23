@@ -2166,8 +2166,8 @@ export default function PapercutLightbox() {
               <div className="absolute bottom-3 left-3 w-4 h-4 border-b-2 border-l-2 border-amber-600/70 pointer-events-none" />
               <div className="absolute bottom-3 right-3 w-4 h-4 border-b-2 border-r-2 border-amber-600/70 pointer-events-none" />
 
-              {/* 16:9 HD CANVAS CAVITY */}
-              <div className="relative w-full aspect-video rounded-[1.6rem] overflow-hidden bg-slate-950 border-2 border-black/90 shadow-[inset_0_18px_45px_rgba(0,0,0,0.95)]">
+              {/* 16:9 HD CANVAS CAVITY (100% UNOBSTRUCTED ON MOBILE & DESKTOP) */}
+              <div className="relative w-full aspect-video rounded-[1.4rem] md:rounded-[1.6rem] overflow-hidden bg-slate-950 border-2 border-black/90 shadow-[inset_0_18px_45px_rgba(0,0,0,0.95)]">
                 <canvas
                   ref={canvasRef}
                   width={1280}
@@ -2175,64 +2175,62 @@ export default function PapercutLightbox() {
                   className="w-full h-full block cursor-pointer"
                   onClick={() => setIsPlaying((p) => !p)}
                 />
+              </div>
 
-                {/* LIVE VIDEO TRANSPORT & SCRUBBER OVERLAY */}
-                <div className="absolute bottom-3 left-3 right-3 z-20">
-                  <div className="backdrop-blur-md bg-slate-950/80 border border-white/10 rounded-2xl px-4 py-3 shadow-2xl space-y-2.5">
-                    {/* Interactive 15s Timeline Scrubber */}
-                    <div
-                      onClick={handleScrub}
-                      className="relative h-2 w-full bg-slate-800/90 rounded-full cursor-pointer group overflow-hidden"
-                      title="Click anywhere to scrub the 15-second film"
+              {/* DOCKED VIDEO TRANSPORT & SCRUBBER BAR (BELOW CANVAS — NEVER BLOCKS ANIMATION) */}
+              <div className="mt-3 rounded-2xl bg-slate-950/90 border border-white/10 px-3.5 py-2.5 md:px-4 md:py-3 shadow-xl space-y-2.5">
+                {/* Interactive 15s Timeline Scrubber */}
+                <div
+                  onClick={handleScrub}
+                  className="relative h-2.5 w-full bg-slate-800/90 rounded-full cursor-pointer group overflow-hidden"
+                  title="Tap anywhere to scrub the 15-second film"
+                >
+                  {/* Chapter tick marks */}
+                  <div className="absolute left-1/4 top-0 bottom-0 w-px bg-white/25 z-10" />
+                  <div className="absolute left-2/4 top-0 bottom-0 w-px bg-white/25 z-10" />
+                  <div className="absolute left-3/4 top-0 bottom-0 w-px bg-white/25 z-10" />
+
+                  <div
+                    className="h-full bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-300 rounded-full shadow-[0_0_10px_rgba(251,191,36,0.9)]"
+                    style={{ width: `${progressPct}%` }}
+                  />
+                </div>
+
+                {/* Controls + Caption Row */}
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      onClick={() => setIsPlaying((p) => !p)}
+                      className="w-8 h-8 rounded-full bg-amber-500 hover:bg-amber-400 text-slate-950 flex items-center justify-center transition-transform active:scale-95"
+                      aria-label={isPlaying ? "Pause animation" : "Play animation"}
                     >
-                      {/* Chapter tick marks */}
-                      <div className="absolute left-1/4 top-0 bottom-0 w-px bg-white/25 z-10" />
-                      <div className="absolute left-2/4 top-0 bottom-0 w-px bg-white/25 z-10" />
-                      <div className="absolute left-3/4 top-0 bottom-0 w-px bg-white/25 z-10" />
-
-                      <div
-                        className="h-full bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-300 rounded-full shadow-[0_0_10px_rgba(251,191,36,0.9)]"
-                        style={{ width: `${progressPct}%` }}
-                      />
-                    </div>
-
-                    {/* Controls + Caption Row */}
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-2 shrink-0">
-                        <button
-                          onClick={() => setIsPlaying((p) => !p)}
-                          className="w-8 h-8 rounded-full bg-amber-500 hover:bg-amber-400 text-slate-950 flex items-center justify-center transition-transform active:scale-95"
-                          aria-label={isPlaying ? "Pause animation" : "Play animation"}
-                        >
-                          {isPlaying ? (
-                            <PauseIcon className="w-4 h-4 stroke-[2.5]" />
-                          ) : (
-                            <PlayIcon className="w-4 h-4 stroke-[2.5] ml-0.5" />
-                          )}
-                        </button>
-                        <button
-                          onClick={() => {
-                            seekTo(0);
-                            setIsPlaying(true);
-                          }}
-                          className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-200 flex items-center justify-center transition-colors"
-                          aria-label="Replay 15-second film"
-                        >
-                          <ArrowPathIcon className="w-4 h-4" />
-                        </button>
-                        <span className="text-[11px] font-mono font-bold text-amber-300 ml-1">
-                          {formatTime(currentTime)} <span className="text-slate-500">/ 00:15.0</span>
-                        </span>
-                      </div>
-
-                      <p className="hidden sm:block text-xs text-slate-300 font-medium truncate">
-                        <span className="text-amber-400 font-black uppercase mr-1.5">
-                          {chapter.label}:
-                        </span>
-                        {chapter.storyStep}
-                      </p>
-                    </div>
+                      {isPlaying ? (
+                        <PauseIcon className="w-4 h-4 stroke-[2.5]" />
+                      ) : (
+                        <PlayIcon className="w-4 h-4 stroke-[2.5] ml-0.5" />
+                      )}
+                    </button>
+                    <button
+                      onClick={() => {
+                        seekTo(0);
+                        setIsPlaying(true);
+                      }}
+                      className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-200 flex items-center justify-center transition-colors"
+                      aria-label="Replay 15-second film"
+                    >
+                      <ArrowPathIcon className="w-4 h-4" />
+                    </button>
+                    <span className="text-[11px] font-mono font-bold text-amber-300 ml-1 whitespace-nowrap">
+                      {formatTime(currentTime)} <span className="text-slate-500">/ 00:15.0</span>
+                    </span>
                   </div>
+
+                  <p className="hidden sm:block text-xs text-slate-300 font-medium truncate">
+                    <span className="text-amber-400 font-black uppercase mr-1.5">
+                      {chapter.label}:
+                    </span>
+                    {chapter.storyStep}
+                  </p>
                 </div>
               </div>
 

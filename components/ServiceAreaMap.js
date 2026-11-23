@@ -343,66 +343,68 @@ export default function ServiceAreaMap() {
         </aside>
 
         {/* RIGHT STAGE: REAL CARTOGRAPHIC MAP + ILLUMINATED ANIMATED OVERLAY */}
-        <div className="relative order-1 min-h-[450px] overflow-hidden bg-[#090d14] sm:min-h-[540px] lg:order-2 lg:min-h-[630px]">
-          {/* TOP HUD CONTROLS */}
-          <div className="absolute left-4 top-4 z-20 flex items-center gap-2.5 rounded-2xl border border-white/15 bg-slate-950/85 px-3.5 py-2 backdrop-blur-md shadow-xl">
-            <span className="relative flex h-2.5 w-2.5">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400" />
-            </span>
-            <p className="text-[11px] font-black uppercase tracking-wider text-slate-200">
-              Live Coverage · {counts.all} Towns
-            </p>
-          </div>
+        <div className="relative order-1 h-[430px] w-full overflow-hidden bg-[#090d14] sm:h-[540px] lg:order-2 lg:h-[640px]">
+          {/* RESPONSIVE TOP HUD BAR (NEVER OVERLAPS ON MOBILE) */}
+          <div className="pointer-events-none absolute inset-x-3 top-3 z-20 flex flex-wrap items-center justify-between gap-2 sm:inset-x-4 sm:top-4">
+            <div className="pointer-events-auto flex items-center gap-2 rounded-xl border border-white/15 bg-slate-950/85 px-3 py-1.5 backdrop-blur-md shadow-xl sm:rounded-2xl sm:px-3.5 sm:py-2">
+              <span className="relative flex h-2 w-2 sm:h-2.5 sm:w-2.5">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400 sm:h-2.5 sm:w-2.5" />
+              </span>
+              <p className="text-[10px] font-black uppercase tracking-wider text-slate-200 sm:text-[11px]">
+                {counts.all} Towns
+              </p>
+            </div>
 
-          <div className="absolute right-4 top-4 z-20 flex flex-wrap items-center justify-end gap-2">
-            <button
-              type="button"
-              onClick={() => setMapTheme((m) => (m === 'dark' ? 'satellite' : 'dark'))}
-              className="flex items-center gap-1.5 rounded-2xl border border-white/15 bg-slate-950/85 px-3 py-2 text-[11px] font-black uppercase tracking-wider text-slate-200 backdrop-blur-md transition-all hover:border-amber-400/50 hover:text-amber-300"
-              title="Switch between Dark Map and Real Satellite Imagery"
-            >
-              <MapIcon className="h-3.5 w-3.5 text-amber-400" />
-              {mapTheme === 'dark' ? 'Dark Map' : 'Satellite'}
-            </button>
+            <div className="pointer-events-auto flex items-center gap-1.5 sm:gap-2">
+              <button
+                type="button"
+                onClick={() => setMapTheme((m) => (m === 'dark' ? 'satellite' : 'dark'))}
+                className="flex items-center gap-1 rounded-xl border border-white/15 bg-slate-950/85 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wider text-slate-200 backdrop-blur-md transition-all hover:border-amber-400/50 hover:text-amber-300 sm:rounded-2xl sm:px-3 sm:py-2 sm:text-[11px]"
+                title="Switch between Dark Map and Real Satellite Imagery"
+              >
+                <MapIcon className="h-3.5 w-3.5 text-amber-400" />
+                {mapTheme === 'dark' ? 'Dark' : 'Satellite'}
+              </button>
 
-            <button
-              type="button"
-              onClick={() => setZoomed((z) => !z)}
-              className={`flex items-center gap-1.5 rounded-2xl border px-3 py-2 text-[11px] font-black uppercase tracking-wider backdrop-blur-md transition-all ${
-                zoomed
-                  ? 'border-emerald-400/50 bg-emerald-500/20 text-emerald-300'
-                  : 'border-white/15 bg-slate-950/85 text-slate-200 hover:border-white/30'
-              }`}
-              title={zoomed ? 'Zoom out to full map' : 'Zoom in on selected town'}
-            >
-              {zoomed ? (
-                <ArrowsPointingInIcon className="h-3.5 w-3.5" />
-              ) : (
-                <ArrowsPointingOutIcon className="h-3.5 w-3.5" />
-              )}
-              {zoomed ? 'Overview' : 'Focus'}
-            </button>
+              <button
+                type="button"
+                onClick={() => setZoomed((z) => !z)}
+                className={`flex items-center gap-1 rounded-xl border px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wider backdrop-blur-md transition-all sm:rounded-2xl sm:px-3 sm:py-2 sm:text-[11px] ${
+                  zoomed
+                    ? 'border-emerald-400/50 bg-emerald-500/20 text-emerald-300'
+                    : 'border-white/15 bg-slate-950/85 text-slate-200 hover:border-white/30'
+                }`}
+                title={zoomed ? 'Zoom out to full map' : 'Zoom in on selected town'}
+              >
+                {zoomed ? (
+                  <ArrowsPointingInIcon className="h-3.5 w-3.5" />
+                ) : (
+                  <ArrowsPointingOutIcon className="h-3.5 w-3.5" />
+                )}
+                {zoomed ? 'Full' : 'Focus'}
+              </button>
 
-            <button
-              type="button"
-              onClick={() => setLampOn((l) => !l)}
-              className={`flex items-center gap-1.5 rounded-2xl border px-3 py-2 text-[11px] font-black uppercase tracking-wider backdrop-blur-md transition-all ${
-                lampOn
-                  ? 'border-amber-400/40 bg-amber-500/20 text-amber-300 shadow-lg shadow-amber-500/10'
-                  : 'border-slate-700 bg-slate-950/85 text-slate-400'
-              }`}
-            >
-              <SunIcon className="h-3.5 w-3.5" />
-              {lampOn ? 'Glow On' : 'Off'}
-            </button>
+              <button
+                type="button"
+                onClick={() => setLampOn((l) => !l)}
+                className={`flex items-center gap-1 rounded-xl border px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wider backdrop-blur-md transition-all sm:rounded-2xl sm:px-3 sm:py-2 sm:text-[11px] ${
+                  lampOn
+                    ? 'border-amber-400/40 bg-amber-500/20 text-amber-300 shadow-lg shadow-amber-500/10'
+                    : 'border-slate-700 bg-slate-950/85 text-slate-400'
+                }`}
+              >
+                <SunIcon className="h-3.5 w-3.5" />
+                {lampOn ? 'Glow' : 'Off'}
+              </button>
+            </div>
           </div>
 
           {/* REAL WEB MERCATOR MAP + ANIMATED DISPATCH OVERLAY SVG */}
           <svg
             viewBox={`${VIEW_X} ${VIEW_Y} ${VIEW_W} ${VIEW_H}`}
             preserveAspectRatio="xMidYMid slice"
-            className="relative z-10 h-full w-full select-none"
+            className="absolute inset-0 z-10 h-full w-full select-none"
           >
             <defs>
               <filter id="realmap-bloom" x="-100%" y="-100%" width="300%" height="300%">
