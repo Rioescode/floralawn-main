@@ -12,7 +12,8 @@ import {
   CalendarIcon,
   HomeIcon,
   XMarkIcon,
-  SparklesIcon
+  SparklesIcon,
+  ChatBubbleLeftRightIcon
 } from '@heroicons/react/24/solid';
 
 const SIGNED_OUT_SCHEDULE = `/login?redirect=${encodeURIComponent('/customer/dashboard')}`;
@@ -73,16 +74,25 @@ export default function BottomNav() {
     window.dispatchEvent(new Event('flora-open-ask-ai'));
   }
 
+  function openFloraChat(event) {
+    event.preventDefault();
+    window.dispatchEvent(new Event('flora-open-convai'));
+  }
+
+  const chatItem = { label: 'CHAT', icon: ChatBubbleLeftRightIcon, onClick: openFloraChat };
+
   const navItems = customerBar
     ? [
         { href: 'tel:4012053853', label: 'CALL NOW', icon: PhoneIcon, isExternal: true },
         { href: '/customer/dashboard', label: 'DASH', icon: HomeIcon },
         { href: '/customer/dashboard#ask-ai', label: 'ASK AI', icon: SparklesIcon, onClick: openAskAi, primary: true },
+        chatItem,
       ]
     : [
         { href: 'tel:4012053853', label: 'CALL NOW', icon: PhoneIcon, isExternal: true },
         { href: '/contact', label: 'GET QUOTE', icon: SparklesIcon, primary: true },
         { href: scheduleHref, label: 'SCHEDULE', icon: CalendarIcon },
+        chatItem,
       ];
 
   // Hide on schedule page — it has its own nav
@@ -110,21 +120,35 @@ export default function BottomNav() {
 
             <div className="bg-white/95 backdrop-blur-2xl border border-slate-200 rounded-[2.5rem] shadow-2xl p-3 flex justify-between gap-3">
               {navItems.map((item) => {
-                const Component = item.isExternal ? 'a' : Link;
+                const className = `flex-1 flex flex-col items-center justify-center py-4 rounded-[2rem] transition-all active:scale-95 ${
+                  item.primary ? 'bg-slate-900 ring-4 ring-slate-900/10' : 'bg-slate-50'
+                }`;
+                const inner = (
+                  <>
+                    <item.icon className={`w-6 h-6 mb-1 ${item.primary ? 'text-green-400' : 'text-slate-900'}`} />
+                    <span className={`text-[10px] font-black tracking-[0.15em] italic ${item.primary ? 'text-white' : 'text-slate-500'}`}>
+                      {item.label}
+                    </span>
+                  </>
+                );
 
+                if (!item.href) {
+                  return (
+                    <button type="button" key={item.label} onClick={item.onClick} className={className}>
+                      {inner}
+                    </button>
+                  );
+                }
+
+                const Component = item.isExternal ? 'a' : Link;
                 return (
                   <Component
                     key={item.label}
                     href={item.href}
                     onClick={item.onClick}
-                    className={`flex-1 flex flex-col items-center justify-center py-4 rounded-[2rem] transition-all active:scale-95 ${
-                      item.primary ? 'bg-slate-900 ring-4 ring-slate-900/10' : 'bg-slate-50'
-                    }`}
+                    className={className}
                   >
-                    <item.icon className={`w-6 h-6 mb-1 ${item.primary ? 'text-green-400' : 'text-slate-900'}`} />
-                    <span className={`text-[10px] font-black tracking-[0.15em] italic ${item.primary ? 'text-white' : 'text-slate-500'}`}>
-                      {item.label}
-                    </span>
+                    {inner}
                   </Component>
                 );
               })}
