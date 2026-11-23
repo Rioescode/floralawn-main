@@ -6,6 +6,8 @@ import {
   callIntakePayload,
   contactLeadIntakePayload,
   handleSupabaseWebhook,
+  mapDeskStatus,
+  prepareCrewIntakePayload,
   resetMgrCrewIntakeStateForTests,
   sendToMgr,
   textIntakePayload,
@@ -137,8 +139,11 @@ describe('mgr crew intake', { concurrency: 1 }, () => {
       assert.equal(seen[0].options.headers.Authorization, `Bearer ${KEY}`);
       assert.equal(seen[0].options.headers['Content-Type'], 'application/json');
       assert.ok(seen[0].options.signal);
-      assert.equal(JSON.parse(seen[0].options.body).external_id, 'contact_leads:lead-1');
-      assert.equal(JSON.parse(seen[0].options.body).kind, 'lead');
+      const posted = JSON.parse(seen[0].options.body);
+      assert.equal(posted.external_id, 'contact_leads:lead-1');
+      assert.equal(posted.kind, 'lead');
+      assert.equal(posted.status, 'new');
+      assert.equal(posted.phone, PHONE);
       assert.ok(timers.includes(MGR_CREW_INTAKE_TIMEOUT_MS));
 
       const text = logs.lines.join('\n');
@@ -239,6 +244,16 @@ describe('mgr crew intake', { concurrency: 1 }, () => {
     assert.equal(lead.kind, 'lead');
     assert.equal(lead.external_id, 'contact_leads:lead-9');
     assert.equal(lead.visit_when, '2026-06-01 11:00');
+
+    const visit = contactLeadIntakePayload({
+      id: 'lead-visit',
+      customer_email: 'ada@example.com',
+      visit_date: '2026-06-01',
+      visit_time: '10:00 AM',
+      time: '08:00',
+      status: 'pending',
+    });
+    assert.equal(visit.visit_when, '2026-06-01 10:00 AM');
   });
 
   test('maps calls and texts onto the intake contract', () => {
@@ -405,6 +420,191 @@ describe('mgr crew intake', { concurrency: 1 }, () => {
       assert.equal(text.includes(SECRET), false);
       assert.equal(text.includes(EMAIL), false);
       assert.equal(text.includes(PHONE), false);
+    } finally {
+      logs.restore();
+    }
+  });
+
+  test('prepareCrewIntakePayload matches MGR crew-intake limits', async () => {
+    const desk = new Set([
+      'new', 'awaiting_quote', 'open', 'visit_set', 'quoted', 'accepted',
+      'won', 'declined', 'passed', 'visited', 'completed',
+    ]);
+    function mgrAccepts(body) {
+      const limits = {
+        name: 80, email: 120, phone: 40, address: 200, town: 80,
+        service: 200, visit_when: 80, notes: 600, summary: 600, transcript: 4000,
+      };
+      for (const [key, max] of Object.entries(limits)) {
+        const value = body[key];
+        if (value == null || value === '') continue;
+        if (typeof value !== 'string' || value.length > max) return false;
+      }
+      if (body.email && !/^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,24}$/.test(body.email)) return false;
+      if (body.phone) {
+        let digits = String(body.phone).replace(/\D/g, '');
+        if (digits.length === 11 && digits.startsWith('1')) digits = digits.slice(1);
+        if (digits.length < 10) return false;
+      }
+      if (!body.email && !body.phone) return false;
+      if (body.status != null && body.status !== '' && !desk.has(body.status)) return false;
+      if (body.raw != null) {
+        if (typeof body.raw !== 'object' || Array.isArray(body.raw)) return false;
+        const keys = Object.keys(body.raw);
+        if (keys.length > 30) return false;
+        for (const key of keys) {
+          if (key.length > 40) return false;
+          const value = body.raw[key];
+          if (typeof value === 'string' && value.length > 300) return false;
+          else if (typeof value === 'number' && !Number.isFinite(value)) return false;
+          else if (typeof value !== 'string' && typeof value !== 'number' && typeof value !== 'boolean') return false;
+        }
+      }
+      return true;
+    }
+
+    const expected = {
+      pending: 'new',
+      new: 'new',
+      '': 'new',
+      confirmed: 'visit_set',
+      scheduled: 'visit_set',
+      rescheduled: 'visit_set',
+      completed: 'completed',
+      done: 'completed',
+      cancelled: 'declined',
+      canceled: 'declined',
+      quoted: 'quoted',
+      scratched: 'declined',
+      in_progress: 'visited',
+      'in progress': 'visited',
+      open: 'open',
+      won: 'won',
+    };
+    for (const [input, output] of Object.entries(expected)) {
+      assert.equal(mapDeskStatus(input), output, input);
+    }
+    assert.equal(mapDeskStatus(null), 'new');
+    assert.equal(mapDeskStatus('successful'), '');
+    assert.equal(mapDeskStatus('true'), '');
+
+    const raw = {
+      id: 'lead-55',
+      media_urls: ['https://cdn.example/a.jpg', 'https://cdn.example/b.jpg'],
+      nested: { secret: 'nope' },
+      empty: null,
+      has_media: true,
+      discount_applied: false,
+      long_note: 'L'.repeat(400),
+    };
+    for (let i = 0; i < 40; i += 1) raw[`extra_${i}`] = `value ${i}`;
+
+    const prepared = prepareCrewIntakePayload({
+      kind: 'lead',
+      external_id: 'contact_leads:lead-55',
+      name: 'N'.repeat(100),
+      email: 'Ada@Example.com',
+      phone: '12345',
+      address: 'A'.repeat(250),
+      town: 'T'.repeat(90),
+      service: 'S'.repeat(250),
+      visit_when: 'V'.repeat(90),
+      notes: 'X'.repeat(756),
+      summary: 'U'.repeat(700),
+      transcript: 'R'.repeat(4100),
+      status: 'pending',
+      raw,
+    });
+    assert.equal(prepared.skip, false);
+    const body = prepared.payload;
+    assert.equal(mgrAccepts(body), true);
+    assert.equal(body.name.length, 80);
+    assert.equal(body.name.endsWith('...'), true);
+    assert.equal(body.notes.length, 600);
+    assert.equal(body.notes.endsWith('...'), true);
+    assert.equal(body.address.length, 200);
+    assert.equal(body.town.length, 80);
+    assert.equal(body.service.length, 200);
+    assert.equal(body.visit_when.length, 80);
+    assert.equal(body.summary.length, 600);
+    assert.equal(body.transcript.length, 4000);
+    assert.equal(body.phone, '');
+    assert.equal(body.email, 'ada@example.com');
+    assert.equal(body.status, 'new');
+    assert.equal(typeof body.raw.media_urls, 'string');
+    assert.equal(body.raw.media_urls.includes('https://cdn.example/a.jpg'), true);
+    assert.equal(body.raw.media_urls.includes('https://cdn.example/b.jpg'), true);
+    assert.equal(body.raw.nested, undefined);
+    assert.equal(body.raw.empty, undefined);
+    assert.equal(body.raw.has_media, true);
+    assert.equal(body.raw.discount_applied, false);
+    assert.equal(body.raw.long_note.length, 300);
+    assert.equal(body.raw.long_note.endsWith('...'), true);
+    assert.ok(Object.keys(body.raw).length <= 30);
+    assert.equal(body.raw.id, 'lead-55');
+
+    const unknown = prepareCrewIntakePayload({
+      kind: 'appointment',
+      external_id: 'appointments:apt-9',
+      email: 'ada@example.com',
+      phone: '555-0100',
+      status: 'successful',
+      name: 'Ada',
+    });
+    assert.equal(unknown.skip, false);
+    assert.equal(Object.prototype.hasOwnProperty.call(unknown.payload, 'status'), false);
+    assert.equal(unknown.payload.phone, '');
+    assert.equal(mgrAccepts(unknown.payload), true);
+
+    const noContact = prepareCrewIntakePayload({
+      kind: 'text',
+      external_id: 'sms:SM1',
+      phone: '555',
+      email: 'not-an-email',
+      notes: 'hello',
+    });
+    assert.equal(noContact.skip, true);
+    assert.equal(noContact.reason, 'contact');
+
+    const call = prepareCrewIntakePayload(callIntakePayload({
+      conversationId: 'conv-9',
+      callerPhone: '+1 (401) 555-0199',
+      summary: 'S'.repeat(700),
+      transcript: 'Caller: hello',
+      collected: { caller_name: 'Cam', confirmed: true, jobs: ['Mow', 'Edge'] },
+      status: 'successful',
+    }));
+    assert.equal(call.skip, false);
+    assert.equal(call.payload.phone, '+1 (401) 555-0199');
+    assert.equal(call.payload.summary.length, 600);
+    assert.equal(call.payload.raw.data_collection, undefined);
+    assert.equal(Object.prototype.hasOwnProperty.call(call.payload, 'status'), false);
+    assert.equal(mgrAccepts(call.payload), true);
+
+    process.env.MGR_CREW_INTAKE_URL = 'https://intake.example.test/api/crew-intake';
+    process.env.MGR_CREW_INTAKE_KEY = KEY;
+    let calls = 0;
+    global.fetch = async () => {
+      calls += 1;
+      return new Response(JSON.stringify({ ok: true, job_id: 'job-1', action: 'created' }), { status: 200 });
+    };
+    const logs = captureConsole();
+    try {
+      const skippedSend = await sendToMgr({
+        kind: 'lead',
+        external_id: 'contact_leads:short-phone',
+        email: 'bad',
+        phone: '12345',
+        name: 'Hidden Person',
+        notes: 'dog in yard',
+      });
+      assert.equal(skippedSend.skipped, true);
+      assert.equal(calls, 0);
+      const text = logs.lines.join('\n');
+      assert.equal(text.includes(KEY), false);
+      assert.equal(text.includes('Hidden Person'), false);
+      assert.equal(text.includes('dog in yard'), false);
+      assert.match(text, /contact/);
     } finally {
       logs.restore();
     }
