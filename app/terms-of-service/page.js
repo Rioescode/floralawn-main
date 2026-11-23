@@ -35,7 +35,7 @@ export default function TermsOfService() {
           </p>
 
           <p className="mb-6">
-            You can contact us by phone at (401) 389-0913, email at floralawncareri@gmail.com or riyardworks@gmail.com, or by mail to 45 Vernon Street, 
+            You can contact us by phone at (401) 205-3853, email at floralawncareri@gmail.com or riyardworks@gmail.com, or by mail to 45 Vernon Street, 
             Pawtucket, RI 02860, United States.
           </p>
 
@@ -537,7 +537,7 @@ export default function TermsOfService() {
           <ul className="list-disc pl-6 mb-4 space-y-1">
             <li>Replying "STOP" to any text message from us</li>
             <li>Replying "UNSUBSCRIBE" to any text message from us</li>
-            <li>Contacting us at (401) 389-0913 or floralawncareri@gmail.com</li>
+            <li>Contacting us at (401) 205-3853 or floralawncareri@gmail.com</li>
             <li>Updating your preferences in your customer account dashboard</li>
           </ul>
           <p className="mb-4">
@@ -559,7 +559,7 @@ export default function TermsOfService() {
             For help with SMS messages, reply "HELP" to any message, or contact us at:
           </p>
           <ul className="list-disc pl-6 mb-6 space-y-1">
-            <li>Phone: (401) 389-0913</li>
+            <li>Phone: (401) 205-3853</li>
             <li>Email: floralawncareri@gmail.com</li>
             <li>Address: 45 Vernon Street, Pawtucket, RI 02860</li>
           </ul>
@@ -687,7 +687,7 @@ export default function TermsOfService() {
           </ul>
 
           <p className="mb-6">
-            For pricing and package details, please contact us at floralawncareri@gmail.com or call (401) 389-0913. Custom packages can be created based on your specific business needs and budget.
+            For pricing and package details, please contact us at floralawncareri@gmail.com or call (401) 205-3853. Custom packages can be created based on your specific business needs and budget.
           </p>
 
           <h2 className="text-2xl font-semibold text-gray-800 mb-4">40. CONTACT US</h2>
@@ -700,7 +700,7 @@ export default function TermsOfService() {
             <p>45 Vernon Street</p>
             <p>Pawtucket, RI 02860</p>
             <p>United States</p>
-            <p>Phone: (401) 389-0913</p>
+            <p>Phone: (401) 205-3853</p>
             <p>Email: floralawncareri@gmail.com</p>
           </div>
 

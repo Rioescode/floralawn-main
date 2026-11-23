@@ -148,7 +148,7 @@ SATISFACTION GUARANTEE:
 
 QUESTIONS OR CONCERNS?
 We're here to help! Please don't hesitate to reach out:
-Phone: (401) 389-0913
+Phone: (401) 205-3853
 Email: floralawncareri@gmail.com
 
 Thank you for choosing Flora Lawn & Landscaping!
@@ -159,7 +159,7 @@ Service Start Date: ${contract.start_date ? new Date(contract.start_date).toLoca
 ---
 Flora Lawn & Landscaping Inc
 📍 45 Vernon St, Pawtucket, RI 02860
-📞 (401) 389-0913
+📞 (401) 205-3853
 ✉️ floralawncareri@gmail.com
 
 Business Hours:
@@ -247,7 +247,7 @@ Unsubscribe: ${process.env.NEXT_PUBLIC_SITE_URL || 'https://floralawn-and-landsc
             <div style="background-color: #f9fafb; padding: 20px; border: 1px solid #e5e7eb; border-top: none;">
               <h2 style="color: #111827; margin-top: 0;">Questions or Concerns?</h2>
               <p style="color: #374151; margin-bottom: 10px;">We're here to help! Please don't hesitate to reach out:</p>
-              <p style="color: #374151; margin: 5px 0;"><strong>Phone:</strong> (401) 389-0913</p>
+              <p style="color: #374151; margin: 5px 0;"><strong>Phone:</strong> (401) 205-3853</p>
               <p style="color: #374151; margin: 5px 0;"><strong>Email:</strong> floralawncareri@gmail.com</p>
             </div>
 
@@ -265,7 +265,7 @@ Unsubscribe: ${process.env.NEXT_PUBLIC_SITE_URL || 'https://floralawn-and-landsc
               <h3 style="color: #111827; margin-top: 0; margin-bottom: 15px; font-size: 18px; font-weight: bold;">Flora Lawn & Landscaping Inc</h3>
               <div style="color: #374151; line-height: 1.8;">
                 <p style="margin: 5px 0;"><strong>📍 Address:</strong> 45 Vernon St, Pawtucket, RI 02860</p>
-                <p style="margin: 5px 0;"><strong>📞 Phone:</strong> (401) 389-0913</p>
+                <p style="margin: 5px 0;"><strong>📞 Phone:</strong> (401) 205-3853</p>
                 <p style="margin: 5px 0;"><strong>✉️ Email:</strong> floralawncareri@gmail.com</p>
                 <p style="margin: 10px 0 5px 0;"><strong>🕐 Business Hours:</strong></p>
                 <div style="margin-left: 15px; font-size: 14px;">
@@ -309,7 +309,7 @@ Unsubscribe: ${process.env.NEXT_PUBLIC_SITE_URL || 'https://floralawn-and-landsc
       try {
         const { sendSMS: sendSMSFunction } = await import('@/libs/twilio');
         
-        const smsMessage = `Hi ${contract.customer_name}! Your service confirmation is ready. Services: ${servicesList}. ${contract.service_frequency ? `Frequency: ${contract.service_frequency}. ` : ''}We'll contact you soon to finalize details. Flora Lawn & Landscaping (401) 389-0913`;
+        const smsMessage = `Hi ${contract.customer_name}! Your service confirmation is ready. Services: ${servicesList}. ${contract.service_frequency ? `Frequency: ${contract.service_frequency}. ` : ''}We'll contact you soon to finalize details. Flora Lawn & Landscaping (401) 205-3853`;
 
         await sendSMSFunction(contract.customer_phone, smsMessage);
         results.smsSent = true;
@@ -317,7 +317,7 @@ Unsubscribe: ${process.env.NEXT_PUBLIC_SITE_URL || 'https://floralawn-and-landsc
         console.error('Error sending SMS:', smsError);
         // Fallback to SMS link
         const phoneNumber = contract.customer_phone.replace(/\D/g, '');
-        results.smsLink = `sms:${phoneNumber}?body=${encodeURIComponent(`Hi ${contract.customer_name}! Your service confirmation: ${servicesList}. Contact us at (401) 389-0913`)}`;
+        results.smsLink = `sms:${phoneNumber}?body=${encodeURIComponent(`Hi ${contract.customer_name}! Your service confirmation: ${servicesList}. Contact us at (401) 205-3853`)}`;
         results.errors.push('Failed to send SMS - use SMS link instead');
       }
     }

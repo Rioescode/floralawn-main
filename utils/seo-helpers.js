@@ -12,7 +12,7 @@ export function generateLocalBusinessSchema(businessInfo) {
     name: businessInfo.name || 'Flora Lawn & Landscaping Inc',
     image: `${getBaseUrl()}/flora-logo-final.png`,
     url: getBaseUrl(),
-    telephone: businessInfo.phone || '(401) 389-0913',
+    telephone: businessInfo.phone || '(401) 205-3853',
     email: businessInfo.email || 'floralawncareri@gmail.com',
     address: {
       '@type': 'PostalAddress',
@@ -82,7 +82,7 @@ export function generateServiceSchema(service, city) {
     provider: {
       '@type': 'LocalBusiness',
       name: 'Flora Lawn & Landscaping Inc',
-      telephone: '(401) 389-0913'
+      telephone: '(401) 205-3853'
     },
     areaServed: {
       '@type': 'City',

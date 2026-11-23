@@ -317,7 +317,7 @@ export default function ReferralTermsPage() {
               <p className="text-gray-700 mb-4">
                 If you have any questions or disputes regarding the referral program, please contact us at 
                 <a href="mailto:floralawncareri@gmail.com" className="text-green-600 hover:underline"> floralawncareri@gmail.com</a> 
-                or call us at <a href="tel:4013890913" className="text-green-600 hover:underline">(401) 389-0913</a>. 
+                or call us at <a href="tel:4012053853" className="text-green-600 hover:underline">(401) 205-3853</a>. 
                 We will work with you to resolve any issues in good faith.
               </p>
             </section>
@@ -338,7 +338,7 @@ export default function ReferralTermsPage() {
               <div className="bg-gray-50 p-4 rounded-lg">
                 <p className="text-gray-700"><strong>Flora Lawn & Landscaping Inc</strong></p>
                 <p className="text-gray-700">45 Vernon St, Pawtucket, RI 02860</p>
-                <p className="text-gray-700">Phone: <a href="tel:4013890913" className="text-green-600 hover:underline">(401) 389-0913</a></p>
+                <p className="text-gray-700">Phone: <a href="tel:4012053853" className="text-green-600 hover:underline">(401) 205-3853</a></p>
                 <p className="text-gray-700">Email: <a href="mailto:floralawncareri@gmail.com" className="text-green-600 hover:underline">floralawncareri@gmail.com</a></p>
               </div>
             </section>

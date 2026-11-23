@@ -56,7 +56,7 @@ export function emailLayout({ preheader = "", body, footerNote = "" }) {
           <td style="padding:20px 28px;background:${BRAND.navy};font-family:${FONT};font-size:12px;line-height:1.7;color:#C9D4CC;">
             ${footerNote ? `<p style="margin:0 0 8px 0;color:#ffffff;">${footerNote}</p>` : ""}
             Flora Lawn &amp; Landscaping Inc &middot; 45 Vernon St, Pawtucket, RI 02860<br>
-            <a href="tel:4013890913" style="color:#ffffff;text-decoration:none;">(401) 389-0913</a> &middot;
+            <a href="tel:4012053853" style="color:#ffffff;text-decoration:none;">(401) 205-3853</a> &middot;
             <a href="mailto:floralawncareri@gmail.com" style="color:#ffffff;text-decoration:none;">floralawncareri@gmail.com</a> &middot;
             <a href="${SITE}" style="color:${BRAND.gold};text-decoration:none;">floralawn-and-landscaping.com</a>
           </td>
@@ -165,7 +165,7 @@ export function signature() {
       <td style="padding-top:16px;font-size:14px;line-height:1.6;">
         <strong>Rafael Escobar</strong><br>
         <span style="color:${BRAND.muted};">Owner, Flora Lawn &amp; Landscaping Inc</span><br>
-        <a href="tel:4013890913" style="color:${BRAND.green};font-weight:700;text-decoration:none;">(401) 389-0913</a>
+        <a href="tel:4012053853" style="color:${BRAND.green};font-weight:700;text-decoration:none;">(401) 205-3853</a>
       </td>
     </tr>
   </table>`;

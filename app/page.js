@@ -116,7 +116,7 @@ export default function HomePage() {
       setQuickFormData({ name: '', phone: '', message: '' });
       e.target.reset();
     } catch (err) {
-      setQuickStatus({ type: 'error', message: 'Failed to send. Please call (401) 389-0913' });
+      setQuickStatus({ type: 'error', message: 'Failed to send. Please call (401) 205-3853' });
     } finally {
       setIsQuickSubmitting(false);
     }
@@ -403,12 +403,13 @@ export default function HomePage() {
                   </Link>
 
                   <a
-                    href="tel:4013890913"
+                    href="tel:4012053853"
                     className="w-full py-3.5 px-6 rounded-xl border border-white/15 bg-white/[0.03] hover:bg-white/[0.07] hover:border-white/25 text-white font-bold text-sm flex items-center justify-center gap-3 transition-all"
                   >
                     <PhoneIcon className="w-4 h-4 text-emerald-400" />
-                    <span>Call (401) 389-0913</span>
+                    <span>Call (401) 205-3853</span>
                   </a>
+                  <p className="text-center text-[10px] text-slate-500">Se habla español</p>
 
                   <p className="text-center text-[11px] text-slate-500 font-medium pt-1">
                     Mon–Sat · 7:00 AM – 7:00 PM · Direct Local Dispatch

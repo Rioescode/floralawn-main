@@ -25,7 +25,7 @@ export async function POST(request) {
       preheader: emailBody.split('\n').find((line) => line.trim() && !/^hi\b/i.test(line.trim())) || subject,
       body: [
         textBlock(emailBody).replace('margin:16px 0 0 0;', 'margin:0;'),
-        buttonRow([button('tel:4013890913', 'Call (401) 389-0913'), button('mailto:floralawncareri@gmail.com', 'Reply by email', 'outline')]),
+        buttonRow([button('tel:4012053853', 'Call (401) 205-3853'), button('mailto:floralawncareri@gmail.com', 'Reply by email', 'outline')]),
       ].join(''),
     });
 

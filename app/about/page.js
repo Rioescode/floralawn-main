@@ -156,10 +156,10 @@ export default function AboutPage() {
                   Get Your Free Estimate <ArrowRightIcon className="w-6 h-6 group-hover:translate-x-3 transition-transform" />
                </a>
                <a 
-                 href="tel:4013890913" 
+                 href="tel:4012053853" 
                  className="bg-white text-slate-900 border-2 border-slate-100 font-black px-12 py-6 rounded-2xl text-xl hover:bg-slate-50 transition-all flex items-center justify-center gap-4"
                >
-                  (401) 389-0913
+                  (401) 205-3853
                </a>
             </div>
          </div>

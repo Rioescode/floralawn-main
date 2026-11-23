@@ -177,7 +177,7 @@ export default function CareersPage() {
       console.error('Error submitting application:', error);
       setStatus({
         type: 'error',
-        message: 'There was an error submitting your application. Please try again or call us directly at (401) 389-0913.'
+        message: 'There was an error submitting your application. Please try again or call us directly at (401) 205-3853.'
       });
     } finally {
       setIsSubmitting(false);
@@ -634,11 +634,11 @@ export default function CareersPage() {
             Feel free to reach out if you have any questions about our open positions
           </p>
           <a
-            href="tel:4013890913"
+            href="tel:4012053853"
             className="inline-flex items-center gap-3 px-8 py-4 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-colors"
           >
             <PhoneIcon className="h-6 w-6" />
-            Call Us: (401) 389-0913
+            Call Us: (401) 205-3853
           </a>
         </div>
       </section>

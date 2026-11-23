@@ -86,7 +86,7 @@ Spring is the perfect time to give your lawn a fresh start! After a long winter,
 💰 Special Spring Offer: 15% OFF your first spring cleanup!
 Use code: SPRING15
 
-📞 Schedule your spring cleanup today: (401) 389-0913
+📞 Schedule your spring cleanup today: (401) 205-3853
 
 Let's make your lawn the envy of the neighborhood!
 
@@ -116,7 +116,7 @@ It's mulch season! Fresh mulch not only makes your landscaping look beautiful, b
 💰 Special Offer: 20% OFF mulch installation this month!
 Use code: MULCH20
 
-📞 Call us to schedule: (401) 389-0913
+📞 Call us to schedule: (401) 205-3853
 
 Transform your landscaping today!
 
@@ -149,7 +149,7 @@ Summer heat can be tough on your lawn! Regular maintenance is key to keeping it 
 💰 Summer Special: 10% OFF recurring maintenance services
 Use code: SUMMER10
 
-📞 Schedule your summer maintenance: (401) 389-0913
+📞 Schedule your summer maintenance: (401) 205-3853
 
 Keep your lawn looking great all season!
 
@@ -182,7 +182,7 @@ Fall is here, and it's time to prepare your yard for winter! Proper fall cleanup
 💰 Fall Special: 15% OFF fall cleanup services
 Use code: FALL15
 
-📞 Schedule your fall cleanup: (401) 389-0913
+📞 Schedule your fall cleanup: (401) 205-3853
 
 Prepare your yard for a beautiful spring!
 
@@ -210,7 +210,7 @@ Perfect for:
 
 💰 Use code: HOLIDAY25
 
-📞 Call us today: (401) 389-0913
+📞 Call us today: (401) 205-3853
 
 Thank you for choosing Flora Lawn & Landscaping!
 
@@ -234,7 +234,7 @@ It's that time of year again! Regular seasonal maintenance keeps your lawn healt
 
 Don't wait - schedule now to ensure availability!
 
-📞 Call us: (401) 389-0913
+📞 Call us: (401) 205-3853
 
 We look forward to serving you!
 

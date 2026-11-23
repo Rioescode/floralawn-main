@@ -90,11 +90,11 @@ export default function WeatherTopBar() {
           {/* 3. CALL TO ACTION CLUSTER */}
           <div className="flex flex-wrap sm:flex-nowrap items-center gap-2.5 shrink-0 w-full sm:w-auto justify-end">
             <a 
-              href="tel:4013890913" 
+              href="tel:4012053853" 
               className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-black/40 hover:bg-black/60 text-stone-200 text-xs font-bold border border-yellow-400/20 transition-all active:scale-95 shadow-md"
             >
               <PhoneIcon className="w-3.5 h-3.5 text-yellow-400" />
-              <span>(401) 389-0913</span>
+              <span>(401) 205-3853</span>
             </a>
 
             <Link

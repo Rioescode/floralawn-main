@@ -1,7 +1,7 @@
 export const businessInfo = {
   name: process.env.NEXT_PUBLIC_APP_NAME || 'Flora Lawn & Landscaping Inc',
   email: 'floralawncareri@gmail.com',
-  phone: '(401) 389-0913',
+  phone: '(401) 205-3853',
   address: {
     street: '45 Vernon St',
     city: 'Pawtucket',

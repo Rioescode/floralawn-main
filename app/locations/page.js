@@ -119,7 +119,7 @@ export default function LocationsPage() {
                            Request Priority Quote <ArrowRightIcon className="w-6 h-6 group-hover:translate-x-2 transition-transform" />
                         </Link>
                         <a 
-                          href="tel:4013890913"
+                          href="tel:4012053853"
                           className="px-10 py-6 bg-white/5 border border-white/10 hover:bg-white/10 text-white rounded-[2rem] font-black italic uppercase tracking-widest transition-all flex items-center gap-4"
                         >
                            Direct Call <PhoneIcon className="w-6 h-6" />

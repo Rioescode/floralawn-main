@@ -59,7 +59,7 @@ export default function ServicePage({ city, service, state = "RI" }) {
             
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <a 
-                href="tel:4013890913"
+                href="tel:4012053853"
                 className="bg-green-600 text-white px-8 py-4 rounded-lg font-semibold text-lg hover:bg-green-700 transition-colors shadow-md inline-flex items-center justify-center"
               >
                 <PhoneIcon className="w-5 h-5 mr-2" />
@@ -121,11 +121,11 @@ export default function ServicePage({ city, service, state = "RI" }) {
                 
               <div className="space-y-6">
                   <a 
-                    href="tel:4013890913"
+                    href="tel:4012053853"
                   className="flex items-center justify-center gap-3 w-full bg-green-600 text-white py-4 rounded-lg font-medium hover:bg-green-700 transition-colors text-lg"
                   >
                   <PhoneIcon className="h-6 w-6" />
-                    Call (401) 389-0913
+                    Call (401) 205-3853
                   </a>
                   
                   <Link
@@ -415,7 +415,7 @@ export default function ServicePage({ city, service, state = "RI" }) {
               
               <div className="flex flex-col sm:flex-row justify-center gap-4">
                 <a 
-                  href="tel:4013890913" 
+                  href="tel:4012053853" 
                 className="bg-green-600 text-white px-8 py-4 rounded-lg text-center font-semibold text-lg hover:bg-green-700 transition-colors shadow-md inline-flex items-center justify-center"
               >
                 <PhoneIcon className="h-6 w-6 mr-2" />

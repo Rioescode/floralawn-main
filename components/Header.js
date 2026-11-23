@@ -125,10 +125,10 @@ const Header = () => {
         {/* Phone number and CTA for desktop */}
         <div className="hidden lg:flex lg:items-center lg:gap-4">
           <a 
-            href="tel:4013890913" 
+            href="tel:4012053853" 
             className="text-gray-700 hover:text-blue-600 font-medium"
           >
-            (401) 389-0913
+            (401) 205-3853
           </a>
           {cta}
         </div>
@@ -196,10 +196,10 @@ const Header = () => {
             {/* Phone number and CTA for mobile */}
             <div className="flex flex-col gap-4">
               <a 
-                href="tel:4013890913" 
+                href="tel:4012053853" 
                 className="text-gray-700 hover:text-blue-600 font-medium"
               >
-                (401) 389-0913
+                (401) 205-3853
               </a>
               {cta}
             </div>

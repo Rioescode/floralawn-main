@@ -85,7 +85,7 @@ const createEmailTemplate = (name, unsubscribeUrl, accountUrl, content) => `
                           <p style="margin: 2px 0 0 0; font-size: 10px; font-weight: 800; color: #22c55e; text-transform: uppercase; letter-spacing: 0.1em;">Owner &middot; Flora Lawn &amp; Landscaping Inc</p>
                           <div style="height: 10px;"></div>
                           <p style="margin: 0; font-size: 12px; color: #64748b; line-height: 1.9;">
-                            📞 <a href="tel:4013890913" style="color: #64748b; text-decoration: none;">(401) 389-0913</a><br>
+                            📞 <a href="tel:4012053853" style="color: #64748b; text-decoration: none;">(401) 205-3853</a><br>
                             📧 <a href="mailto:floralawncareri@gmail.com" style="color: #64748b; text-decoration: none;">floralawncareri@gmail.com</a><br>
                             📍 45 Vernon Street, Pawtucket, RI 02860
                           </p>

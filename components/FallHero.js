@@ -177,11 +177,11 @@ export default function FallHero() {
                 <ArrowRightIcon className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </Link>
               <a
-                href="tel:4013890913"
+                href="tel:4012053853"
                 className="inline-flex items-center justify-center gap-3 px-9 py-5 rounded-2xl bg-white/10 border border-white/20 text-white font-black uppercase tracking-wide backdrop-blur-md hover:bg-white/20 active:scale-95 transition-all"
               >
                 <PhoneIcon className="w-5 h-5" />
-                (401) 389-0913
+                (401) 205-3853
               </a>
             </div>
             <p className="mt-3 text-sm font-semibold text-stone-300">

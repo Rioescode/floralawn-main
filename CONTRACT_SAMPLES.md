@@ -125,6 +125,6 @@ When filling out contracts, replace these placeholders:
 
 For questions or to customize contracts, contact:
 **Flora Lawn & Landscaping Inc.**
-Phone: (401) 389-0913
+Phone: (401) 205-3853
 Email: floralawncareri@gmail.com
 

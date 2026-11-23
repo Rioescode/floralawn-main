@@ -188,7 +188,7 @@ export async function POST(request) {
               </tr>
             </table>
             <p style="margin:12px 0 0 0;font-size:12px;color:#5C6B62;border-top:1px dashed #DDE5DF;padding-top:10px;line-height:1.5;">
-              <em>Prefer Flora Lawn direct only?</em> If you prefer not to connect with a partner and would rather wait for an opening with our team, simply reply to this email or call <a href="tel:4013890913" style="color:#2F6B4F;font-weight:700;text-decoration:none;">(401) 389-0913</a>.
+              <em>Prefer Flora Lawn direct only?</em> If you prefer not to connect with a partner and would rather wait for an opening with our team, simply reply to this email or call <a href="tel:4012053853" style="color:#2F6B4F;font-weight:700;text-decoration:none;">(401) 205-3853</a>.
             </p>
           </div>`
         )
@@ -212,7 +212,7 @@ export async function POST(request) {
         `<strong>See this quote in your account.</strong><br>Sign in with Google to see when it is ready, change the date, or skip a visit.<br>${button(siteUrl('/login?redirect=/customer/dashboard'), 'Open your yard account')}`,
         'navy'
       ),
-      paragraph('Questions before then? Reply to this email or call <a href="tel:4013890913" style="color:#2F6B4F;font-weight:700;">(401) 389-0913</a>.'),
+      paragraph('Questions before then? Reply to this email or call <a href="tel:4012053853" style="color:#2F6B4F;font-weight:700;">(401) 205-3853</a>.'),
       signature(),
     ].filter(Boolean).join('');
 
@@ -389,11 +389,11 @@ export async function POST(request) {
                 '2. If at capacity, we connect you with an independent local partner in RI / Southern MA.',
                 '3. The partner reaches out directly with their estimate and schedule.',
                 '4. 100% free with zero obligation to accept.',
-                'Prefer Flora Lawn only? Reply to this email or call (401) 389-0913.',
+                'Prefer Flora Lawn only? Reply to this email or call (401) 205-3853.',
               ].join('\n')
             : '',
           `See this quote in your account: ${siteUrl('/login?redirect=/customer/dashboard')}`,
-          'Questions? Call (401) 389-0913.',
+          'Questions? Call (401) 205-3853.',
         ].filter(Boolean).join('\n\n'),
         html: emailHtml,
         replyTo: 'floralawncareri@gmail.com',

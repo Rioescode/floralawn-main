@@ -150,8 +150,8 @@ export default function Navigation() {
 
             {/* AWARDS & CTA */}
             <div className="hidden lg:flex items-center space-x-4">
-              <a href="tel:4013890913" className="bg-slate-900 text-white px-5 py-2.5 rounded-xl font-black text-[11px] xl:text-xs uppercase tracking-wider hover:bg-green-600 transition-all flex items-center gap-2">
-                 <PhoneIcon className="w-5 h-5" /> (401) 389-0913
+              <a href="tel:4012053853" className="bg-slate-900 text-white px-5 py-2.5 rounded-xl font-black text-[11px] xl:text-xs uppercase tracking-wider hover:bg-green-600 transition-all flex items-center gap-2">
+                 <PhoneIcon className="w-5 h-5" /> (401) 205-3853
               </a>
               {user ? (
                 <>
@@ -251,9 +251,10 @@ export default function Navigation() {
             </div>
 
             <div className="mt-auto pt-10 border-t border-slate-100">
-               <a href="tel:4013890913" className="flex items-center justify-center gap-4 w-full bg-green-600 p-6 rounded-2xl text-2xl font-black text-white italic shadow-lg">
-                  <PhoneIcon className="w-8 h-8" /> (401) 389-0913
+               <a href="tel:4012053853" className="flex items-center justify-center gap-4 w-full bg-green-600 p-6 rounded-2xl text-2xl font-black text-white italic shadow-lg">
+                  <PhoneIcon className="w-8 h-8" /> (401) 205-3853
                </a>
+               <p className="text-center text-[10px] font-bold uppercase tracking-widest text-slate-400 mt-3">Se habla español</p>
                <div className="flex justify-center gap-8 mt-10 opacity-30 grayscale">
                   <Image src="/nextdoor-badge.png" alt="2025" width={40} height={40} className="rounded-full shadow-lg" />
                   <Image src="/businessrate-badge.png" alt="2025" width={40} height={40} className="rounded-full shadow-lg" />

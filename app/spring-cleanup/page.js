@@ -303,7 +303,7 @@ export default function SpringCleanupFunnel() {
       console.error('Error sending email:', error);
       setStatus({
         type: 'error',
-        message: '❌ There was an error sending your request. Please try again or call us directly at (401) 389-0913.'
+        message: '❌ There was an error sending your request. Please try again or call us directly at (401) 205-3853.'
       });
     } finally {
       setIsSubmitting(false);
@@ -878,10 +878,10 @@ export default function SpringCleanupFunnel() {
                     <div>
                       <h3 className="font-bold text-gray-800 mb-1">Phone</h3>
                       <a 
-                        href="tel:4013890913"
+                        href="tel:4012053853"
                         className="text-green-600 hover:text-green-700 font-medium transition-colors"
                       >
-                        (401) 389-0913
+                        (401) 205-3853
                       </a>
                     </div>
                   </div>
@@ -952,11 +952,11 @@ export default function SpringCleanupFunnel() {
             Call us now for immediate assistance
           </p>
           <a
-            href="tel:4013890913"
+            href="tel:4012053853"
             className="inline-flex items-center gap-3 px-8 py-4 bg-white text-green-600 rounded-lg font-bold text-lg shadow-lg hover:bg-green-50 transition-all"
           >
             <PhoneIcon className="h-6 w-6" />
-            (401) 389-0913
+            (401) 205-3853
           </a>
         </div>
       </section>

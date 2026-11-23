@@ -57,7 +57,7 @@ SATISFACTION GUARANTEE:
 
 QUESTIONS OR CONCERNS?
 We're here to help! Please don't hesitate to reach out:
-Phone: (401) 389-0913
+Phone: (401) 205-3853
 Email: floralawncareri@gmail.com
 
 Thank you for choosing Flora Lawn & Landscaping!
@@ -136,7 +136,7 @@ QUALITY GUARANTEE:
 
 QUESTIONS OR CONCERNS?
 We're here to help! Please don't hesitate to reach out:
-Phone: (401) 389-0913
+Phone: (401) 205-3853
 Email: floralawncareri@gmail.com
 
 Thank you for choosing Flora Lawn & Landscaping!
@@ -269,7 +269,7 @@ Customer Signature: _________________________ Date: ___________
 Print Name: [CUSTOMER_NAME]
 
 Contractor: Flora Lawn & Landscaping Inc.
-Phone: (401) 389-0913
+Phone: (401) 205-3853
 Email: floralawncareri@gmail.com
 
 Contract Date: [CONTRACT_DATE]
@@ -376,7 +376,7 @@ TERMS AND CONDITIONS:
 
 8. COMMUNICATION
    - Primary contact: [ACCOUNT_MANAGER]
-   - Phone: (401) 389-0913
+   - Phone: (401) 205-3853
    - Email: floralawncareri@gmail.com
    - Regular service reports provided
    - Online portal for account management
@@ -403,7 +403,7 @@ Title: [TITLE]
 
 Contractor: Flora Lawn & Landscaping Inc.
 License #: [LICENSE_NUMBER]
-Phone: (401) 389-0913
+Phone: (401) 205-3853
 Email: floralawncareri@gmail.com
 
 Contract Date: [CONTRACT_DATE]
@@ -440,7 +440,7 @@ SERVICE DETAILS:
 • 24-hour notice to skip or reschedule
 • Please ensure we have access to your property
 
-Questions? Call (401) 389-0913
+Questions? Call (401) 205-3853
 
 Thank you for choosing Flora Lawn & Landscaping!
     `.trim()
