@@ -39,7 +39,8 @@ function withTime(base, time) {
 
 export function visitWhenFromRecord(record) {
   const source = record && typeof record === 'object' ? record : {};
-  const time = str(source.time);
+  // contact_leads stores the clock time in visit_time. Older rows may use time.
+  const time = str(source.visit_time) || str(source.time);
   const scheduled = withTime(str(source.scheduled_date), time);
   if (scheduled) return scheduled;
   const dated = withTime(str(source.date), time);
@@ -213,6 +214,231 @@ function safeToken(value) {
   return text;
 }
 
+// Limits from RIYardworks/mygreenrobot crew-intake.js validate().
+// textField rejects a string longer than the max, so Flora truncates first.
+const CREW_LIMITS = {
+  name: 80,
+  email: 120,
+  phone: 40,
+  address: 200,
+  town: 80,
+  service: 200,
+  visit_when: 80,
+  notes: 600,
+  summary: 600,
+  transcript: 4000,
+  external_id: 128,
+  rawKey: 40,
+  rawValue: 300,
+  rawKeys: 30,
+};
+
+const EMAIL_RE = /^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,24}$/;
+const EXTERNAL_RE = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
+const KINDS = new Set(['lead', 'appointment', 'call', 'text']);
+
+// MGR desk statuses. Flora table values are mapped onto these.
+// Appointments also use rescheduled, in_progress, and scratched.
+const DESK_STATUSES = new Set([
+  'new',
+  'awaiting_quote',
+  'open',
+  'visit_set',
+  'quoted',
+  'accepted',
+  'won',
+  'declined',
+  'passed',
+  'visited',
+  'completed',
+]);
+
+const STATUS_MAP = {
+  pending: 'new',
+  new: 'new',
+  confirmed: 'visit_set',
+  scheduled: 'visit_set',
+  rescheduled: 'visit_set',
+  completed: 'completed',
+  done: 'completed',
+  cancelled: 'declined',
+  canceled: 'declined',
+  quoted: 'quoted',
+  scratched: 'declined',
+  in_progress: 'visited',
+};
+
+const RAW_KEY_PRIORITY = [
+  'id',
+  'customer_name',
+  'name',
+  'customer_email',
+  'email',
+  'customer_phone',
+  'phone',
+  'address',
+  'street_address',
+  'city',
+  'town',
+  'service_type',
+  'service',
+  'status',
+  'visit_date',
+  'visit_time',
+  'scheduled_date',
+  'date',
+  'time',
+  'lead_source',
+  'booking_type',
+  'notes',
+  'summary',
+  'has_media',
+  'discount_applied',
+  'media_urls',
+  'promo_code',
+  'estimate_preference',
+  'created_at',
+  'MessageSid',
+  'From',
+  'Body',
+  'conversation_id',
+  'caller_phone',
+];
+
+function cleanText(value) {
+  return String(value == null ? '' : value)
+    .replace(/[\u0000-\u001f\u007f]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function truncate(value, max) {
+  const clean = cleanText(value);
+  if (clean.length <= max) return clean;
+  if (max <= 3) return clean.slice(0, max);
+  return `${clean.slice(0, max - 3)}...`;
+}
+
+function phoneDigits(value) {
+  const digits = String(value || '').replace(/\D/g, '');
+  if (digits.length === 11 && digits.startsWith('1')) return digits.slice(1);
+  return digits;
+}
+
+function normalizeEmail(value) {
+  const clean = cleanText(value).toLowerCase();
+  if (!clean || clean.length > CREW_LIMITS.email || !EMAIL_RE.test(clean)) return '';
+  return clean;
+}
+
+function normalizePhone(value) {
+  const digits = phoneDigits(value);
+  if (digits.length < 10) return '';
+  const clean = cleanText(value);
+  if (clean && clean.length <= CREW_LIMITS.phone && phoneDigits(clean).length >= 10) return clean;
+  return digits.slice(0, CREW_LIMITS.phone);
+}
+
+function normalizeExternalId(value) {
+  const stripped = cleanText(value).replace(/[^A-Za-z0-9._:-]/g, '').slice(0, CREW_LIMITS.external_id);
+  if (!EXTERNAL_RE.test(stripped)) return '';
+  return stripped;
+}
+
+export function mapDeskStatus(status) {
+  const key = cleanText(status).toLowerCase().replace(/[\s-]+/g, '_');
+  if (!key) return 'new';
+  if (STATUS_MAP[key]) return STATUS_MAP[key];
+  if (DESK_STATUSES.has(key)) return key;
+  return '';
+}
+
+function rawScalar(value) {
+  if (value == null) return undefined;
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') return Number.isFinite(value) ? value : undefined;
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return truncate(value.toISOString(), CREW_LIMITS.rawValue);
+  }
+  if (typeof value === 'string') {
+    const text = truncate(value, CREW_LIMITS.rawValue);
+    return text || undefined;
+  }
+  if (Array.isArray(value)) {
+    const parts = [];
+    for (const item of value) {
+      if (typeof item === 'string' || typeof item === 'number' || typeof item === 'boolean') {
+        const text = cleanText(item);
+        if (text) parts.push(text);
+      }
+    }
+    if (!parts.length) return undefined;
+    return truncate(parts.join(', '), CREW_LIMITS.rawValue);
+  }
+  return undefined;
+}
+
+function sanitizeRaw(raw) {
+  if (raw == null || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const pending = new Map();
+  const clipKey = (key) => cleanText(key).slice(0, CREW_LIMITS.rawKey);
+  for (const key of Object.keys(raw)) {
+    const name = clipKey(key);
+    if (!name || pending.has(name)) continue;
+    const scalar = rawScalar(raw[key]);
+    if (scalar === undefined) continue;
+    pending.set(name, scalar);
+  }
+  const ordered = [];
+  const used = new Set();
+  for (const key of RAW_KEY_PRIORITY) {
+    const name = clipKey(key);
+    if (!name || used.has(name) || !pending.has(name)) continue;
+    used.add(name);
+    ordered.push([name, pending.get(name)]);
+  }
+  for (const [name, scalar] of pending) {
+    if (used.has(name)) continue;
+    ordered.push([name, scalar]);
+  }
+  return ordered.length ? Object.fromEntries(ordered.slice(0, CREW_LIMITS.rawKeys)) : null;
+}
+
+/**
+ * Shape any crew-intake payload so MGR's validate() accepts it.
+ * Returns { skip: true, reason } when the row has neither a valid email nor a 10-digit phone.
+ */
+export function prepareCrewIntakePayload(payload) {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+    return { skip: true, reason: 'payload' };
+  }
+  const kind = cleanText(payload.kind).toLowerCase();
+  if (!KINDS.has(kind)) return { skip: true, reason: 'kind' };
+  const externalId = normalizeExternalId(payload.external_id);
+  if (!externalId) return { skip: true, reason: 'external_id' };
+  const email = normalizeEmail(payload.email);
+  const phone = normalizePhone(payload.phone);
+  if (!email && !phone) return { skip: true, reason: 'contact' };
+  const status = mapDeskStatus(payload.status);
+  const body = {
+    kind,
+    external_id: externalId,
+    name: truncate(payload.name, CREW_LIMITS.name),
+    email,
+    phone,
+    address: truncate(payload.address, CREW_LIMITS.address),
+    town: truncate(payload.town, CREW_LIMITS.town),
+    service: truncate(payload.service, CREW_LIMITS.service),
+    visit_when: truncate(payload.visit_when, CREW_LIMITS.visit_when),
+    notes: truncate(payload.notes, CREW_LIMITS.notes),
+    summary: truncate(payload.summary, CREW_LIMITS.summary),
+    transcript: truncate(payload.transcript, CREW_LIMITS.transcript),
+    raw: sanitizeRaw(payload.raw),
+  };
+  if (status) body.status = status;
+  return { skip: false, payload: body };
+}
+
 function logContext(payload) {
   const kind = safeToken(payload && payload.kind) || 'unknown';
   const externalId = safeToken(payload && payload.external_id) || '(redacted)';
@@ -245,10 +471,12 @@ export async function sendToMgr(payload) {
       logMissingEnvOnce();
       return emptyResult({ skipped: true });
     }
-    if (!payload || typeof payload !== 'object') {
-      console.error('MGR crew intake skipped: payload missing');
+    const prepared = prepareCrewIntakePayload(payload);
+    if (prepared.skip) {
+      console.warn('MGR crew intake skipped:', prepared.reason || 'payload');
       return emptyResult({ skipped: true });
     }
+    const body = prepared.payload;
 
     timer = setTimeout(() => controller.abort(), MGR_CREW_INTAKE_TIMEOUT_MS);
     const response = await fetch(url, {
@@ -257,14 +485,14 @@ export async function sendToMgr(payload) {
         Authorization: `Bearer ${key}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(body),
       signal: controller.signal,
       redirect: 'manual',
     });
 
     const status = response.status;
     if (status < 200 || status >= 300) {
-      console.error('MGR crew intake failed', status, logContext(payload));
+      console.error('MGR crew intake failed', status, logContext(body));
       return emptyResult({ status });
     }
 
@@ -280,7 +508,7 @@ export async function sendToMgr(payload) {
       jobId = null;
       action = null;
     }
-    console.log('MGR crew intake forwarded', logContext(payload), action || '', jobId || '');
+    console.log('MGR crew intake forwarded', logContext(body), action || '', jobId || '');
     return { ok: true, skipped: false, status, job_id: jobId, action };
   } catch (error) {
     const name = error && error.name ? error.name : 'Error';
