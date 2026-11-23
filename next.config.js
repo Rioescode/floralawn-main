@@ -41,6 +41,7 @@ const nextConfig = {
     // Production builds run in a fresh container, so the webpack cache only costs memory.
     if (!dev) {
       config.cache = false;
+      config.parallelism = 1;
     }
     return config;
   },
@@ -146,11 +147,14 @@ const nextConfig = {
       }
     ]
   },
+  // Disable production source maps to keep RAM usage low during build
+  productionBrowserSourceMaps: false,
   // Experimental features for security and performance
   experimental: {
     serverComponentsExternalPackages: ['@anthropic-ai/sdk', 'twilio'],
-    // Keep peak build memory low enough for the Coolify server.
+    // Keep peak build memory low enough for the Coolify / Docker server.
     webpackBuildWorker: false,
+    workerThreads: false,
     cpus: 1
   }
 }

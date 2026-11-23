@@ -54,8 +54,8 @@ ENV TWILIO_API_KEY_SECRET=${TWILIO_API_KEY_SECRET}
 ENV TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN}
 ENV TWILIO_PHONE_NUMBER=${TWILIO_PHONE_NUMBER}
 
-# Set memory and CPU limits for Node.js build
-ENV NODE_OPTIONS="--max-old-space-size=1536"
+# Set memory and CPU limits for Node.js build to prevent Docker OOM Exit 137
+ENV NODE_OPTIONS="--max-old-space-size=1024"
 ENV NEXT_CPU_COUNT=1
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
