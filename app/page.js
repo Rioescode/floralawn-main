@@ -33,6 +33,7 @@ import ServiceAreaMap from "@/components/ServiceAreaMap";
 import LeafSeason from "@/components/LeafSeason";
 import FallHero from "@/components/FallHero";
 import FallPackages from "@/components/FallPackages";
+import PapercutLightbox from "@/components/PapercutLightbox";
 
 export default function HomePage() {
   const [address, setAddress] = useState('');
@@ -263,35 +264,47 @@ export default function HomePage() {
             </div>
          </div>
       </section>
-      {/* SERVICE GRID MATRIX */}
-      <section className="py-24 bg-white">
+      {/* PAPERCUT LIGHTBOX SERVICE THEATER (INSTEAD OF STATIC PHOTO LISTING) */}
+      <PapercutLightbox />
+
+      {/* QUICK SERVICE SELECTION DIRECTORY */}
+      <section className="py-16 bg-white border-t border-slate-100">
         <div className="max-w-7xl mx-auto px-4">
-           <div className="text-center mb-24">
-              <h2 className="text-5xl md:text-7xl font-black text-slate-900 tracking-tighter mb-8 italic">Choose Your Service</h2>
-              <p className="text-xl text-slate-500 max-w-2xl mx-auto font-medium leading-relaxed italic">
-                 Explore our suite of grounds maintenance programs designed for RI & MA homeowners.
-              </p>
+           <div className="flex flex-col md:flex-row md:items-center justify-between mb-10 gap-4">
+              <div>
+                 <h3 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight uppercase italic">
+                    Complete Grounds Programs
+                 </h3>
+                 <p className="text-slate-500 font-semibold text-sm">
+                    Select any program for instant satellite pricing &amp; scheduling in Rhode Island &amp; Southern MA.
+                 </p>
+              </div>
+              <Link 
+                href="/contact" 
+                className="inline-flex items-center gap-2 text-green-700 hover:text-green-800 font-black text-xs uppercase tracking-widest border-b-2 border-green-600 pb-1 self-start md:self-auto"
+              >
+                Custom Package Quote &rarr;
+              </Link>
            </div>
 
-           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
+           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
               {lawnServices.map((svc, i) => (
                  <Link 
                     key={i} 
-                    href={`/contact`}
-                    className="group relative bg-slate-50 rounded-[3rem] p-5 border border-slate-100 hover:bg-white hover:shadow-2xl hover:border-green-300 transition-all overflow-hidden"
+                    href={`/contact?service=${encodeURIComponent(svc.title)}`}
+                    className="group p-4 rounded-2xl bg-slate-50 hover:bg-green-50 border border-slate-200/80 hover:border-green-300 transition-all flex flex-col justify-between"
                  >
-                    <div className="relative h-64 rounded-[2.5rem] overflow-hidden mb-8">
-                       <img src={`/images/${svc.slug}.jpg`} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" alt={svc.title} />
-                       <div className="absolute inset-0 bg-gradient-to-t from-slate-950/40 to-transparent" />
-                       <div className="absolute bottom-6 left-6 bg-white/20 backdrop-blur-md px-4 py-1.5 rounded-full text-[10px] font-black text-white uppercase tracking-[0.2em] border border-white/10">Active in RI & MA</div>
+                    <div>
+                       <span className="text-xs font-black text-slate-400 group-hover:text-green-600 transition-colors">
+                          0{i + 1}
+                       </span>
+                       <h4 className="text-xs font-black text-slate-900 group-hover:text-green-800 transition-colors uppercase tracking-tight mt-1">
+                          {svc.title}
+                       </h4>
                     </div>
-                    <div className="px-5 pb-8">
-                       <h3 className="text-2xl font-black text-slate-900 mb-4 group-hover:text-green-600 transition-colors uppercase tracking-tight">{svc.title}</h3>
-                       <p className="text-slate-500 font-semibold mb-8 italic line-clamp-2">"{svc.description}"</p>
-                       <div className="flex items-center text-green-600 font-black text-xs uppercase tracking-widest group-hover:translate-x-3 transition-transform">
-                          Get An Estimate <ArrowRightIcon className="w-4 h-4 ml-4" />
-                       </div>
-                    </div>
+                    <span className="text-[10px] font-bold text-green-600 mt-4 flex items-center gap-1 group-hover:translate-x-1 transition-transform">
+                       Quote &rarr;
+                    </span>
                  </Link>
               ))}
            </div>
