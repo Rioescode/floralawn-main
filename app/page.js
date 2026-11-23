@@ -34,7 +34,6 @@ import LeafSeason from "@/components/LeafSeason";
 import FallHero from "@/components/FallHero";
 import FallPackages from "@/components/FallPackages";
 import PapercutLightbox from "@/components/PapercutLightbox";
-import ServiceMiniVideos from "@/components/ServiceMiniVideos";
 
 export default function HomePage() {
   const [address, setAddress] = useState('');
@@ -267,9 +266,6 @@ export default function HomePage() {
       </section>
       {/* PAPERCUT LIGHTBOX SERVICE THEATER (INSTEAD OF STATIC PHOTO LISTING) */}
       <PapercutLightbox />
-
-      {/* A-Z MINI PAPER-CUT VIDEO ANIMATIONS FOR ALL 18 LAWN CARE SERVICES */}
-      <ServiceMiniVideos />
 
 
 
