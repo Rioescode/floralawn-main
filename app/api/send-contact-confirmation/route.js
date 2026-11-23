@@ -22,6 +22,7 @@ import {
   siteUrl,
 } from '@/libs/email-template';
 import { forwardConsentedFloraLead } from '@/libs/mgr-partner-lead';
+import { contactLeadIntakePayload, sendToMgr } from '@/libs/mgr-crew-intake';
 import { BACKUP_REFERRAL_CONSENT_TEXT } from '@/lib/backup-referral-consent';
 
 function getClientIP(request) {
@@ -44,6 +45,11 @@ function plainSummary(parsed) {
     .join('\n\n');
 }
 
+function queueCrewLead(record) {
+  if (record == null || record.id == null || record.id === '') return Promise.resolve();
+  return sendToMgr(contactLeadIntakePayload(record)).catch(() => {});
+}
+
 function yardSizeFromParsed(parsed) {
   const sections = parsed && Array.isArray(parsed.sections) ? parsed.sections : [];
   for (const block of sections) {
@@ -58,6 +64,7 @@ function yardSizeFromParsed(parsed) {
 }
 
 export async function POST(request) {
+  let pendingForwards = Promise.resolve();
   try {
     // Rate limiting check (30 requests per minute per IP)
     const rateLimitResult = await generalApiLimiter(request);
@@ -240,6 +247,16 @@ export async function POST(request) {
         return NextResponse.json({ error: 'Could not update that quote.' }, { status: 400 });
       }
 
+      pendingForwards = queueCrewLead({
+        id: updated.id,
+        customer_name: sanitizedName,
+        customer_email: sanitizedEmail,
+        customer_phone: phone || '',
+        address: address || '',
+        city: sanitizedCity,
+        service_type: sanitizedService || (serviceList.length ? serviceList.join(', ') : ''),
+        notes: sanitizedMessage,
+      });
       return NextResponse.json({ success: true, leadId: updated.id, updated: true, message: 'Quote updated' });
     }
 
@@ -297,13 +314,14 @@ export async function POST(request) {
     // partnerBackupConsent (also accepted as partnerReferralConsent). There is
     // no contact_leads column for it. A partner-forward failure must not
     // change the form response.
+    const forwards = [];
     if (savedLeadId && partnerBackupRequested) {
       const yardSize = yardSizeFromParsed(parsed);
       const jobs = (Array.isArray(serviceList) ? serviceList : [])
         .map((item) => String(item || '').trim())
         .filter(Boolean);
       const partnerPhone = typeof phone === 'string' ? phone.trim() : phone ? String(phone).trim() : '';
-      await forwardConsentedFloraLead({
+      forwards.push(forwardConsentedFloraLead({
         source: 'flora',
         external_id: savedLeadId,
         name: sanitizedName,
@@ -317,8 +335,25 @@ export async function POST(request) {
         consent_backup_referral: true,
         consent_text: BACKUP_REFERRAL_CONSENT_TEXT,
         submitted_at: new Date().toISOString(),
-      });
+      }).catch(() => {}));
     }
+    if (savedLeadId) {
+      const composedAddress = address
+        ? `${address}${sanitizedState ? `, ${sanitizedState}` : ''}${sanitizedZip ? ` ${sanitizedZip}` : ''}`
+        : '';
+      forwards.push(queueCrewLead({
+        id: savedLeadId,
+        customer_name: sanitizedName,
+        customer_email: sanitizedEmail,
+        customer_phone: phone || '',
+        address: composedAddress,
+        city: sanitizedCity,
+        service_type: sanitizedService || (serviceList.length ? serviceList.join(', ') : ''),
+        notes: `${sanitizedMessage}${partnerBackupRequested ? '\n\n[PARTNER REFERRAL: CONSENTED - OK to dispatch to partner if booked]' : '\n\n[PARTNER REFERRAL: DECLINED - Direct Flora Lawn only]'}`,
+        status: 'pending',
+      }));
+    }
+    pendingForwards = Promise.all(forwards);
 
     // --- SAVE TO COMMUNICATION PREFERENCES (10DLC AUDIT TRAIL) ---
     try {
@@ -530,5 +565,11 @@ export async function POST(request) {
       },
       { status: 500 }
     );
+  } finally {
+    try {
+      await pendingForwards;
+    } catch {
+      // Crew intake and partner forwarding must not change the form response.
+    }
   }
 }

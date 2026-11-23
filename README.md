@@ -42,6 +42,29 @@ If either variable is missing, forwarding is skipped and a warning is logged onc
 
 **Where to set them:** this site deploys on Netlify (`netlify.toml`). Add both under **Site configuration → Environment variables**, then redeploy. For local runs, put them in `.env.local` (see `.env.example`). Do not put the secret in client code or in `NEXT_PUBLIC_*` variables.
 
+## Crew intake (My Green Robot)
+
+Every new contact lead, Flora phone call, and Flora text is forwarded to My Green Robot crew intake. Booked appointments are inserted in the browser, so Supabase Database Webhooks post those rows (and contact-lead rows) to this site, which forwards them too. A forward failure does not change the form, the inbox email, or the text reply. My Green Robot dedupes on `external_id`, so a contact lead that is sent from the form and again from the webhook is one job.
+
+Set these on the server. Do not prefix them with `NEXT_PUBLIC_`, and do not add them to the `env` block in `next.config.js`.
+
+| Variable | Purpose |
+| --- | --- |
+| `MGR_CREW_INTAKE_URL` | Crew intake endpoint, for example `https://mygreenrobot.com/api/crew-intake` |
+| `MGR_CREW_INTAKE_KEY` | Bearer token sent as `Authorization: Bearer <key>` |
+| `FLORA_DB_WEBHOOK_SECRET` | Shared secret Supabase sends as `X-Flora-Webhook-Secret` |
+
+If either intake variable is missing, forwarding is skipped and a warning is logged once per server process.
+
+**Supabase Database Webhooks** (Dashboard → Database → Webhooks). Create two hooks. Both POST to `https://floralawn-and-landscaping.com/api/mgr/supabase-webhook` with header `X-Flora-Webhook-Secret: <FLORA_DB_WEBHOOK_SECRET>`.
+
+| Table | Events |
+| --- | --- |
+| `public.appointments` | Insert, Update |
+| `public.contact_leads` | Insert, Update |
+
+**Backfill** (not run by the app): `node scripts/backfill-mgr.mjs` reads `contact_leads` from the last 90 days and prints ids only. Add `--send` to POST them. Dry-run is the default.
+
 P.S.
 
 -   Want to showcase your startups? Get your [Indie Page](https://indiepa.ge?ref=shipfast_readme) and share your entrepreneur's journey. Join 3,132 founders ⭐️

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { verifyElevenLabsSignature } from '@/libs/elevenlabs-signature';
 import { lookupCaller } from '@/libs/flora-caller';
 import { FLORA_AGENT_ID, escapeHtml, formatEastern, sendToInbox, subjectPiece } from '@/libs/flora-inbox';
+import { callIntakePayload, sendToMgr } from '@/libs/mgr-crew-intake';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -98,6 +99,18 @@ function looksLikeEmail(value) {
   return typeof value === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
 }
 
+function plainCollected(results) {
+  const collected = {};
+  for (const [key] of FIELDS) {
+    const value = collectedValue(results, key);
+    if (value == null || value === '') continue;
+    if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean' || Array.isArray(value)) {
+      collected[key] = value;
+    }
+  }
+  return collected;
+}
+
 export async function POST(request) {
   const secret = (process.env.ELEVENLABS_FLORA_WEBHOOK_SECRET || '').trim();
   if (!secret) {
@@ -188,6 +201,29 @@ export async function POST(request) {
     </div>
   `;
 
+  const forwardCall = async () => {
+    if (!conversationId) {
+      console.warn('MGR crew intake call skipped: missing conversation id');
+      return;
+    }
+    const callStatus = typeof data.analysis?.call_successful === 'boolean'
+      ? (data.analysis.call_successful ? 'successful' : 'unsuccessful')
+      : (data.status || '');
+    try {
+      await sendToMgr(callIntakePayload({
+        conversationId,
+        callerPhone: caller === 'Unknown' ? '' : caller,
+        summary,
+        transcript: lines.join('\n'),
+        collected: plainCollected(results),
+        status: callStatus,
+      }));
+    } catch {
+      // Best-effort. The inbox email result stays as it is.
+    }
+  };
+
+  const mgrForward = forwardCall();
   try {
     await sendToInbox({
       subject,
@@ -198,9 +234,11 @@ export async function POST(request) {
     });
   } catch (error) {
     console.error('Failed to email Flora call summary:', error?.message || error);
+    await mgrForward;
     return NextResponse.json({ error: 'Failed to send summary email' }, { status: 500 });
   }
 
+  await mgrForward;
   console.log('Emailed Flora call summary', conversationId || '(no id)');
   return NextResponse.json({ received: true });
 }

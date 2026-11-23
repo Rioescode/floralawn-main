@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { lookupCaller } from '@/libs/flora-caller';
 import { escapeHtml, formatEastern, sendToInbox } from '@/libs/flora-inbox';
+import { sendToMgr, textIntakePayload } from '@/libs/mgr-crew-intake';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -108,6 +109,23 @@ export async function POST(request) {
     </div>
   `;
 
+  const forwardText = async () => {
+    if (!sid) {
+      console.warn('MGR crew intake text skipped: missing MessageSid');
+      return;
+    }
+    try {
+      await sendToMgr(textIntakePayload({
+        messageSid: sid,
+        from: from === 'Unknown' ? '' : from,
+        body,
+      }));
+    } catch {
+      // Best-effort. The inbox email result stays as it is.
+    }
+  };
+
+  const mgrForward = forwardText();
   try {
     await sendToInbox({
       subject: `Texto nuevo Flora: ${knownName ? `${knownName} ` : ''}${from}`.replace(/[\r\n]+/g, ' ').slice(0, 180),
@@ -117,9 +135,11 @@ export async function POST(request) {
     });
   } catch (error) {
     console.error('Failed to email inbound Flora SMS:', error?.message || error);
+    await mgrForward;
     return NextResponse.json({ error: 'Failed to send SMS email' }, { status: 500 });
   }
 
+  await mgrForward;
   console.log('Emailed inbound Flora SMS', sid || from);
   return twiml(200);
 }

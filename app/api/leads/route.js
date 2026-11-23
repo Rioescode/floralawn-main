@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
+import { contactLeadIntakePayload, sendToMgr } from '@/libs/mgr-crew-intake';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -28,6 +29,14 @@ export async function POST(request) {
       .single();
 
     if (error) throw error;
+
+    if (data?.id != null) {
+      try {
+        await sendToMgr(contactLeadIntakePayload(data));
+      } catch {
+        // Best-effort. The lead is already saved.
+      }
+    }
 
     return NextResponse.json(data);
   } catch (error) {
