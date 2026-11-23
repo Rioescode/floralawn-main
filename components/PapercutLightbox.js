@@ -21,7 +21,13 @@ const CHAPTERS = [
     id: "mowing",
     start: 0.0,
     end: 3.75,
+    timeLabel: "0:00 – 0:04",
     label: "Spring Mowing",
+    shortSub: "60” Decks & Diamond Stripes",
+    accentHex: "#22c55e",
+    accentRing: "border-emerald-400/60 bg-emerald-500/10 shadow-emerald-500/15",
+    accentBar: "from-emerald-400 to-green-300",
+    accentText: "text-emerald-300",
     emoji: "✂️",
     serviceParam: "Lawn Mowing",
     seasonBadge: "0:00 – 0:04 · Spring Dawn",
@@ -39,7 +45,13 @@ const CHAPTERS = [
     id: "mulch",
     start: 3.75,
     end: 7.5,
+    timeLabel: "0:04 – 0:07",
     label: "Mulch & Aeration",
+    shortSub: "3” Trench Edge & Overseed",
+    accentHex: "#f97316",
+    accentRing: "border-orange-400/60 bg-orange-500/10 shadow-orange-500/15",
+    accentBar: "from-orange-400 to-amber-300",
+    accentText: "text-orange-300",
     emoji: "🌱",
     serviceParam: "Mulch Installation",
     seasonBadge: "0:04 – 0:07 · Garden Refresh",
@@ -57,7 +69,13 @@ const CHAPTERS = [
     id: "fall",
     start: 7.5,
     end: 11.25,
+    timeLabel: "0:07 – 0:11",
     label: "Fall Cleanup",
+    shortSub: "Blower Crews & Vacuum Haul",
+    accentHex: "#f59e0b",
+    accentRing: "border-amber-400/60 bg-amber-500/10 shadow-amber-500/15",
+    accentBar: "from-amber-400 to-yellow-300",
+    accentText: "text-amber-300",
     emoji: "🍂",
     serviceParam: "Fall Cleanup",
     seasonBadge: "0:07 – 0:11 · Autumn Gust",
@@ -75,7 +93,13 @@ const CHAPTERS = [
     id: "snow",
     start: 11.25,
     end: 15.0,
+    timeLabel: "0:11 – 0:15",
     label: "Snow Defense",
+    shortSub: "24/7 V-Plow & Pet-Safe Salt",
+    accentHex: "#38bdf8",
+    accentRing: "border-sky-400/60 bg-sky-500/10 shadow-sky-500/15",
+    accentBar: "from-sky-400 to-cyan-200",
+    accentText: "text-sky-300",
     emoji: "❄️",
     serviceParam: "Snow Removal",
     seasonBadge: "0:11 – 0:15 · Winter Night",
@@ -1473,25 +1497,83 @@ export default function PapercutLightbox() {
           </div>
         </div>
 
-        {/* CHAPTER JUMP PILLS */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-4 mb-6 scrollbar-none">
+        {/* 4-ACT INTERACTIVE STORYBOARD STRIP */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-7">
           {CHAPTERS.map((ch, idx) => {
             const isActive = idx === safeChapterIdx;
+            const isDone = currentTime >= ch.end;
+            const chapterPct = isDone
+              ? 100
+              : isActive
+              ? clamp(((currentTime - ch.start) / (ch.end - ch.start)) * 100, 0, 100)
+              : 0;
+
             return (
               <button
                 key={ch.id}
                 onClick={() => seekTo(ch.start + 0.05)}
-                className={`shrink-0 px-4 py-2.5 rounded-2xl font-black text-xs uppercase tracking-wider transition-all flex items-center gap-2 border active:scale-95 ${
+                className={`group relative text-left rounded-2xl p-3.5 md:p-4 border transition-all duration-300 overflow-hidden backdrop-blur-md active:scale-[0.98] ${
                   isActive
-                    ? "bg-amber-500/15 border-amber-400 text-amber-300 shadow-lg shadow-amber-500/15"
-                    : "bg-slate-900/60 border-slate-800/80 text-slate-400 hover:text-white hover:border-slate-700"
+                    ? `${ch.accentRing} shadow-xl -translate-y-0.5`
+                    : "bg-slate-900/65 border-slate-800/80 hover:border-slate-700 hover:bg-slate-900/90"
                 }`}
               >
-                <span>{ch.emoji}</span>
-                <span>{ch.label}</span>
-                <span className="text-[10px] opacity-60 font-mono">
-                  0:{Math.floor(ch.start).toString().padStart(2, "0")}
-                </span>
+                {/* Top row: Icon badge + Act label & timestamp */}
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`w-7 h-7 rounded-xl flex items-center justify-center text-sm border transition-colors ${
+                        isActive
+                          ? "bg-slate-950/70 border-white/15 shadow-inner"
+                          : "bg-slate-950/50 border-slate-800 group-hover:border-slate-700"
+                      }`}
+                    >
+                      {ch.emoji}
+                    </span>
+                    <span
+                      className={`text-[10px] font-black uppercase tracking-widest ${
+                        isActive ? ch.accentText : "text-slate-500 group-hover:text-slate-400"
+                      }`}
+                    >
+                      Act 0{idx + 1}
+                    </span>
+                  </div>
+
+                  <span
+                    className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border ${
+                      isActive
+                        ? "bg-slate-950/60 border-white/10 text-slate-200"
+                        : "bg-slate-950/40 border-slate-800/80 text-slate-500"
+                    }`}
+                  >
+                    {ch.timeLabel}
+                  </span>
+                </div>
+
+                {/* Chapter Title & Subtitle */}
+                <div className="pr-1">
+                  <div
+                    className={`font-black text-xs md:text-sm uppercase tracking-tight transition-colors ${
+                      isActive ? "text-white" : "text-slate-300 group-hover:text-white"
+                    }`}
+                  >
+                    {ch.label}
+                  </div>
+                  <div className="text-[11px] font-medium text-slate-400 truncate mt-0.5">
+                    {ch.shortSub}
+                  </div>
+                </div>
+
+                {/* Live Per-Chapter Progress Bar along bottom edge */}
+                <div className="absolute bottom-0 left-0 right-0 h-1 bg-slate-800/80">
+                  <div
+                    className={`h-full bg-gradient-to-r ${ch.accentBar} transition-all duration-100 ease-linear`}
+                    style={{
+                      width: `${chapterPct}%`,
+                      opacity: isActive || isDone ? 1 : 0,
+                    }}
+                  />
+                </div>
               </button>
             );
           })}
