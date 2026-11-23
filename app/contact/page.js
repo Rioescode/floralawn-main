@@ -142,7 +142,7 @@ function ContactForm() {
   const [estimatePreference, setEstimatePreference] = useState('walk_around');
   const [emailPreferences, setEmailPreferences] = useState({ subscribe: false, frequency: 'monthly' });
   const [smsPreferences, setSmsPreferences] = useState({ subscribe: false });
-  const [partnerReferralConsent, setPartnerReferralConsent] = useState(true);
+  const [partnerReferralConsent, setPartnerReferralConsent] = useState(false);
   const [status, setStatus] = useState({ type: '', message: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showMessageHelper, setShowMessageHelper] = useState(true);
@@ -634,6 +634,7 @@ function ContactForm() {
         setFormData({ name: '', email: '', phone: '', address: '', city: '', state: '', zipCode: '', service: '', message: '', promoCode: '', preferredMeetingDate: '' });
         setPickedServices([]);
         setSelectedPackage(null);
+        setPartnerReferralConsent(false);
         
         // Smooth scroll to success message
         setTimeout(() => {
