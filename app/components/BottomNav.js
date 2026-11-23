@@ -16,8 +16,6 @@ import {
   ChatBubbleLeftRightIcon
 } from '@heroicons/react/24/solid';
 
-const SIGNED_OUT_SCHEDULE = `/login?redirect=${encodeURIComponent('/customer/dashboard')}`;
-
 export default function BottomNav() {
   const pathname = usePathname();
   const [isVisible, setIsVisible] = useState(true);
@@ -31,8 +29,9 @@ export default function BottomNav() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const [scheduleHref, setScheduleHref] = useState(SIGNED_OUT_SCHEDULE);
   const [customerSignedIn, setCustomerSignedIn] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
   const onCustomerDash = pathname === '/customer/dashboard';
   const customerBar = customerSignedIn || onCustomerDash;
 
@@ -42,16 +41,16 @@ export default function BottomNav() {
     const resolve = async (user) => {
       if (!user) {
         if (!cancelled) {
-          setScheduleHref(SIGNED_OUT_SCHEDULE);
           setCustomerSignedIn(false);
+          setIsAdmin(false);
         }
         return;
       }
       const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
       if (!cancelled) {
-        const isAdmin = profile?.role === 'admin';
-        setScheduleHref(isAdmin ? '/schedule' : '/customer/dashboard');
-        setCustomerSignedIn(!isAdmin);
+        const admin = profile?.role === 'admin';
+        setIsAdmin(admin);
+        setCustomerSignedIn(!admin);
       }
     };
 
@@ -79,6 +78,12 @@ export default function BottomNav() {
     window.dispatchEvent(new Event('flora-open-convai'));
   }
 
+  useEffect(() => {
+    const onVisibility = (event) => setChatOpen(!!event.detail?.open);
+    window.addEventListener('flora-convai-visibility', onVisibility);
+    return () => window.removeEventListener('flora-convai-visibility', onVisibility);
+  }, []);
+
   const chatItem = { label: 'CHAT', icon: ChatBubbleLeftRightIcon, onClick: openFloraChat };
 
   const navItems = customerBar
@@ -91,7 +96,7 @@ export default function BottomNav() {
     : [
         { href: 'tel:4012053853', label: 'CALL NOW', icon: PhoneIcon, isExternal: true },
         { href: '/contact', label: 'GET QUOTE', icon: SparklesIcon, primary: true },
-        { href: scheduleHref, label: 'SCHEDULE', icon: CalendarIcon },
+        ...(isAdmin ? [{ href: '/schedule', label: 'SCHEDULE', icon: CalendarIcon }] : []),
         chatItem,
       ];
 
@@ -102,12 +107,12 @@ export default function BottomNav() {
     <>
     <SafeBoundary><YardPhotoChat sheetOnly /></SafeBoundary>
     <AnimatePresence>
-      {isVisible && (
+      {isVisible && !chatOpen && (
         <motion.div 
           initial={{ y: 100, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: 100, opacity: 0 }}
-          className="fixed bottom-6 left-0 right-0 z-[100] px-4 lg:hidden"
+          className="flora-mobile-bar fixed bottom-6 left-0 right-0 z-[100] px-4 lg:hidden"
         >
           <div className="max-w-md mx-auto relative">
             {/* Close Button */}
@@ -157,7 +162,7 @@ export default function BottomNav() {
         </motion.div>
       )}
 
-      {!isVisible && (
+      {!isVisible && !chatOpen && (
         <motion.button
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}

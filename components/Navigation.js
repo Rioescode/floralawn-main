@@ -13,6 +13,7 @@ import {
   UserGroupIcon,
   PhotoIcon,
   PhoneIcon,
+  ChatBubbleLeftRightIcon,
   MapPinIcon,
   WrenchScrewdriverIcon,
   CalendarIcon,
@@ -150,6 +151,13 @@ export default function Navigation() {
 
             {/* AWARDS & CTA */}
             <div className="hidden lg:flex items-center space-x-4">
+              <button
+                type="button"
+                onClick={() => window.dispatchEvent(new Event('flora-open-convai'))}
+                className="bg-slate-100 text-slate-900 px-4 py-2.5 rounded-xl font-black text-[11px] xl:text-xs uppercase tracking-wider hover:bg-green-600 hover:text-white transition-all flex items-center gap-2"
+              >
+                <ChatBubbleLeftRightIcon className="w-5 h-5" /> Chat
+              </button>
               <a href="tel:4012053853" className="bg-slate-900 text-white px-5 py-2.5 rounded-xl font-black text-[11px] xl:text-xs uppercase tracking-wider hover:bg-green-600 transition-all flex items-center gap-2">
                  <PhoneIcon className="w-5 h-5" /> (401) 205-3853
               </a>
