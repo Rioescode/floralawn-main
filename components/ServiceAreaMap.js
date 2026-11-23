@@ -133,11 +133,11 @@ for (let ty = TILE_Y_MIN; ty <= TILE_Y_MAX; ty++) {
 export default function ServiceAreaMap() {
   const [filter, setFilter] = useState('all');
   const [query, setQuery] = useState('');
-  const [active, setActive] = useState('Providence');
+  const [active, setActive] = useState('Newport');
   const [hovered, setHovered] = useState(null);
   const [lampOn, setLampOn] = useState(true);
   const [zoomed, setZoomed] = useState(false);
-  const [mapTheme, setMapTheme] = useState('dark'); // 'dark' | 'voyager'
+  const [mapTheme, setMapTheme] = useState('dark'); // 'dark' | 'satellite'
 
   const counts = useMemo(
     () => ({
@@ -435,15 +435,8 @@ export default function ServiceAreaMap() {
                 transition: 'transform 650ms cubic-bezier(0.22, 1, 0.36, 1)',
               }}
             >
-              {/* REAL CARTOGRAPHIC / SATELLITE MAP TILES (Esri ArcGIS — Zero API Key) */}
-              <g
-                style={{
-                  filter:
-                    mapTheme === 'dark'
-                      ? 'contrast(1.18) brightness(1.08) saturate(1.1)'
-                      : 'contrast(1.08) brightness(0.78) saturate(1.15)',
-                }}
-              >
+              {/* REAL CARTOGRAPHIC / SATELLITE MAP TILES (Esri ArcGIS — Mobile-Safe, Zero CSS Filter) */}
+              <g>
                 {MAP_TILES.map((tile) => (
                   <image
                     key={tile.key}
@@ -455,6 +448,9 @@ export default function ServiceAreaMap() {
                     preserveAspectRatio="none"
                   />
                 ))}
+                {mapTheme === 'satellite' && (
+                  <rect x={0} y={0} width={1280} height={1280} fill="#060c14" fillOpacity="0.28" pointerEvents="none" />
+                )}
                 {/* Crisp Real Road & Town Reference Labels Overlay */}
                 {MAP_TILES.map((tile) => (
                   <image
@@ -482,32 +478,52 @@ export default function ServiceAreaMap() {
                 />
               )}
 
-              {/* LIVE ANIMATED DISPATCH ARC: PAWTUCKET HQ -> SELECTED TOWN */}
+              {/* LIVE ANIMATED DISPATCH ARC: PAWTUCKET HQ -> SELECTED TOWN (NATIVE SVG SMIL FOR 100% MOBILE SUPPORT) */}
               {activeTown && activeTown.name !== 'Pawtucket' && (
                 <g pointerEvents="none">
+                  {/* Soft amber outer glow track */}
                   <path
                     d={dispatchArc}
                     fill="none"
                     stroke="#f59e0b"
-                    strokeOpacity={lampOn ? 0.35 : 0.2}
-                    strokeWidth="6"
+                    strokeOpacity={lampOn ? 0.42 : 0.22}
+                    strokeWidth="7"
                     strokeLinecap="round"
                   />
+                  {/* Flowing animated dashed beam */}
                   <path
                     d={dispatchArc}
                     fill="none"
                     stroke="#fef08a"
-                    strokeWidth="2.8"
+                    strokeWidth="3"
                     strokeDasharray="10 10"
                     strokeLinecap="round"
-                    className="map-route-flow"
-                    filter={lampOn ? 'url(#realmap-bloom)' : undefined}
-                  />
+                  >
+                    <animate
+                      attributeName="stroke-dashoffset"
+                      from="40"
+                      to="0"
+                      dur="1.1s"
+                      repeatCount="indefinite"
+                    />
+                  </path>
+                  {/* Glowing crew dispatch beacon traveling along the route */}
+                  <circle r="5.5" fill="#fef08a" stroke="#f59e0b" strokeWidth="2">
+                    <animateMotion
+                      dur="2.2s"
+                      repeatCount="indefinite"
+                      path={dispatchArc}
+                    />
+                  </circle>
                 </g>
               )}
 
               {/* HQ PULSE MARKER (PAWTUCKET) */}
               <g transform={`translate(${HQ_PT.x}, ${HQ_PT.y})`} pointerEvents="none">
+                <circle r="8" fill="none" stroke="#34d399" strokeWidth="2">
+                  <animate attributeName="r" values="6;22" dur="2.4s" repeatCount="indefinite" />
+                  <animate attributeName="stroke-opacity" values="0.85;0" dur="2.4s" repeatCount="indefinite" />
+                </circle>
                 <circle r="10" fill="#10b981" fillOpacity="0.25" />
                 <circle r="5" fill="#34d399" stroke="#052e16" strokeWidth="1.5" />
               </g>
@@ -529,22 +545,29 @@ export default function ServiceAreaMap() {
                     className="cursor-pointer"
                     style={{ opacity: isFilteredOut ? 0.16 : 1, transition: 'opacity 250ms ease' }}
                   >
-                    <circle r="16" fill="transparent" />
+                    <circle r="18" fill="transparent" />
 
-                    {/* Expanding Animated Radar Ring on Selected/Hovered Town */}
+                    {/* Expanding Native SVG Radar Ring on Selected/Hovered Town (Works on iOS & Android) */}
                     {isHighlighted && (
                       <>
-                        <circle
-                          r="16"
-                          fill="none"
-                          stroke="#fde047"
-                          strokeWidth="2.4"
-                          className="map-radar"
-                        />
+                        <circle r="10" fill="none" stroke="#fde047" strokeWidth="2.6">
+                          <animate
+                            attributeName="r"
+                            values="9;34"
+                            dur="2s"
+                            repeatCount="indefinite"
+                          />
+                          <animate
+                            attributeName="stroke-opacity"
+                            values="0.95;0"
+                            dur="2s"
+                            repeatCount="indefinite"
+                          />
+                        </circle>
                         <circle
                           r="20"
                           fill="#fbbf24"
-                          fillOpacity={lampOn ? 0.25 : 0.12}
+                          fillOpacity={lampOn ? 0.28 : 0.14}
                         />
                       </>
                     )}
@@ -561,7 +584,6 @@ export default function ServiceAreaMap() {
                       }
                       stroke="#05131f"
                       strokeWidth={isHighlighted ? 2.5 : 1.6}
-                      filter={isHighlighted && lampOn ? 'url(#realmap-bloom)' : undefined}
                     />
 
                     {/* Elevated Glass Label Pill for Active / Hovered Town */}
