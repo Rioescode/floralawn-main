@@ -177,9 +177,9 @@ progress::-webkit-progress-value {
   }
 }
 
-/* Keep the convai host off-screen until Chat is pressed. Do not set
-   height:auto on this element: its children are position:absolute, so an
-   auto height collapses the fixed host to the top of the page. */
+/* Hidden until Chat is pressed. Never use height:auto here: the widget's
+   children are position:absolute, so an auto height collapses the host
+   to the top of the page. */
 elevenlabs-convai:not(.flora-chat-open) {
   visibility: hidden !important;
   pointer-events: none !important;
@@ -188,8 +188,75 @@ elevenlabs-convai:not(.flora-chat-open) {
 elevenlabs-convai.flora-chat-open {
   visibility: visible !important;
   position: fixed !important;
-  inset: 0 !important;
-  width: 100% !important;
-  height: 100% !important;
+  z-index: 1200 !important;
+  box-sizing: border-box !important;
+  overflow: hidden !important;
+  --el-overlay-padding: 0px;
+}
+
+@media (max-width: 1023px) {
+  elevenlabs-convai.flora-chat-open {
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    padding:
+      env(safe-area-inset-top)
+      env(safe-area-inset-right)
+      env(safe-area-inset-bottom)
+      env(safe-area-inset-left);
+  }
+}
+
+@media (min-width: 1024px) {
+  elevenlabs-convai.flora-chat-open {
+    top: auto !important;
+    left: auto !important;
+    right: 1.25rem !important;
+    bottom: 1.25rem !important;
+    width: min(24rem, calc(100vw - 2.5rem)) !important;
+    height: min(40rem, calc(100dvh - 2.5rem)) !important;
+    max-height: calc(100dvh - 2.5rem) !important;
+  }
+}
+
+html.flora-chat-open,
+html.flora-chat-open body {
+  overflow: hidden !important;
+  overscroll-behavior: none;
+}
+
+html.flora-chat-open .flora-mobile-bar {
+  display: none !important;
+}
+
+.flora-chat-close {
+  position: fixed;
+  z-index: 1300;
+  top: calc(env(safe-area-inset-top) + 0.75rem);
+  left: calc(env(safe-area-inset-left) + 0.75rem);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.55rem 0.9rem;
+  border: 0;
+  border-radius: 999px;
+  background: #0f172a;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.28);
+  cursor: pointer;
+}
+
+@media (min-width: 1024px) {
+  .flora-chat-close {
+    top: calc(100dvh - 1.25rem - min(40rem, 100dvh - 2.5rem) - 2.75rem);
+    right: 1.75rem;
+    bottom: auto;
+    left: auto;
+  }
 }
 
