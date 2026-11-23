@@ -114,17 +114,18 @@ function milesFromHQ(lat, lng) {
 
 const HQ_PT = projectMercator(HQ.lat, HQ.lng);
 
-// Precompute 5x5 grid of real map tiles (zero API key, retina @2x)
+// Precompute 5x5 grid of real Esri ArcGIS map tiles (100% free, zero API key, no watermarks)
+// Note: ArcGIS tile URLs use /{z}/{y}/{x} order
 const MAP_TILES = [];
 for (let ty = TILE_Y_MIN; ty <= TILE_Y_MAX; ty++) {
   for (let tx = TILE_X_MIN; tx <= TILE_X_MAX; tx++) {
-    const sub = ['a', 'b', 'c', 'd'][(tx + ty) % 4];
     MAP_TILES.push({
       key: `${tx}-${ty}`,
       x: (tx - TILE_X_MIN) * TILE_SIZE,
       y: (ty - TILE_Y_MIN) * TILE_SIZE,
-      darkUrl: `https://${sub}.basemaps.cartocdn.com/dark_all/${ZOOM}/${tx}/${ty}@2x.png`,
-      voyagerUrl: `https://${sub}.basemaps.cartocdn.com/rastertiles/voyager/${ZOOM}/${tx}/${ty}@2x.png`,
+      darkUrl: `https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/${ZOOM}/${ty}/${tx}`,
+      darkLabelsUrl: `https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/${ZOOM}/${ty}/${tx}`,
+      satelliteUrl: `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${ZOOM}/${ty}/${tx}`,
     });
   }
 }
@@ -357,12 +358,12 @@ export default function ServiceAreaMap() {
           <div className="absolute right-4 top-4 z-20 flex flex-wrap items-center justify-end gap-2">
             <button
               type="button"
-              onClick={() => setMapTheme((m) => (m === 'dark' ? 'voyager' : 'dark'))}
+              onClick={() => setMapTheme((m) => (m === 'dark' ? 'satellite' : 'dark'))}
               className="flex items-center gap-1.5 rounded-2xl border border-white/15 bg-slate-950/85 px-3 py-2 text-[11px] font-black uppercase tracking-wider text-slate-200 backdrop-blur-md transition-all hover:border-amber-400/50 hover:text-amber-300"
-              title="Switch between Dark Night Map and Terrain/Road Map"
+              title="Switch between Dark Map and Real Satellite Imagery"
             >
               <MapIcon className="h-3.5 w-3.5 text-amber-400" />
-              {mapTheme === 'dark' ? 'Dark' : 'Color'}
+              {mapTheme === 'dark' ? 'Dark Map' : 'Satellite'}
             </button>
 
             <button
@@ -432,23 +433,36 @@ export default function ServiceAreaMap() {
                 transition: 'transform 650ms cubic-bezier(0.22, 1, 0.36, 1)',
               }}
             >
-              {/* REAL CARTOGRAPHIC MAP TILES (CartoDB Retina @2x — 0px Drift) */}
+              {/* REAL CARTOGRAPHIC / SATELLITE MAP TILES (Esri ArcGIS — Zero API Key) */}
               <g
                 style={{
                   filter:
                     mapTheme === 'dark'
-                      ? 'contrast(1.12) brightness(1.06) saturate(1.15)'
-                      : 'contrast(1.05) brightness(0.92) saturate(0.95)',
+                      ? 'contrast(1.18) brightness(1.08) saturate(1.1)'
+                      : 'contrast(1.08) brightness(0.78) saturate(1.15)',
                 }}
               >
                 {MAP_TILES.map((tile) => (
                   <image
                     key={tile.key}
-                    href={mapTheme === 'dark' ? tile.darkUrl : tile.voyagerUrl}
+                    href={mapTheme === 'dark' ? tile.darkUrl : tile.satelliteUrl}
                     x={tile.x}
                     y={tile.y}
-                    width={TILE_SIZE + 0.5}
-                    height={TILE_SIZE + 0.5}
+                    width={TILE_SIZE + 0.6}
+                    height={TILE_SIZE + 0.6}
+                    preserveAspectRatio="none"
+                  />
+                ))}
+                {/* Crisp Real Road & Town Reference Labels Overlay */}
+                {MAP_TILES.map((tile) => (
+                  <image
+                    key={`lbl-${tile.key}`}
+                    href={tile.darkLabelsUrl}
+                    x={tile.x}
+                    y={tile.y}
+                    width={TILE_SIZE + 0.6}
+                    height={TILE_SIZE + 0.6}
+                    opacity={mapTheme === 'dark' ? 0.85 : 0.72}
                     preserveAspectRatio="none"
                   />
                 ))}
@@ -636,7 +650,7 @@ export default function ServiceAreaMap() {
         <span className="hidden opacity-75 sm:inline">
           39 RI Towns · 6 Southern MA Towns · Live Dispatch Routes
         </span>
-        <span>© OpenStreetMap · CARTO</span>
+        <span>Esri · Live Map &amp; Satellite</span>
       </div>
     </div>
   );
