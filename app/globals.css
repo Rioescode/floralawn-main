@@ -177,14 +177,19 @@ progress::-webkit-progress-value {
   }
 }
 
-/* The convai host is position:fixed; inset:0, and the launcher is pinned
-   to the bottom of that box. On phones, end the host above the bottom bar
-   so it clears BottomNav, the collapsed call button, and the schedule FAB.
-   !important wins against the widget's own :host { inset: 0 }. */
-@media (max-width: 1023px) {
-  elevenlabs-convai {
-    bottom: calc(12rem + env(safe-area-inset-bottom, 0px)) !important;
-    height: auto !important;
-  }
+/* Keep the convai host off-screen until Chat is pressed. Do not set
+   height:auto on this element: its children are position:absolute, so an
+   auto height collapses the fixed host to the top of the page. */
+elevenlabs-convai:not(.flora-chat-open) {
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+elevenlabs-convai.flora-chat-open {
+  visibility: visible !important;
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
 }
 
