@@ -196,15 +196,15 @@ elevenlabs-convai.flora-chat-open {
 
 @media (max-width: 1023px) {
   elevenlabs-convai.flora-chat-open {
-    inset: 0 !important;
+    top: var(--flora-chat-top, 5.5rem) !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: auto !important;
     width: 100% !important;
-    height: 100dvh !important;
-    max-height: 100dvh !important;
-    padding:
-      env(safe-area-inset-top)
-      env(safe-area-inset-right)
-      env(safe-area-inset-bottom)
-      env(safe-area-inset-left);
+    height: var(--flora-chat-height, calc(100dvh - 12rem)) !important;
+    max-height: var(--flora-chat-height, calc(100dvh - 12rem)) !important;
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
   }
 }
 
@@ -226,14 +226,10 @@ html.flora-chat-open body {
   overscroll-behavior: none;
 }
 
-html.flora-chat-open .flora-mobile-bar {
-  display: none !important;
-}
-
 .flora-chat-close {
   position: fixed;
   z-index: 1300;
-  top: calc(env(safe-area-inset-top) + 0.75rem);
+  top: calc(var(--flora-chat-top, 5.5rem) + 0.45rem);
   left: calc(env(safe-area-inset-left) + 0.75rem);
   display: inline-flex;
   align-items: center;
