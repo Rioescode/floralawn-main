@@ -270,15 +270,25 @@ export default function HomePage() {
 
 
       {/* SERVICE AREAS GRID */}
-      <section className="py-24 bg-slate-50">
-        <div className="max-w-7xl mx-auto px-4">
-           <div className="flex flex-col md:flex-row justify-between items-end mb-16 gap-8">
-              <div className="max-w-xl">
-                 <h2 className="text-4xl md:text-6xl font-black text-slate-900 tracking-tighter mb-4 italic">Serving Your Neighborhood</h2>
-                 <p className="text-lg text-slate-500 font-semibold">Reliable coverage throughout Rhode Island and Southern Massachusetts.</p>
+      <section className="relative py-24 bg-gradient-to-b from-[#05080f] via-[#0a101c] to-[#060a12] text-white border-t border-white/5 overflow-hidden">
+        <div className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[380px] rounded-full bg-amber-500/10 blur-[150px]" />
+
+        <div className="max-w-7xl mx-auto px-4 relative z-10">
+           <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-12 gap-6">
+              <div className="max-w-2xl">
+                 <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-black uppercase tracking-widest mb-4">
+                    <MapPinIcon className="w-4 h-4 text-amber-400" />
+                    Rhode Island &amp; Southern Massachusetts
+                 </div>
+                 <h2 className="text-4xl md:text-6xl font-black text-white tracking-tight uppercase italic leading-[1.06]">
+                    Serving Your <span className="inline-block pr-2 text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-amber-400 to-amber-500">Neighborhood</span>
+                 </h2>
+                 <p className="text-base md:text-lg text-slate-400 font-medium mt-3">
+                    Reliable local crews running daily routes across 45 towns—tap your town on the live map or below for an instant quote.
+                 </p>
               </div>
-              <Link href="/locations" className="text-green-600 font-black text-sm uppercase tracking-[0.2em] border-b-2 border-green-600 pb-2 hover:text-green-500 transition-colors">
-                 View All Service Areas
+              <Link href="/locations" className="inline-flex items-center gap-2 text-amber-400 font-black text-xs uppercase tracking-[0.2em] border-b-2 border-amber-400/70 pb-1.5 hover:text-amber-300 transition-colors shrink-0">
+                 View All 45 Towns <ArrowRightIcon className="w-4 h-4" />
               </Link>
            </div>
            
@@ -286,16 +296,35 @@ export default function HomePage() {
                <ServiceAreaMap />
            </div>
            
-           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
+           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
               {cities.slice(0, 15).map((city, i) => (
                  <Link 
                    key={i} 
-                   href={`/locations`}
-                   className="bg-white p-6 rounded-3xl border border-slate-100 text-center hover:border-green-400 hover:shadow-xl transition-all group"
+                   href={`/contact?town=${encodeURIComponent(city.city)}`}
+                   className="group relative overflow-hidden rounded-2xl border border-slate-800/90 bg-slate-900/70 p-4 backdrop-blur-md transition-all duration-300 hover:-translate-y-0.5 hover:border-amber-400/60 hover:bg-slate-900 hover:shadow-[0_14px_35px_rgba(0,0,0,0.6)]"
                  >
-                    <MapPinIcon className="w-6 h-6 text-slate-300 mx-auto mb-3 group-hover:text-green-500 transition-colors" />
-                    <p className="font-black text-slate-900 uppercase tracking-tight leading-none mb-1">{city.city}</p>
-                    <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">{city.state || 'RI'}</p>
+                    <div className="flex items-center justify-between gap-2 mb-3">
+                       <span className="flex h-8 w-8 items-center justify-center rounded-xl border border-amber-500/20 bg-amber-500/10 text-amber-400 group-hover:bg-amber-500/20 transition-colors">
+                          <MapPinIcon className="w-4 h-4" />
+                       </span>
+                       <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-emerald-300">
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                          {city.state || 'RI'}
+                       </span>
+                    </div>
+
+                    <p className="font-black text-sm text-white uppercase tracking-tight leading-tight group-hover:text-amber-300 transition-colors">
+                       {city.city}
+                    </p>
+                    <p className="text-[11px] font-medium text-slate-400 truncate mt-1">
+                       {city.zipCodes?.[0] ? `ZIP ${city.zipCodes[0]}` : city.county || 'Active Route'}
+                       {city.neighborhoods?.[0] ? ` · ${city.neighborhoods[0]}` : ''}
+                    </p>
+
+                    <div className="mt-3 pt-2.5 border-t border-slate-800/80 flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-slate-500 group-hover:text-amber-400 transition-colors">
+                       <span>Daily Route</span>
+                       <span className="group-hover:translate-x-0.5 transition-transform">Quote &rarr;</span>
+                    </div>
                  </Link>
               ))}
            </div>
