@@ -1465,29 +1465,136 @@ export default function PapercutLightbox() {
       ctx.restore();
     }
 
-    // --- ACT 4 (11.0s – 15.0s): WINTER SNOW PLOW TRUCK WITH HEADLIGHTS & BEACON ---
+    // --- ACT 4 (11.0s – 15.0s): WINTER SNOW PLOW CLEARING DEEP ROAD SNOWDRIFTS ---
     const act4Vis = smoothstep(10.95, 11.55, t) * (1 - smoothstep(14.35, 14.95, t));
     if (act4Vis > 0.01) {
-      const plowP = smoothstep(11.1, 14.55, t);
-      const px = lerp(110, 1020, plowP);
-      const py = 446 + Math.sin(t * 42) * 0.8;
+      const plowP = smoothstep(11.05, 14.55, t);
+      const px = lerp(95, 1020, plowP);
+      const plowGroundY = getHill5Y(px);
+      const plowSlope = Math.atan2(
+        getHill5Y(px + 24) - getHill5Y(px - 24),
+        48
+      );
+      const bladeX = px + 166;
 
       ctx.save();
       ctx.globalAlpha = act4Vis;
-      ctx.translate(px, py);
 
-      // Glowing Headlight Cone cutting through winter blizzard
+      // 1) Cleared Dark Asphalt Road Swath Behind the Plow (Glistening with Brine/Salt)
+      ctx.save();
+      ctx.beginPath();
+      traceHill5Path();
+      ctx.clip();
+
+      ctx.beginPath();
+      ctx.moveTo(-80, getHill5Y(-80) - 2);
+      for (let x = -60; x <= bladeX; x += 24) {
+        ctx.lineTo(x, getHill5Y(x) - 2);
+      }
+      ctx.lineTo(bladeX, getHill5Y(bladeX) + 54);
+      for (let x = bladeX; x >= -80; x -= 24) {
+        ctx.lineTo(x, getHill5Y(x) + 54);
+      }
+      ctx.closePath();
+      ctx.fillStyle = "rgba(10, 16, 28, 0.85)";
+      ctx.fill();
+
+      // Subtle Glistening Pet-Safe Brine / Salt Sparkles on Cleared Road
+      for (let sx = 40; sx < bladeX - 30; sx += 26) {
+        const sy = getHill5Y(sx) + 14 + ((sx * 13) % 24);
+        const glint = 0.25 + 0.55 * Math.sin(t * 5 + sx * 0.15);
+        ctx.fillStyle = `rgba(220, 240, 255, ${glint * 0.55 * flicker})`;
+        ctx.fillRect(sx, sy, 4, 2);
+      }
+
+      // 2) DEEP HEAVY SNOWDRIFTS PILED THICK ON THE UNPLOWED ROAD AHEAD OF THE BLADE!
+      if (bladeX < W + 100) {
+        // Outer deep snowpack layer (soft ice-blue shadow base)
+        ctx.beginPath();
+        ctx.moveTo(bladeX - 8, getHill5Y(bladeX - 8) + 46);
+        ctx.lineTo(bladeX - 4, getHill5Y(bladeX - 4) - 26);
+        for (let x = bladeX; x <= W + 120; x += 22) {
+          const driftH = 26 + 11 * Math.sin(x * 0.017) + 6 * Math.cos(x * 0.041);
+          ctx.lineTo(x, getHill5Y(x) - driftH);
+        }
+        ctx.lineTo(W + 120, getHill5Y(W + 120) + 62);
+        for (let x = W + 120; x >= bladeX - 8; x -= 24) {
+          ctx.lineTo(x, getHill5Y(x) + 56);
+        }
+        ctx.closePath();
+        ctx.fillStyle = `rgba(226, 240, 255, ${0.95 * flicker})`;
+        ctx.fill();
+        ctx.strokeStyle = `rgba(255, 255, 255, ${0.9 * flicker})`;
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+
+        // Sculpted upper snowdrift ridges (bright white backlit snow pillows)
+        ctx.beginPath();
+        ctx.moveTo(bladeX, getHill5Y(bladeX) + 12);
+        for (let x = bladeX; x <= W + 120; x += 20) {
+          const crest = 18 + 9 * Math.sin(x * 0.022 + 1.1);
+          ctx.lineTo(x, getHill5Y(x) - crest);
+        }
+        ctx.lineTo(W + 120, getHill5Y(W + 120) + 22);
+        ctx.closePath();
+        ctx.fillStyle = `rgba(248, 252, 255, ${0.88 * flicker})`;
+        ctx.fill();
+      }
+
+      // Pushed Snowbank Berm along the Far Edge of the Cleared Road
+      ctx.beginPath();
+      ctx.moveTo(-80, getHill5Y(-80) + 52);
+      for (let x = -60; x <= bladeX; x += 24) {
+        const berm = 14 + 5 * Math.sin(x * 0.03);
+        ctx.lineTo(x, getHill5Y(x) + 48 - berm);
+      }
+      ctx.lineTo(bladeX, getHill5Y(bladeX) + 66);
+      ctx.lineTo(-80, getHill5Y(-80) + 66);
+      ctx.closePath();
+      ctx.fillStyle = `rgba(215, 232, 250, ${0.85 * flicker})`;
+      ctx.fill();
+
+      ctx.restore(); // End Hill5 clip
+
+      // Unclipped Snowdrifts mounding ABOVE the road horizon ahead of the plow blade
+      if (bladeX < W + 100) {
+        ctx.save();
+        ctx.shadowColor = "rgba(0,0,0,0.35)";
+        ctx.shadowBlur = 10;
+        ctx.shadowOffsetY = 4;
+        ctx.beginPath();
+        ctx.moveTo(bladeX - 6, getHill5Y(bladeX - 6) + 8);
+        for (let x = bladeX; x <= W + 120; x += 20) {
+          const driftH = 22 + 12 * Math.sin(x * 0.018) + 6 * Math.cos(x * 0.037);
+          ctx.lineTo(x, getHill5Y(x) - driftH);
+        }
+        ctx.lineTo(W + 120, getHill5Y(W + 120) + 12);
+        ctx.closePath();
+        ctx.fillStyle = `rgba(240, 248, 255, ${0.94 * flicker})`;
+        ctx.fill();
+        ctx.strokeStyle = `rgba(255, 255, 255, ${0.95 * flicker})`;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // 3) Heavy-Duty Snow Plow Truck Grounded to Hill Slope
+      ctx.save();
+      ctx.translate(px, plowGroundY + 14 + Math.sin(t * 44) * 0.7);
+      ctx.rotate(plowSlope);
+
+      // Glowing Headlight Cone cutting through winter blizzard & lighting the snowdrifts
       if (isLit) {
-        const beam = ctx.createLinearGradient(120, 16, 430, 65);
-        beam.addColorStop(0, "rgba(255, 244, 195, 0.52)");
-        beam.addColorStop(0.6, "rgba(255, 240, 180, 0.14)");
+        const beam = ctx.createLinearGradient(120, -48, 450, 10);
+        beam.addColorStop(0, "rgba(255, 244, 195, 0.56)");
+        beam.addColorStop(0.55, "rgba(255, 240, 180, 0.18)");
         beam.addColorStop(1, "rgba(255, 240, 180, 0)");
         ctx.fillStyle = beam;
         ctx.beginPath();
-        ctx.moveTo(118, 12);
-        ctx.lineTo(430, -25);
-        ctx.lineTo(430, 88);
-        ctx.lineTo(118, 36);
+        ctx.moveTo(118, -52);
+        ctx.lineTo(450, -90);
+        ctx.lineTo(450, 26);
+        ctx.lineTo(118, -28);
         ctx.closePath();
         ctx.fill();
       }
@@ -1499,12 +1606,12 @@ export default function PapercutLightbox() {
       // Plow Truck Bed & Cab
       ctx.fillStyle = rgb(pal.l6);
       ctx.beginPath();
-      ctx.moveTo(-78, -6);
-      ctx.lineTo(28, -6);
-      ctx.lineTo(54, 10);
-      ctx.lineTo(120, 14);
-      ctx.lineTo(120, 50);
-      ctx.lineTo(-82, 50);
+      ctx.moveTo(-78, -70);
+      ctx.lineTo(28, -70);
+      ctx.lineTo(54, -54);
+      ctx.lineTo(120, -50);
+      ctx.lineTo(120, -14);
+      ctx.lineTo(-82, -14);
       ctx.closePath();
       ctx.fill();
 
@@ -1515,7 +1622,7 @@ export default function PapercutLightbox() {
         ctx.shadowBlur = 14;
         ctx.fillStyle = rgb(pal.window, 0.92 * flicker);
         ctx.beginPath();
-        ctx.roundRect(2, 2, 34, 22, 3);
+        ctx.roundRect(2, -62, 34, 22, 3);
         ctx.fill();
         ctx.restore();
       }
@@ -1523,24 +1630,32 @@ export default function PapercutLightbox() {
       // Commercial Angled V-Plow Blade (Amber Gold Accent)
       ctx.fillStyle = rgb(pal.accent);
       ctx.beginPath();
-      ctx.moveTo(120, 18);
-      ctx.lineTo(164, 4);
-      ctx.lineTo(170, 56);
-      ctx.lineTo(120, 52);
+      ctx.moveTo(120, -46);
+      ctx.lineTo(166, -60);
+      ctx.lineTo(172, -6);
+      ctx.lineTo(120, -12);
       ctx.closePath();
       ctx.fill();
 
-      // Heavy-Duty Snow Tires
-      ctx.fillStyle = rgb(pal.l7);
+      // Heavy-Duty Snow Tires (Grounded at y=0, rotating)
       for (const wx of [-44, 86]) {
-        ctx.beginPath();
-        ctx.arc(wx, 52, 22, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = rgb(pal.l4);
-        ctx.beginPath();
-        ctx.arc(wx, 52, 9, 0, Math.PI * 2);
-        ctx.fill();
         ctx.fillStyle = rgb(pal.l7);
+        ctx.beginPath();
+        ctx.arc(wx, -12, 22, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.save();
+        ctx.translate(wx, -12);
+        ctx.rotate(t * 7.5);
+        ctx.strokeStyle = rgb(pal.l4);
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(0, 0, 9, 0, Math.PI * 2);
+        ctx.moveTo(-9, 0);
+        ctx.lineTo(9, 0);
+        ctx.moveTo(0, -9);
+        ctx.lineTo(0, 9);
+        ctx.stroke();
+        ctx.restore();
       }
 
       // Strobing Roof Amber Warning Beacon
@@ -1548,23 +1663,37 @@ export default function PapercutLightbox() {
         const strobe = 0.25 + 0.75 * Math.pow(Math.max(0, Math.sin(t * 14)), 2);
         ctx.save();
         ctx.shadowColor = "rgba(245, 158, 11, 1)";
-        ctx.shadowBlur = 22 * strobe;
+        ctx.shadowBlur = 24 * strobe;
         ctx.fillStyle = `rgba(251, 191, 36, ${strobe})`;
         ctx.beginPath();
-        ctx.arc(14, -12, 7 + strobe * 4, 0, Math.PI * 2);
+        ctx.arc(14, -76, 7 + strobe * 4.5, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
       }
 
-      // Roaring Backlit Snow Spray Arc billowing off V-Plow
+      // 4) Massive Roaring Backlit Snow Plume & Flying Snow Clumps Billowing Off the V-Plow!
       ctx.shadowBlur = 0;
-      ctx.fillStyle = `rgba(242, 249, 255, ${0.82 * flicker})`;
+      ctx.fillStyle = `rgba(244, 250, 255, ${0.92 * flicker})`;
       ctx.beginPath();
-      ctx.moveTo(165, 52);
-      ctx.quadraticCurveTo(205, -8 - Math.sin(t * 12) * 8, 255, 34);
-      ctx.quadraticCurveTo(222, 48, 168, 56);
+      ctx.moveTo(166, -6);
+      ctx.quadraticCurveTo(212, -82 - Math.sin(t * 13) * 10, 280, -30);
+      ctx.quadraticCurveTo(238, -8, 170, -2);
       ctx.closePath();
       ctx.fill();
+
+      // Secondary flying snow powder & chunks arcing over the snowbank
+      for (let sc = 0; sc < 14; sc++) {
+        const sp = (t * 2.4 + sc * 0.071) % 1;
+        const sx = 168 + sp * (95 + (sc % 4) * 28);
+        const sy = -18 - Math.sin(sp * Math.PI) * (58 + (sc % 3) * 20) + sp * 24;
+        const sr = (3.5 + (sc % 3) * 2.2) * (1 - sp * 0.45);
+        ctx.fillStyle = `rgba(255, 255, 255, ${(1 - sp) * 0.9 * flicker})`;
+        ctx.beginPath();
+        ctx.arc(sx, sy, sr, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      ctx.restore();
       ctx.restore();
     }
 
