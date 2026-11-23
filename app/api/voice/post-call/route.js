@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { verifyElevenLabsSignature } from '@/libs/elevenlabs-signature';
+import { lookupCaller } from '@/libs/flora-caller';
 import { FLORA_AGENT_ID, escapeHtml, formatEastern, sendToInbox, subjectPiece } from '@/libs/flora-inbox';
 
 export const runtime = 'nodejs';
@@ -142,11 +143,15 @@ export async function POST(request) {
   const duration = data.metadata?.call_duration_secs;
   const conversationId = data.conversation_id || '';
   const email = collectedValue(results, 'email');
+  const onFile = (await lookupCaller(caller)).variables;
+  const knownName = onFile.is_known_customer === 'true' ? onFile.customer_name : '';
+  const subjectName = name === 'Not collected' ? knownName : name;
 
-  const subject = `Llamada nueva Flora: ${subjectPiece(name === 'Not collected' ? '' : name, 'Sin nombre')} - ${subjectPiece(town === 'Not collected' ? '' : town, 'Sin pueblo')}`;
+  const subject = `Llamada nueva Flora: ${subjectPiece(subjectName, 'Sin nombre')} - ${subjectPiece(town === 'Not collected' ? '' : town, 'Sin pueblo')}`;
 
   const text = [
     `Caller: ${caller}`,
+    `On file: ${knownName || 'not on file'}`,
     called ? `Called: ${called}` : null,
     `When: ${when}`,
     `Language: ${language}`,
@@ -169,6 +174,7 @@ export async function POST(request) {
   const html = `
     <div style="font-family:Arial,sans-serif;color:#0f172a;line-height:1.45;">
       <p style="margin:0 0 12px;"><strong>Caller:</strong> ${escapeHtml(caller)}</p>
+      <p style="margin:0 0 12px;"><strong>On file:</strong> ${escapeHtml(knownName || 'not on file')}</p>
       ${called ? `<p style="margin:0 0 12px;"><strong>Called:</strong> ${escapeHtml(called)}</p>` : ''}
       <p style="margin:0 0 12px;"><strong>When:</strong> ${escapeHtml(when)}</p>
       <p style="margin:0 0 12px;"><strong>Language:</strong> ${escapeHtml(language)}</p>

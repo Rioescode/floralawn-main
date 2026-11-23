@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { lookupCaller } from '@/libs/flora-caller';
 import { escapeHtml, formatEastern, sendToInbox } from '@/libs/flora-inbox';
 
 export const runtime = 'nodejs';
@@ -74,9 +75,12 @@ export async function POST(request) {
   const media = mediaItems(params);
   const to = params.To || '';
   const sid = params.MessageSid || params.SmsSid || '';
+  const onFile = (await lookupCaller(from)).variables;
+  const knownName = onFile.is_known_customer === 'true' ? onFile.customer_name : '';
 
   const text = [
     `From: ${from}`,
+    `On file: ${knownName || 'not on file'}`,
     to ? `To: ${to}` : null,
     `When: ${when}`,
     sid ? `Message: ${sid}` : null,
@@ -93,6 +97,7 @@ export async function POST(request) {
   const html = `
     <div style="font-family:Arial,sans-serif;color:#0f172a;line-height:1.45;">
       <p style="margin:0 0 12px;"><strong>From:</strong> ${escapeHtml(from)}</p>
+      <p style="margin:0 0 12px;"><strong>On file:</strong> ${escapeHtml(knownName || 'not on file')}</p>
       ${to ? `<p style="margin:0 0 12px;"><strong>To:</strong> ${escapeHtml(to)}</p>` : ''}
       <p style="margin:0 0 12px;"><strong>When:</strong> ${escapeHtml(when)}</p>
       ${sid ? `<p style="margin:0 0 16px;"><strong>Message:</strong> ${escapeHtml(sid)}</p>` : ''}
@@ -105,7 +110,7 @@ export async function POST(request) {
 
   try {
     await sendToInbox({
-      subject: `Texto nuevo Flora: ${from}`.replace(/[\r\n]+/g, ' ').slice(0, 180),
+      subject: `Texto nuevo Flora: ${knownName ? `${knownName} ` : ''}${from}`.replace(/[\r\n]+/g, ' ').slice(0, 180),
       text,
       html,
       type: 'SMS',
