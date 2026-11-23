@@ -1740,7 +1740,7 @@ export default function PapercutLightbox() {
             </div>
             <h2 className="text-4xl md:text-6xl font-black tracking-tight text-white uppercase italic leading-[1.08]">
               Four Seasons In{" "}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-amber-400 to-amber-500">
+              <span className="inline-block whitespace-nowrap pr-3 text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-amber-400 to-amber-500">
                 15 Seconds
               </span>
             </h2>
