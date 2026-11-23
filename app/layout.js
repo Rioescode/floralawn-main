@@ -72,6 +72,12 @@ export default function RootLayout({ children }) {
 					strategy="beforeInteractive"
 				/>
 				<SafeBoundary><BottomNav /></SafeBoundary>
+				<elevenlabs-convai agent-id="agent_6201m84xpezvfsctcgkasw8cx0hm"></elevenlabs-convai>
+				<Script
+					src="https://unpkg.com/@elevenlabs/convai-widget-embed"
+					strategy="lazyOnload"
+					async
+				/>
 			</body>
 		</html>
 	);

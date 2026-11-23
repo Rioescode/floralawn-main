@@ -177,3 +177,14 @@ progress::-webkit-progress-value {
   }
 }
 
+/* The convai host is position:fixed; inset:0, and the launcher is pinned
+   to the bottom of that box. On phones, end the host above the bottom bar
+   so it clears BottomNav, the collapsed call button, and the schedule FAB.
+   !important wins against the widget's own :host { inset: 0 }. */
+@media (max-width: 1023px) {
+  elevenlabs-convai {
+    bottom: calc(12rem + env(safe-area-inset-bottom, 0px)) !important;
+    height: auto !important;
+  }
+}
+
