@@ -1,1334 +1,1626 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
-import { 
-  PlayIcon, 
-  PauseIcon, 
-  SparklesIcon, 
-  ArrowRightIcon, 
+import {
+  PlayIcon,
+  PauseIcon,
+  SparklesIcon,
+  ArrowRightIcon,
   CheckBadgeIcon,
   SunIcon,
-  ChevronRightIcon,
-  ChevronLeftIcon,
-  EyeIcon
+  ArrowPathIcon,
+  ArrowDownTrayIcon,
 } from "@heroicons/react/24/outline";
 
-// SERVICES DEFINED ACCORDING TO PAPERCUT LIGHTBOX LOGIC
-// Value ladders: Back layers bright & translucent -> Front layers dark & opaque
-const SCENES = [
-  {
-    id: "fall-cleanup",
-    title: "Fall Leaf Clearing & Vacuum",
-    serviceParam: "Fall Cleanup",
-    seasonBadge: "Autumn Edition",
-    tagline: "High-Volume Commercial Leaf Removal & Deep Turf Extraction",
-    ladder: {
-      sky: "#fde68a",
-      backlight: "#fbbf24",
-      layer1: "#fef08a",
-      layer2: "#f59e0b",
-      layer3: "#d97706",
-      layer4: "#b45309",
-      layer5: "#78350f",
-      layer6: "#451a03",
-      layer7: "#1a0808",
-      accent: "#ef4444",
-      accentSecondary: "#f97316",
-      windowGlow: "#fffbeb",
-      rimLight: "#fef3c7"
-    },
-    duration: 8,
-    storyStep: "Before freezing rains lock wet oak leaves into suffocating mold, our backpack air streams and curbside vacuum haulers clear fences, beds, and lawns clean to the dirt.",
-    keyPoints: [
-      "Perimeter fence & perennial bed blowout",
-      "Curbside high-volume vacuum suction & offsite haul",
-      "Stops snow mold, crown rot, and pest nesting"
-    ]
-  },
+const FILM_DURATION = 15.0; // Exact 15-second continuous cinematic film
+
+// 4-SEASON CHAPTERS INSIDE THE 15-SECOND CONTINUOUS FILM
+const CHAPTERS = [
   {
     id: "mowing",
-    title: "Precision Mowing & Diamond Striping",
+    start: 0.0,
+    end: 3.75,
+    label: "Spring Mowing",
+    emoji: "✂️",
     serviceParam: "Lawn Mowing",
-    seasonBadge: "Spring & Summer",
-    tagline: "Commercial Rotary Blades & Crisp Border Edge Trimming",
-    ladder: {
-      sky: "#dbeafe",
-      backlight: "#60a5fa",
-      layer1: "#bfdbfe",
-      layer2: "#86efac",
-      layer3: "#22c55e",
-      layer4: "#16a34a",
-      layer5: "#15803d",
-      layer6: "#14532d",
-      layer7: "#052012",
-      accent: "#facc15",
-      accentSecondary: "#4ade80",
-      windowGlow: "#fef3c7",
-      rimLight: "#dcfce7"
-    },
-    duration: 8,
-    storyStep: "Razor-sharp 60” commercial mulching decks cut at precise 3.5” heights with alternating 45° diamond patterns that stimulate dense lateral root shoots.",
+    seasonBadge: "0:00 – 0:04 · Spring Dawn",
+    title: "Precision Mowing & Diamond Striping",
+    tagline: "Commercial 60” Rotary Decks & Crisp Border Trimming",
+    storyStep:
+      "Warm dawn light breaks over Rhode Island as commercial zero-turn mowers lay razor-sharp 3.5” diamond stripes across the turf.",
     keyPoints: [
-      "Weekly or bi-weekly scheduling with dependable days",
-      "Clean edge trimming & driveway/walkway blowoff",
-      "Alternating diamond stripes prevent soil wheel ruts"
-    ]
-  },
-  {
-    id: "aeration",
-    title: "Core Aeration & Deep Overseeding",
-    serviceParam: "Lawn Aeration",
-    seasonBadge: "Late Summer / Early Fall",
-    tagline: "Soil De-Compaction & Certified Bluegrass Germination",
-    ladder: {
-      sky: "#fed7aa",
-      backlight: "#f97316",
-      layer1: "#fdba74",
-      layer2: "#fb923c",
-      layer3: "#b45309",
-      layer4: "#854d0e",
-      layer5: "#573a08",
-      layer6: "#382307",
-      layer7: "#140a02",
-      accent: "#22c55e",
-      accentSecondary: "#fbbf24",
-      windowGlow: "#ffedd5",
-      rimLight: "#ffedd5"
-    },
-    duration: 8,
-    storyStep: "Hollow alloy tines extract 2.5” compressed New England clay cores, dropping premium cold-hardy seed directly into open root channels for instant germination.",
-    keyPoints: [
-      "Relieves tough New England clay soil compaction",
-      "Fills high-traffic bare patches with certified seed",
-      "Maximizes root nutrient and rain infiltration"
-    ]
+      "Dependable weekly or bi-weekly mowing days",
+      "Alternating diamond patterns prevent wheel ruts",
+      "Clean string trimming & full hardscape blowoff",
+    ],
   },
   {
     id: "mulch",
-    title: "Deep Mulch Installation & Trench Edging",
+    start: 3.75,
+    end: 7.5,
+    label: "Mulch & Aeration",
+    emoji: "🌱",
     serviceParam: "Mulch Installation",
-    seasonBadge: "Spring Refresh",
-    tagline: "Hand-Spaded Deep Trench Edges & Triple-Shredded Bark",
-    ladder: {
-      sky: "#fce7f3",
-      backlight: "#f472b6",
-      layer1: "#fbcfe8",
-      layer2: "#d97706",
-      layer3: "#92400e",
-      layer4: "#78350f",
-      layer5: "#573a08",
-      layer6: "#271c14",
-      layer7: "#0e0603",
-      accent: "#10b981",
-      accentSecondary: "#d97706",
-      windowGlow: "#fff1f2",
-      rimLight: "#fce7f3"
-    },
-    duration: 8,
-    storyStep: "A 3” hand-spaded vertical trench creates an architectural drop-edge between lawn and flowerbeds, sealed with dark triple-shredded weed-barrier bark.",
+    seasonBadge: "0:04 – 0:07 · Garden Refresh",
+    title: "Deep Mulch, Edging & Core Aeration",
+    tagline: "Hand-Spaded 3” Trenches & Certified Bluegrass Overseeding",
+    storyStep:
+      "Hollow tines relieve New England clay compaction while rich triple-shredded bark and crisp hand-spaded edges frame every bed.",
     keyPoints: [
-      "Crisp 3-inch clean trench border that blocks grass roots",
-      "Natural triple-shredded dark pine/hemlock mulch",
-      "Conserves soil moisture and insulates plant roots"
-    ]
+      "Deep 3-inch vertical trench edge blocks weeds",
+      "Natural dark pine & hemlock triple-shredded mulch",
+      "Core aeration & cold-hardy overseeding for thick roots",
+    ],
+  },
+  {
+    id: "fall",
+    start: 7.5,
+    end: 11.25,
+    label: "Fall Cleanup",
+    emoji: "🍂",
+    serviceParam: "Fall Cleanup",
+    seasonBadge: "0:07 – 0:11 · Autumn Gust",
+    title: "Fall Leaf Clearing & Vacuum Haul",
+    tagline: "High-Volume Leaf Extraction Before Winter Freeze",
+    storyStep:
+      "Autumn gusts sweep oak and maple leaves across the yard—our commercial blowers and vacuum haulers clear fence to curb.",
+    keyPoints: [
+      "Full perimeter fence & perennial bed blowout",
+      "Curbside high-volume vacuum suction & haul-away",
+      "Prevents winter snow mold and turf crown decay",
+    ],
   },
   {
     id: "snow",
-    title: "Winter Hard Freeze & Snow Defense",
+    start: 11.25,
+    end: 15.0,
+    label: "Snow Defense",
+    emoji: "❄️",
     serviceParam: "Snow Removal",
-    seasonBadge: "Winter Blizzard Defense",
-    tagline: "24/7 Driveway Plowing, Walkway Shoveling & De-Icing",
-    ladder: {
-      sky: "#e2e8f0",
-      backlight: "#94a3b8",
-      layer1: "#cbd5e1",
-      layer2: "#94a3b8",
-      layer3: "#64748b",
-      layer4: "#475569",
-      layer5: "#334155",
-      layer6: "#1e293b",
-      layer7: "#070b12",
-      accent: "#f59e0b",
-      accentSecondary: "#38bdf8",
-      windowGlow: "#fef08a",
-      rimLight: "#f1f5f9"
-    },
-    duration: 8,
-    storyStep: "Before morning driveways freeze over, commercial angled plow trucks with rubber curb guards clear snow while crew hand-shovels walkways and deposits pet-safe brine.",
+    seasonBadge: "0:11 – 0:15 · Winter Night",
+    title: "24/7 Blizzard Plowing & De-Icing",
+    tagline: "Automatic 2” Dispatch, Walkway Shoveling & Brine",
+    storyStep:
+      "Under winter moonlight, amber-beacon plow trucks clear driveways with rubber curb guards while walkways get pet-safe ice melt.",
     keyPoints: [
-      "Automatic dispatch when snow triggers 2 inches",
-      "Zero-scratch rubber cutting edges on driveways & pavers",
-      "Pre-storm liquid brine & eco-friendly ice melt"
-    ]
-  }
+      "Automatic storm dispatch at 2-inch accumulation",
+      "Zero-damage rubber cutting edges for pavers & asphalt",
+      "Pre-storm liquid brine & eco-friendly salt treatment",
+    ],
+  },
 ];
 
+// PAPER-CUT VALUE LADDERS (Back layers bright & translucent -> Front almost black)
+const LADDERS = {
+  mowing: {
+    skyTop: [219, 240, 255],
+    skyMid: [110, 195, 245],
+    backlight: [255, 224, 140],
+    sun: [255, 248, 210],
+    l2: [134, 218, 162],
+    l3: [52, 168, 98],
+    l4: [26, 128, 68],
+    l5: [19, 92, 48],
+    l6: [11, 56, 30],
+    l7: [4, 22, 12],
+    accent: [250, 204, 21],
+    rim: [235, 255, 220],
+    window: [255, 244, 196],
+  },
+  mulch: {
+    skyTop: [255, 232, 205],
+    skyMid: [244, 152, 102],
+    backlight: [255, 192, 110],
+    sun: [255, 236, 185],
+    l2: [218, 136, 72],
+    l3: [158, 86, 36],
+    l4: [112, 58, 22],
+    l5: [76, 39, 14],
+    l6: [42, 22, 10],
+    l7: [16, 8, 4],
+    accent: [52, 211, 153],
+    rim: [255, 228, 190],
+    window: [255, 238, 185],
+  },
+  fall: {
+    skyTop: [255, 224, 138],
+    skyMid: [242, 140, 42],
+    backlight: [255, 184, 56],
+    sun: [255, 240, 168],
+    l2: [232, 126, 34],
+    l3: [184, 78, 20],
+    l4: [136, 48, 14],
+    l5: [88, 28, 10],
+    l6: [48, 14, 7],
+    l7: [18, 5, 4],
+    accent: [239, 68, 68],
+    rim: [255, 218, 145],
+    window: [255, 242, 175],
+  },
+  snow: {
+    skyTop: [208, 226, 244],
+    skyMid: [96, 128, 166],
+    backlight: [185, 215, 248],
+    sun: [244, 250, 255],
+    l2: [128, 154, 186],
+    l3: [82, 104, 136],
+    l4: [54, 72, 98],
+    l5: [34, 48, 68],
+    l6: [18, 28, 44],
+    l7: [6, 10, 18],
+    accent: [245, 158, 11],
+    rim: [226, 242, 255],
+    window: [255, 226, 130],
+  },
+};
+
+// Utility helpers
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const smoothstep = (e0, e1, x) => {
+  const t = clamp((x - e0) / (e1 - e0), 0, 1);
+  return t * t * (3 - 2 * t);
+};
+const lerp = (a, b, t) => a + (b - a) * t;
+const lerpRGB = (c1, c2, t) => [
+  Math.round(lerp(c1[0], c2[0], t)),
+  Math.round(lerp(c1[1], c2[1], t)),
+  Math.round(lerp(c1[2], c2[2], t)),
+];
+const rgb = (c, a = 1) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
+
+function getPaletteAtTime(t) {
+  const keys = ["mowing", "mulch", "fall", "snow"];
+  // Transition bands: [3.25..4.15], [7.0..7.9], [10.75..11.65], [14.25..15.0]
+  let fromKey = "mowing";
+  let toKey = "mowing";
+  let blend = 0;
+
+  if (t < 3.25) {
+    fromKey = toKey = keys[0];
+  } else if (t < 4.15) {
+    fromKey = keys[0];
+    toKey = keys[1];
+    blend = smoothstep(3.25, 4.15, t);
+  } else if (t < 7.0) {
+    fromKey = toKey = keys[1];
+  } else if (t < 7.9) {
+    fromKey = keys[1];
+    toKey = keys[2];
+    blend = smoothstep(7.0, 7.9, t);
+  } else if (t < 10.75) {
+    fromKey = toKey = keys[2];
+  } else if (t < 11.65) {
+    fromKey = keys[2];
+    toKey = keys[3];
+    blend = smoothstep(10.75, 11.65, t);
+  } else if (t < 14.25) {
+    fromKey = toKey = keys[3];
+  } else {
+    fromKey = keys[3];
+    toKey = keys[0];
+    blend = smoothstep(14.25, 15.0, t);
+  }
+
+  const A = LADDERS[fromKey];
+  const B = LADDERS[toKey];
+  const out = {};
+  for (const k of Object.keys(A)) {
+    out[k] = lerpRGB(A[k], B[k], blend);
+  }
+  return out;
+}
+
+// Deterministic seeded PRNG for consistent particles across loops
+function mulberry32(seed) {
+  return function () {
+    let t = (seed += 0x6d2b79f5);
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+// Pre-generate particle tables once
+const rand = mulberry32(4013890913);
+const FALL_LEAVES = Array.from({ length: 42 }, () => ({
+  x0: rand() * 1100 - 100,
+  y0: 140 + rand() * 440,
+  speedX: 160 + rand() * 220,
+  speedY: -30 + rand() * 65,
+  amp: 14 + rand() * 26,
+  freq: 2.0 + rand() * 3.0,
+  phase: rand() * Math.PI * 2,
+  size: 7 + rand() * 11,
+  rotSpeed: (rand() - 0.5) * 6,
+  depth: rand(), // 0 back, 1 front
+  tone: rand(),
+}));
+
+const SNOW_FLAKES = Array.from({ length: 70 }, () => ({
+  x0: rand() * 1400 - 60,
+  y0: rand() * 720,
+  speedY: 55 + rand() * 120,
+  driftX: -25 - rand() * 55,
+  swayAmp: 8 + rand() * 20,
+  phase: rand() * Math.PI * 2,
+  size: 2.2 + rand() * 4.5,
+  depth: rand(),
+}));
+
+const SEEDS = Array.from({ length: 34 }, () => ({
+  x: 340 + rand() * 620,
+  y0: 390 + rand() * 110,
+  speed: 65 + rand() * 55,
+  phase: rand(),
+  size: 2 + rand() * 2.5,
+}));
+
+const GRASS_MIST = Array.from({ length: 24 }, () => ({
+  angle: -0.9 + rand() * 0.7,
+  speed: 70 + rand() * 90,
+  phase: rand(),
+  size: 2 + rand() * 2.8,
+}));
+
+// Build procedural paper pulp grain pattern tile
+function createPaperGrainCanvas() {
+  const c = document.createElement("canvas");
+  c.width = 180;
+  c.height = 180;
+  const g = c.getContext("2d");
+  const img = g.createImageData(180, 180);
+  const d = img.data;
+  const r = mulberry32(99173);
+  for (let i = 0; i < d.length; i += 4) {
+    const v = 128 + (r() - 0.5) * 60;
+    d[i] = v;
+    d[i + 1] = v - 4;
+    d[i + 2] = v - 10;
+    d[i + 3] = 24; // subtle cardstock pulp texture
+  }
+  g.putImageData(img, 0, 0);
+
+  // Add subtle paper fibres
+  g.strokeStyle = "rgba(255,248,230,0.06)";
+  g.lineWidth = 0.8;
+  for (let i = 0; i < 60; i++) {
+    const x = r() * 180;
+    const y = r() * 180;
+    const len = 4 + r() * 10;
+    const ang = r() * Math.PI * 2;
+    g.beginPath();
+    g.moveTo(x, y);
+    g.lineTo(x + Math.cos(ang) * len, y + Math.sin(ang) * len);
+    g.stroke();
+  }
+  return c;
+}
+
 export default function PapercutLightbox() {
-  const [activeIdx, setActiveIdx] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
-  const [progress, setProgress] = useState(0);
   const [lampOn, setLampOn] = useState(true);
-  const [mouseOffset, setMouseOffset] = useState({ x: 0, y: 0 });
-  const [isHovered, setIsHovered] = useState(false);
-  const [clock, setClock] = useState(0);
-  const boxRef = useRef(null);
-  const animFrameRef = useRef(null);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordProgress, setRecordProgress] = useState(0);
 
-  const scene = SCENES[activeIdx];
-  const ladder = scene.ladder;
+  const canvasRef = useRef(null);
+  const grainPatternRef = useRef(null);
+  const timeRef = useRef(0);
+  const isPlayingRef = useRef(true);
+  const lampOnRef = useRef(true);
+  const mouseRef = useRef({ x: 0, y: 0, hover: false });
+  const smoothMouseRef = useRef({ x: 0, y: 0 });
+  const lastFrameRef = useRef(null);
+  const uiSyncRef = useRef(0);
 
-  // Organic micro-drift clock loop (provides smooth mathematical candle/lamp breathing)
   useEffect(() => {
-    let startTime = performance.now();
-    const updateLoop = (now) => {
-      const elapsed = (now - startTime) / 1000;
-      setClock(elapsed);
-      animFrameRef.current = requestAnimationFrame(updateLoop);
+    isPlayingRef.current = isPlaying;
+  }, [isPlaying]);
+
+  useEffect(() => {
+    lampOnRef.current = lampOn;
+  }, [lampOn]);
+
+  // Active chapter based on current 15s timecode
+  const activeChapterIdx = CHAPTERS.findIndex(
+    (ch) => currentTime >= ch.start && currentTime < ch.end
+  );
+  const safeChapterIdx = activeChapterIdx === -1 ? CHAPTERS.length - 1 : activeChapterIdx;
+  const chapter = CHAPTERS[safeChapterIdx];
+
+  // Main Canvas2D Paper-cut Lightbox Render Function at time t in [0, 15]
+  const renderFrame = useCallback((ctx, W, H, t, mx, my, isLit) => {
+    const pal = getPaletteAtTime(t);
+
+    // Lamp warm-up curve at very start of film (0.0s -> 0.55s)
+    const lampWarmup = isLit ? smoothstep(0.0, 0.55, t) : 0.14;
+    // Lemomo spec organic candlelight/lamp flicker: (1 + 0.05*sin(7.3t)*sin(3.1t))
+    const flicker = isLit
+      ? (0.95 + 0.045 * Math.sin(t * 7.3) * Math.sin(t * 3.1) + 0.018 * Math.sin(t * 13.7)) *
+        (0.2 + 0.8 * lampWarmup)
+      : 0.16;
+
+    // Gentle cinematic camera dolly + handheld micro-drift
+    const dolly = 1.0 + 0.055 * Math.sin((t / FILM_DURATION) * Math.PI);
+    const driftX = Math.sin(t * 0.85) * 8 + Math.cos(t * 1.45) * 4 + mx * 26;
+    const driftY = Math.cos(t * 0.72) * 5 + Math.sin(t * 1.2) * 3 + my * 16;
+
+    ctx.save();
+    ctx.clearRect(0, 0, W, H);
+
+    // Subtle camera zoom centered on cavity
+    ctx.translate(W / 2, H / 2);
+    ctx.scale(dolly, dolly);
+    ctx.translate(-W / 2, -H / 2);
+
+    // =========================================================================
+    // LAYER 0: BACKLIGHT CAVITY & PULP-MOTTLED SKY
+    // =========================================================================
+    const sunX = lerp(340, 940, (t % FILM_DURATION) / FILM_DURATION);
+    const sunY = 185 - Math.sin((t / FILM_DURATION) * Math.PI) * 55;
+
+    const skyGrad = ctx.createRadialGradient(
+      sunX - driftX * 0.12,
+      sunY - driftY * 0.12,
+      20,
+      W * 0.5,
+      H * 0.42,
+      W * 0.78
+    );
+    skyGrad.addColorStop(0, rgb(pal.skyTop, clamp(flicker * 1.08, 0.12, 1)));
+    skyGrad.addColorStop(0.32, rgb(pal.backlight, clamp(flicker * 0.95, 0.1, 1)));
+    skyGrad.addColorStop(0.68, rgb(pal.skyMid, clamp(flicker * 0.85, 0.08, 0.95)));
+    skyGrad.addColorStop(1, "rgba(8, 12, 22, 1)");
+    ctx.fillStyle = skyGrad;
+    ctx.fillRect(-60, -60, W + 120, H + 120);
+
+    // Subtle pulp mottling clouds in backlight
+    if (grainPatternRef.current) {
+      ctx.save();
+      ctx.globalAlpha = 0.45 * flicker;
+      ctx.fillStyle = grainPatternRef.current;
+      ctx.fillRect(0, 0, W, H);
+      ctx.restore();
+    }
+
+    // Helper: Draws a paper-cut sheet with cast shadow, flat color, fibre grain & warm top rim
+    const drawPaperSheet = (pathFn, fillColor, depthIdx, rimAlpha = 0.42) => {
+      ctx.save();
+      // Top spotlight cast shadow onto layers behind
+      ctx.shadowColor = `rgba(0, 0, 0, ${0.38 + depthIdx * 0.05})`;
+      ctx.shadowBlur = 12 + depthIdx * 2.5;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 5 + depthIdx * 1.5;
+
+      ctx.beginPath();
+      pathFn();
+      ctx.fillStyle = rgb(fillColor, 1);
+      ctx.fill();
+
+      // Remove shadow for grain & rim pass
+      ctx.shadowColor = "transparent";
+      ctx.shadowBlur = 0;
+      ctx.shadowOffsetY = 0;
+
+      // Fibre grain overlay clipped to sheet
+      if (grainPatternRef.current) {
+        ctx.save();
+        ctx.clip();
+        ctx.globalAlpha = 0.55;
+        ctx.fillStyle = grainPatternRef.current;
+        ctx.fillRect(-100, -100, W + 200, H + 200);
+        ctx.restore();
+      }
+
+      // Warm backlit top-edge rim highlight
+      if (isLit && rimAlpha > 0) {
+        ctx.strokeStyle = rgb(pal.rim, rimAlpha * flicker);
+        ctx.lineWidth = 1.6;
+        ctx.stroke();
+      }
+      ctx.restore();
     };
-    animFrameRef.current = requestAnimationFrame(updateLoop);
-    return () => {
-      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
-    };
+
+    // =========================================================================
+    // LAYER 1: BACK SUN / MOON DISK + DRIFTING PAPER CLOUDS (Depth 0.15)
+    // =========================================================================
+    ctx.save();
+    ctx.translate(-driftX * 0.15, -driftY * 0.15);
+
+    // Outer halo bloom
+    const halo = ctx.createRadialGradient(sunX, sunY, 30, sunX, sunY, 170);
+    halo.addColorStop(0, rgb(pal.sun, 0.85 * flicker));
+    halo.addColorStop(0.45, rgb(pal.backlight, 0.28 * flicker));
+    halo.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = halo;
+    ctx.beginPath();
+    ctx.arc(sunX, sunY, 170, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Crisp cut-paper sun/moon circle
+    ctx.beginPath();
+    ctx.arc(sunX, sunY, 64, 0, Math.PI * 2);
+    ctx.fillStyle = rgb(pal.sun, clamp(0.95 * flicker, 0.2, 1));
+    ctx.fill();
+
+    // Gently scrolling paper-cut cloud silhouettes
+    const cloudShift = (t * 14) % (W + 360);
+    ctx.fillStyle = rgb(pal.skyTop, 0.26 * flicker);
+    for (let i = 0; i < 3; i++) {
+      const cx = ((cloudShift + i * 460) % (W + 360)) - 180;
+      const cy = 115 + (i % 2) * 45;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy + 20);
+      ctx.quadraticCurveTo(cx + 40, cy - 18, cx + 95, cy - 6);
+      ctx.quadraticCurveTo(cx + 145, cy - 28, cx + 195, cy + 2);
+      ctx.quadraticCurveTo(cx + 235, cy + 8, cx + 250, cy + 20);
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.restore();
+
+    // =========================================================================
+    // LAYER 2: DISTANT NEW ENGLAND ROLLING HILLS (Depth 0.28)
+    // =========================================================================
+    ctx.save();
+    ctx.translate(-driftX * 0.28, -driftY * 0.24);
+    drawPaperSheet(
+      () => {
+        ctx.moveTo(-80, 340);
+        ctx.quadraticCurveTo(220, 235, 520, 305);
+        ctx.quadraticCurveTo(860, 365, 1140, 260);
+        ctx.lineTo(W + 120, 300);
+        ctx.lineTo(W + 120, H + 80);
+        ctx.lineTo(-80, H + 80);
+        ctx.closePath();
+      },
+      pal.l2,
+      2,
+      0.48
+    );
+    ctx.restore();
+
+    // =========================================================================
+    // LAYER 3: COLONIAL NEW ENGLAND HOME, CHIMNEY SMOKE & PINE WINDBREAK (Depth 0.45)
+    // =========================================================================
+    ctx.save();
+    ctx.translate(-driftX * 0.45, -driftY * 0.38);
+
+    // Subtle rising chimney smoke puffs (stronger in Fall & Winter)
+    const smokeVis = smoothstep(6.5, 8.2, t) * (1 - smoothstep(14.3, 15.0, t));
+    if (smokeVis > 0.01) {
+      ctx.save();
+      for (let i = 0; i < 5; i++) {
+        const p = ((t * 0.45 + i * 0.2) % 1);
+        const sx = 928 + Math.sin(p * 5 + i) * 14 + p * 35;
+        const sy = 258 - p * 95;
+        const sr = 7 + p * 18;
+        ctx.fillStyle = rgb(pal.skyTop, (1 - p) * 0.35 * smokeVis * flicker);
+        ctx.beginPath();
+        ctx.arc(sx, sy, sr, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    drawPaperSheet(
+      () => {
+        // Mid-distant rolling hill + pines + colonial farmhouse
+        ctx.moveTo(-80, 405);
+        ctx.quadraticCurveTo(280, 340, 620, 385);
+        ctx.quadraticCurveTo(960, 415, W + 120, 370);
+        ctx.lineTo(W + 120, H + 80);
+        ctx.lineTo(-80, H + 80);
+        ctx.closePath();
+
+        // Pine trees on left ridge
+        const drawPine = (px, py, s) => {
+          ctx.moveTo(px, py - 95 * s);
+          ctx.lineTo(px + 28 * s, py - 45 * s);
+          ctx.lineTo(px + 14 * s, py - 45 * s);
+          ctx.lineTo(px + 38 * s, py);
+          ctx.lineTo(px - 38 * s, py);
+          ctx.lineTo(px - 14 * s, py - 45 * s);
+          ctx.lineTo(px - 28 * s, py - 45 * s);
+          ctx.closePath();
+        };
+        drawPine(165, 388, 1.05);
+        drawPine(230, 392, 0.85);
+        drawPine(290, 382, 0.7);
+        drawPine(1120, 385, 0.95);
+
+        // Colonial Farmhouse Silhouette (Right-center)
+        // Main house + pitched roof + side wing + chimney
+        ctx.rect(820, 315, 155, 85);
+        ctx.moveTo(806, 318);
+        ctx.lineTo(897, 252);
+        ctx.lineTo(989, 318);
+        ctx.closePath();
+        // Chimney
+        ctx.rect(920, 256, 18, 36);
+        // Side garage wing
+        ctx.rect(970, 338, 72, 62);
+        ctx.moveTo(966, 340);
+        ctx.lineTo(1006, 308);
+        ctx.lineTo(1048, 340);
+        ctx.closePath();
+      },
+      pal.l3,
+      3,
+      0.4
+    );
+
+    // Emissive Glowing Windows (Burn & Bloom through paper cutouts)
+    if (isLit) {
+      ctx.save();
+      const winPulse = 0.88 + 0.12 * Math.sin(t * 5.2) * Math.cos(t * 2.7);
+      ctx.shadowColor = rgb(pal.window, 0.95 * flicker);
+      ctx.shadowBlur = 18;
+      ctx.fillStyle = rgb(pal.window, clamp(winPulse * flicker, 0.25, 1));
+      const wins = [
+        [846, 332, 20, 28],
+        [887, 332, 20, 28],
+        [928, 332, 20, 28],
+        [887, 286, 20, 20],
+        [992, 352, 26, 22],
+      ];
+      for (const [wx, wy, ww, wh] of wins) {
+        ctx.beginPath();
+        ctx.roundRect(wx, wy, ww, wh, 3);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+    ctx.restore();
+
+    // =========================================================================
+    // LAYER 4: FLANKING TREES & SCULPTED MID-LAWN (Depth 0.65)
+    // =========================================================================
+    ctx.save();
+    ctx.translate(-driftX * 0.65, -driftY * 0.55);
+
+    const treeSway = Math.sin(t * 1.9) * (t > 7 && t < 11.5 ? 7 : 2.5);
+    drawPaperSheet(
+      () => {
+        // Left mature oak canopy
+        ctx.moveTo(-40, 480);
+        ctx.bezierCurveTo(-20, 340, 25 + treeSway, 240, 125 + treeSway, 215);
+        ctx.bezierCurveTo(215 + treeSway, 195, 290 + treeSway, 260, 275, 345);
+        ctx.bezierCurveTo(265, 405, 220, 445, 210, 480);
+        ctx.closePath();
+
+        // Right maple canopy
+        ctx.moveTo(1060, 485);
+        ctx.bezierCurveTo(1045, 355, 1085 + treeSway, 235, 1185 + treeSway, 205);
+        ctx.bezierCurveTo(1275 + treeSway, 185, 1340, 250, 1340, 485);
+        ctx.closePath();
+
+        // Rolling mid-lawn plateau
+        ctx.moveTo(-80, 468);
+        ctx.quadraticCurveTo(360, 430, 740, 462);
+        ctx.quadraticCurveTo(1060, 485, W + 120, 448);
+        ctx.lineTo(W + 120, H + 80);
+        ctx.lineTo(-80, H + 80);
+        ctx.closePath();
+      },
+      pal.l4,
+      4,
+      0.45
+    );
+
+    // SPRING CHAPTER: Luminous Alternating Diamond Turf Stripes (0.0s -> 4.1s)
+    const stripeVis = 1 - smoothstep(3.3, 4.1, t);
+    if (stripeVis > 0.01) {
+      const mowerProgress = smoothstep(0.2, 3.3, t);
+      const revealX = lerp(120, 1180, mowerProgress);
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(0, 435, revealX, 120);
+      ctx.clip();
+      ctx.fillStyle = `rgba(255, 255, 255, ${0.22 * stripeVis * flicker})`;
+      for (let i = 0; i < 9; i++) {
+        const sx = 120 + i * 118;
+        ctx.beginPath();
+        ctx.moveTo(sx, 448);
+        ctx.lineTo(sx + 54, 448);
+        ctx.lineTo(sx + 128, 535);
+        ctx.lineTo(sx + 64, 535);
+        ctx.closePath();
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+    ctx.restore();
+
+    // =========================================================================
+    // LAYER 5: HERO SERVICE ACTION STAGE (Depth 0.92)
+    // =========================================================================
+    ctx.save();
+    ctx.translate(-driftX * 0.92, -driftY * 0.78);
+
+    // Main Foreground Working Lawn Shelf
+    drawPaperSheet(
+      () => {
+        ctx.moveTo(-80, 535);
+        ctx.quadraticCurveTo(420, 495, 860, 528);
+        ctx.quadraticCurveTo(1120, 545, W + 120, 518);
+        ctx.lineTo(W + 120, H + 80);
+        ctx.lineTo(-80, H + 80);
+        ctx.closePath();
+      },
+      pal.l5,
+      5,
+      0.48
+    );
+
+    // --- ACT 1 (0.0s – 4.0s): COMMERCIAL ZERO-TURN MOWER ---
+    const act1Vis = 1 - smoothstep(3.35, 3.95, t);
+    if (act1Vis > 0.01) {
+      const p = smoothstep(0.15, 3.55, t);
+      const mxPos = lerp(130, 1080, p);
+      const myPos = 452 + Math.sin(p * Math.PI) * -12 + Math.sin(t * 48) * 1.1; // realistic engine vibration
+
+      ctx.save();
+      ctx.globalAlpha = act1Vis;
+      ctx.translate(mxPos, myPos);
+      ctx.shadowColor = "rgba(0,0,0,0.55)";
+      ctx.shadowBlur = 14;
+      ctx.shadowOffsetY = 8;
+
+      // Driver + ROPS + Zero-turn chassis silhouette
+      ctx.fillStyle = rgb(pal.l6);
+      // ROPS Roll Bar
+      ctx.beginPath();
+      ctx.moveTo(-42, -55);
+      ctx.lineTo(-26, -55);
+      ctx.lineTo(-32, 18);
+      ctx.lineTo(-44, 18);
+      ctx.closePath();
+      ctx.fill();
+
+      // Operator torso, head, cap & arm on lap bars
+      ctx.beginPath();
+      ctx.arc(-6, -34, 14, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillRect(-16, -44, 28, 6); // cap visor
+      ctx.beginPath();
+      ctx.moveTo(-20, -18);
+      ctx.lineTo(8, -18);
+      ctx.lineTo(2, 22);
+      ctx.lineTo(-22, 22);
+      ctx.closePath();
+      ctx.fill();
+      // Arm holding steering lever
+      ctx.beginPath();
+      ctx.moveTo(2, -10);
+      ctx.lineTo(30, 2);
+      ctx.lineTo(26, 10);
+      ctx.lineTo(-2, 0);
+      ctx.closePath();
+      ctx.fill();
+
+      // Mower Engine Body & Frame
+      ctx.beginPath();
+      ctx.moveTo(-54, 16);
+      ctx.lineTo(52, 16);
+      ctx.lineTo(68, 42);
+      ctx.lineTo(-64, 42);
+      ctx.closePath();
+      ctx.fill();
+
+      // Commercial 60" Cutting Deck (Accent Gold)
+      ctx.fillStyle = rgb(pal.accent);
+      ctx.beginPath();
+      ctx.roundRect(4, 38, 76, 15, 3);
+      ctx.fill();
+
+      // Rear Drive Wheel (Rotating rim)
+      ctx.fillStyle = rgb(pal.l7);
+      ctx.beginPath();
+      ctx.arc(-34, 44, 24, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.save();
+      ctx.translate(-34, 44);
+      ctx.rotate(t * 7.5);
+      ctx.strokeStyle = rgb(pal.l4);
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(0, 0, 10, 0, Math.PI * 2);
+      ctx.moveTo(-10, 0);
+      ctx.lineTo(10, 0);
+      ctx.moveTo(0, -10);
+      ctx.lineTo(0, 10);
+      ctx.stroke();
+      ctx.restore();
+
+      // Front Caster Wheel
+      ctx.fillStyle = rgb(pal.l7);
+      ctx.beginPath();
+      ctx.arc(72, 52, 12, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Active Grass Clipping Mist Spray from Deck
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = rgb(pal.rim, 0.85);
+      for (const gm of GRASS_MIST) {
+        const gp = (t * 2.2 + gm.phase) % 1;
+        const gx = 16 - gp * gm.speed * 0.9;
+        const gy = 45 + Math.sin(gm.angle) * gp * 42 - gp * gp * 18;
+        ctx.globalAlpha = act1Vis * (1 - gp) * 0.85;
+        ctx.beginPath();
+        ctx.arc(gx, gy, gm.size, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    // --- ACT 2 (3.5s – 7.6s): MULCH BED TRENCH, WHEELBARROW & CORE AERATOR ---
+    const act2Vis = smoothstep(3.45, 4.05, t) * (1 - smoothstep(7.05, 7.65, t));
+    if (act2Vis > 0.01) {
+      ctx.save();
+      ctx.globalAlpha = act2Vis;
+
+      // Rich Dark Mulch Mound & Crisp Hand-Spaded Trench Curve
+      ctx.beginPath();
+      ctx.moveTo(120, 545);
+      ctx.bezierCurveTo(320, 498, 560, 575, 820, 515);
+      ctx.bezierCurveTo(960, 488, 1120, 530, 1220, 545);
+      ctx.lineTo(1220, 620);
+      ctx.lineTo(120, 620);
+      ctx.closePath();
+      ctx.fillStyle = rgb(pal.l6);
+      ctx.fill();
+      ctx.strokeStyle = rgb(pal.rim, 0.55 * flicker);
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // Wheelbarrow with Mound of Triple-Shredded Mulch & Glinting Spade (Left-Center)
+      ctx.save();
+      ctx.translate(310, 456);
+      ctx.fillStyle = rgb(pal.l6);
+      ctx.beginPath();
+      ctx.moveTo(0, 22);
+      ctx.lineTo(86, 22);
+      ctx.lineTo(70, 54);
+      ctx.lineTo(8, 54);
+      ctx.closePath();
+      ctx.fill();
+      // Mulch mound inside tub
+      ctx.fillStyle = rgb(pal.l7);
+      ctx.beginPath();
+      ctx.moveTo(2, 22);
+      ctx.quadraticCurveTo(44, -10, 84, 22);
+      ctx.closePath();
+      ctx.fill();
+      // Wheelbarrow wheel & handles
+      ctx.beginPath();
+      ctx.arc(88, 62, 16, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = rgb(pal.l6);
+      ctx.lineWidth = 6;
+      ctx.beginPath();
+      ctx.moveTo(4, 34);
+      ctx.lineTo(-34, 40);
+      ctx.moveTo(16, 54);
+      ctx.lineTo(8, 74);
+      ctx.stroke();
+      // Edging Spade stuck in mulch with periodic sunlight glint
+      ctx.strokeStyle = rgb(pal.l4);
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      ctx.moveTo(46, 12);
+      ctx.lineTo(66, -34);
+      ctx.stroke();
+      ctx.fillStyle = rgb(pal.accent);
+      ctx.beginPath();
+      ctx.roundRect(58, -42, 16, 10, 2);
+      ctx.fill();
+      const glint = Math.pow(Math.max(0, Math.sin(t * 4.5)), 6);
+      if (glint > 0.05) {
+        ctx.fillStyle = `rgba(255,255,255,${glint})`;
+        ctx.beginPath();
+        ctx.arc(64, -36, 4 + glint * 7, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+
+      // Commercial Walk-Behind Core Aerator gliding across right side
+      const aeroP = smoothstep(3.8, 7.2, t);
+      const ax = lerp(520, 920, aeroP);
+      ctx.save();
+      ctx.translate(ax, 444 + Math.sin(t * 36) * 0.9);
+      ctx.fillStyle = rgb(pal.l6);
+      // Operator
+      ctx.beginPath();
+      ctx.arc(-44, -22, 13, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillRect(-52, -31, 24, 5);
+      ctx.beginPath();
+      ctx.moveTo(-54, -8);
+      ctx.lineTo(-32, -8);
+      ctx.lineTo(-38, 36);
+      ctx.lineTo(-56, 36);
+      ctx.closePath();
+      ctx.fill();
+      // Legs walking
+      const stride = Math.sin(t * 9) * 10;
+      ctx.strokeStyle = rgb(pal.l6);
+      ctx.lineWidth = 10;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(-46, 34);
+      ctx.lineTo(-56 + stride, 74);
+      ctx.moveTo(-40, 34);
+      ctx.lineTo(-30 - stride, 74);
+      ctx.stroke();
+      // Handle & machine frame
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      ctx.moveTo(-36, 4);
+      ctx.lineTo(14, 16);
+      ctx.lineTo(38, 56);
+      ctx.stroke();
+      // Engine block (emerald accent)
+      ctx.fillStyle = rgb(pal.accent);
+      ctx.beginPath();
+      ctx.roundRect(14, 24, 38, 28, 4);
+      ctx.fill();
+      // Rotating Hollow-Tine Drum
+      ctx.save();
+      ctx.translate(36, 62);
+      ctx.rotate(t * 5.5);
+      ctx.fillStyle = rgb(pal.l7);
+      ctx.beginPath();
+      ctx.arc(0, 0, 19, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = rgb(pal.l7);
+      ctx.lineWidth = 5;
+      for (let k = 0; k < 4; k++) {
+        const ang = (k * Math.PI) / 4;
+        ctx.beginPath();
+        ctx.moveTo(Math.cos(ang) * -25, Math.sin(ang) * -25);
+        ctx.lineTo(Math.cos(ang) * 25, Math.sin(ang) * 25);
+        ctx.stroke();
+      }
+      ctx.restore();
+      ctx.restore();
+
+      // Golden Overseed Rain + Sprouting Emerald Grass Shoots
+      for (const sd of SEEDS) {
+        const sp = (t * 0.9 + sd.phase) % 1;
+        ctx.fillStyle = rgb(pal.sun, (1 - sp) * 0.9 * act2Vis);
+        ctx.beginPath();
+        ctx.arc(sd.x + sp * 14, sd.y0 + sp * 95, sd.size, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      // Rising green shoots along foreground edge
+      const sproutGrow = smoothstep(4.6, 6.4, t);
+      ctx.strokeStyle = rgb(pal.accent, 0.9 * act2Vis);
+      ctx.lineWidth = 3.5;
+      ctx.lineCap = "round";
+      for (let i = 0; i < 14; i++) {
+        const bx = 460 + i * 44;
+        const by = 542 + Math.sin(i * 1.4) * 6;
+        const h = (14 + (i % 3) * 7) * sproutGrow;
+        const sw = Math.sin(t * 3 + i) * 4;
+        ctx.beginPath();
+        ctx.moveTo(bx, by);
+        ctx.quadraticCurveTo(bx + sw, by - h * 0.6, bx + sw * 1.5, by - h);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    // --- ACT 3 (7.2s – 11.4s): FALL CLEANUP BLOWER CREW & SWIRLING LEAF STREAM ---
+    const act3Vis = smoothstep(7.15, 7.75, t) * (1 - smoothstep(10.85, 11.45, t));
+    if (act3Vis > 0.01) {
+      ctx.save();
+      ctx.globalAlpha = act3Vis;
+
+      // Growing Curbside Compost Leaf Mound on Right
+      const pileGrow = smoothstep(7.5, 10.6, t);
+      ctx.fillStyle = rgb(pal.l6);
+      ctx.beginPath();
+      ctx.moveTo(860, 565);
+      ctx.bezierCurveTo(
+        910,
+        525 - pileGrow * 52,
+        1060,
+        510 - pileGrow * 62,
+        1150,
+        565
+      );
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = rgb(pal.rim, 0.45 * flicker);
+      ctx.lineWidth = 1.6;
+      ctx.stroke();
+
+      // Landscaper Silhouette with Commercial Backpack Blower
+      const walkX = lerp(310, 490, smoothstep(7.4, 10.8, t));
+      ctx.save();
+      ctx.translate(walkX, 434);
+      ctx.fillStyle = rgb(pal.l6);
+      // Head & cap
+      ctx.beginPath();
+      ctx.arc(0, -24, 14, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillRect(-8, -34, 28, 6);
+      // Backpack blower unit
+      ctx.fillStyle = rgb(pal.l7);
+      ctx.beginPath();
+      ctx.roundRect(-30, -8, 18, 42, 4);
+      ctx.fill();
+      // Torso
+      ctx.fillStyle = rgb(pal.l6);
+      ctx.beginPath();
+      ctx.moveTo(-14, -10);
+      ctx.lineTo(14, -10);
+      ctx.lineTo(8, 42);
+      ctx.lineTo(-16, 42);
+      ctx.closePath();
+      ctx.fill();
+      // Legs walking
+      const step = Math.sin(t * 7.5) * 11;
+      ctx.strokeStyle = rgb(pal.l6);
+      ctx.lineWidth = 11;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(-8, 40);
+      ctx.lineTo(-18 + step, 84);
+      ctx.moveTo(4, 40);
+      ctx.lineTo(18 - step, 84);
+      ctx.stroke();
+      // Sweeping Blower Tube
+      const sweep = Math.sin(t * 4.2) * 8;
+      ctx.strokeStyle = rgb(pal.l7);
+      ctx.lineWidth = 9;
+      ctx.beginPath();
+      ctx.moveTo(8, 12);
+      ctx.lineTo(92, 48 + sweep);
+      ctx.stroke();
+
+      // Animated Air-Stream Ribbons from Blower Nozzle
+      ctx.strokeStyle = rgb(pal.rim, 0.55 * flicker);
+      ctx.lineWidth = 2.2;
+      for (let w = 0; w < 3; w++) {
+        const wp = (t * 2.8 + w * 0.33) % 1;
+        const ax0 = 98 + wp * 140;
+        const ay0 = 50 + sweep + (w - 1) * 14;
+        ctx.globalAlpha = act3Vis * (1 - wp) * 0.7;
+        ctx.beginPath();
+        ctx.moveTo(ax0, ay0);
+        ctx.quadraticCurveTo(ax0 + 35, ay0 - 10, ax0 + 70, ay0 - 4);
+        ctx.stroke();
+      }
+      ctx.restore();
+      ctx.restore();
+    }
+
+    // --- ACT 4 (11.0s – 15.0s): WINTER SNOW PLOW TRUCK WITH HEADLIGHTS & BEACON ---
+    const act4Vis = smoothstep(10.95, 11.55, t) * (1 - smoothstep(14.35, 14.95, t));
+    if (act4Vis > 0.01) {
+      const plowP = smoothstep(11.1, 14.55, t);
+      const px = lerp(110, 1020, plowP);
+      const py = 446 + Math.sin(t * 42) * 0.8;
+
+      ctx.save();
+      ctx.globalAlpha = act4Vis;
+      ctx.translate(px, py);
+
+      // Glowing Headlight Cone cutting through winter blizzard
+      if (isLit) {
+        const beam = ctx.createLinearGradient(120, 16, 430, 65);
+        beam.addColorStop(0, "rgba(255, 244, 195, 0.52)");
+        beam.addColorStop(0.6, "rgba(255, 240, 180, 0.14)");
+        beam.addColorStop(1, "rgba(255, 240, 180, 0)");
+        ctx.fillStyle = beam;
+        ctx.beginPath();
+        ctx.moveTo(118, 12);
+        ctx.lineTo(430, -25);
+        ctx.lineTo(430, 88);
+        ctx.lineTo(118, 36);
+        ctx.closePath();
+        ctx.fill();
+      }
+
+      ctx.shadowColor = "rgba(0,0,0,0.6)";
+      ctx.shadowBlur = 16;
+      ctx.shadowOffsetY = 8;
+
+      // Plow Truck Bed & Cab
+      ctx.fillStyle = rgb(pal.l6);
+      ctx.beginPath();
+      ctx.moveTo(-78, -6);
+      ctx.lineTo(28, -6);
+      ctx.lineTo(54, 10);
+      ctx.lineTo(120, 14);
+      ctx.lineTo(120, 50);
+      ctx.lineTo(-82, 50);
+      ctx.closePath();
+      ctx.fill();
+
+      // Warm Lit Cab Window
+      if (isLit) {
+        ctx.save();
+        ctx.shadowColor = rgb(pal.window, 0.9);
+        ctx.shadowBlur = 14;
+        ctx.fillStyle = rgb(pal.window, 0.92 * flicker);
+        ctx.beginPath();
+        ctx.roundRect(2, 2, 34, 22, 3);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      // Commercial Angled V-Plow Blade (Amber Gold Accent)
+      ctx.fillStyle = rgb(pal.accent);
+      ctx.beginPath();
+      ctx.moveTo(120, 18);
+      ctx.lineTo(164, 4);
+      ctx.lineTo(170, 56);
+      ctx.lineTo(120, 52);
+      ctx.closePath();
+      ctx.fill();
+
+      // Heavy-Duty Snow Tires
+      ctx.fillStyle = rgb(pal.l7);
+      for (const wx of [-44, 86]) {
+        ctx.beginPath();
+        ctx.arc(wx, 52, 22, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = rgb(pal.l4);
+        ctx.beginPath();
+        ctx.arc(wx, 52, 9, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = rgb(pal.l7);
+      }
+
+      // Strobing Roof Amber Warning Beacon
+      if (isLit) {
+        const strobe = 0.25 + 0.75 * Math.pow(Math.max(0, Math.sin(t * 14)), 2);
+        ctx.save();
+        ctx.shadowColor = "rgba(245, 158, 11, 1)";
+        ctx.shadowBlur = 22 * strobe;
+        ctx.fillStyle = `rgba(251, 191, 36, ${strobe})`;
+        ctx.beginPath();
+        ctx.arc(14, -12, 7 + strobe * 4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      // Roaring Backlit Snow Spray Arc billowing off V-Plow
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = `rgba(242, 249, 255, ${0.82 * flicker})`;
+      ctx.beginPath();
+      ctx.moveTo(165, 52);
+      ctx.quadraticCurveTo(205, -8 - Math.sin(t * 12) * 8, 255, 34);
+      ctx.quadraticCurveTo(222, 48, 168, 56);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
+
+    ctx.restore(); // End Layer 5
+
+    // =========================================================================
+    // ATMOSPHERIC PARTICLES: FALL LEAVES & WINTER SNOW ACROSS DEPTHS
+    // =========================================================================
+    // Autumn Swirling Cut-Paper Leaves (7.0s -> 11.5s)
+    const leafLayerVis = smoothstep(6.9, 7.7, t) * (1 - smoothstep(10.9, 11.5, t));
+    if (leafLayerVis > 0.01) {
+      ctx.save();
+      for (const lf of FALL_LEAVES) {
+        const lt = t - 7.0;
+        const x = ((lf.x0 + lt * lf.speedX) % (W + 220)) - 110;
+        const y =
+          lf.y0 +
+          Math.sin(t * lf.freq + lf.phase) * lf.amp +
+          lt * lf.speedY * 0.25;
+        const rot = t * lf.rotSpeed + lf.phase;
+
+        ctx.save();
+        ctx.translate(x - driftX * (0.4 + lf.depth * 0.7), y - driftY * 0.5);
+        ctx.rotate(rot);
+        ctx.globalAlpha = leafLayerVis * (0.55 + lf.depth * 0.45);
+        ctx.fillStyle =
+          lf.tone > 0.55
+            ? rgb(pal.accent)
+            : lf.tone > 0.25
+            ? "rgb(249, 115, 22)"
+            : "rgb(251, 191, 36)";
+        // Crisp leaf diamond/maple silhouette
+        ctx.beginPath();
+        ctx.moveTo(0, -lf.size);
+        ctx.quadraticCurveTo(lf.size * 0.85, -lf.size * 0.2, 0, lf.size);
+        ctx.quadraticCurveTo(-lf.size * 0.85, -lf.size * 0.2, 0, -lf.size);
+        ctx.fill();
+        ctx.restore();
+      }
+      ctx.restore();
+    }
+
+    // Winter Multi-Depth Cut-Paper Snowfall (10.8s -> 15.0s)
+    const snowVis = smoothstep(10.8, 11.6, t) * (1 - smoothstep(14.5, 15.0, t));
+    if (snowVis > 0.01) {
+      ctx.save();
+      for (const sf of SNOW_FLAKES) {
+        const y = ((sf.y0 + t * sf.speedY) % (H + 60)) - 30;
+        const x =
+          ((sf.x0 + t * sf.driftX + Math.sin(t * 1.8 + sf.phase) * sf.swayAmp) %
+            (W + 120) +
+            (W + 120)) %
+            (W + 120) -
+          60;
+        ctx.fillStyle = `rgba(245, 250, 255, ${(0.38 + sf.depth * 0.58) * snowVis * flicker})`;
+        ctx.beginPath();
+        ctx.arc(x - driftX * sf.depth * 0.5, y, sf.size, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    // =========================================================================
+    // LAYER 6: FOREGROUND SPLIT-RAIL FENCE, HEDGES & CURB (Depth 1.25)
+    // =========================================================================
+    ctx.save();
+    ctx.translate(-driftX * 1.25, -driftY * 1.05);
+    drawPaperSheet(
+      () => {
+        ctx.moveTo(-100, 608);
+        ctx.quadraticCurveTo(460, 572, 920, 604);
+        ctx.quadraticCurveTo(1160, 616, W + 140, 592);
+        ctx.lineTo(W + 140, H + 100);
+        ctx.lineTo(-100, H + 100);
+        ctx.closePath();
+
+        // Sculpted Boxwood Hedges on Right
+        ctx.arc(1070, 608, 44, Math.PI, 0);
+        ctx.arc(1135, 612, 36, Math.PI, 0);
+        ctx.arc(1190, 606, 40, Math.PI, 0);
+      },
+      pal.l6,
+      6,
+      0.38
+    );
+
+    // Split-Rail Fence on Left Foreground
+    ctx.fillStyle = rgb(pal.l7);
+    ctx.fillRect(92, 540, 14, 92);
+    ctx.fillRect(256, 534, 14, 96);
+    ctx.save();
+    ctx.translate(90, 558);
+    ctx.rotate(-0.03);
+    ctx.fillRect(0, 0, 182, 9);
+    ctx.fillRect(0, 26, 182, 9);
+    ctx.restore();
+    ctx.restore();
+
+    // =========================================================================
+    // LAYER 7: NEAR-FRAME BLACK VIGNETTE BRANCHES & SHADOWBOX APERTURE (Depth 1.65)
+    // =========================================================================
+    ctx.save();
+    ctx.translate(-driftX * 1.65, -driftY * 1.35);
+    drawPaperSheet(
+      () => {
+        // Top-left overhanging oak silhouette branch
+        ctx.moveTo(-60, -40);
+        ctx.bezierCurveTo(110, 45, 250, 75, 360, 28);
+        ctx.bezierCurveTo(270, 78, 210, 145, 110, 168);
+        ctx.bezierCurveTo(35, 180, -30, 130, -60, 85);
+        ctx.closePath();
+
+        // Top-right framing silhouette bough
+        ctx.moveTo(W + 60, -40);
+        ctx.bezierCurveTo(W - 140, 35, W - 210, 88, W - 290, 58);
+        ctx.bezierCurveTo(W - 210, 118, W - 110, 152, W + 60, 118);
+        ctx.closePath();
+
+        // Bottom solid shadowbox lip
+        ctx.rect(-100, H - 36, W + 200, 90);
+      },
+      pal.l7,
+      7,
+      0.0
+    );
+    ctx.restore();
+
+    // =========================================================================
+    // CINEMATIC VIGNETTE & OPENING/CLOSING TITLE EMBLEM
+    // =========================================================================
+    const vig = ctx.createRadialGradient(W / 2, H / 2, H * 0.38, W / 2, H / 2, W * 0.66);
+    vig.addColorStop(0, "rgba(0,0,0,0)");
+    vig.addColorStop(1, "rgba(0,0,0,0.55)");
+    ctx.fillStyle = vig;
+    ctx.fillRect(-60, -60, W + 120, H + 120);
+
+    // Subtle Glass Reflection Sheen
+    const glass = ctx.createLinearGradient(0, 0, W, H);
+    glass.addColorStop(0, "rgba(255,255,255,0.06)");
+    glass.addColorStop(0.28, "rgba(255,255,255,0.015)");
+    glass.addColorStop(0.55, "rgba(255,255,255,0)");
+    ctx.fillStyle = glass;
+    ctx.fillRect(0, 0, W, H);
+
+    // Opening (0.2s–1.7s) & Closing (14.15s–14.95s) Cinematic Title Card
+    const introAlpha = smoothstep(0.15, 0.55, t) * (1 - smoothstep(1.35, 1.85, t));
+    const outroAlpha = smoothstep(14.1, 14.45, t) * (1 - smoothstep(14.8, 15.0, t));
+    const titleAlpha = Math.max(introAlpha, outroAlpha);
+
+    if (titleAlpha > 0.01) {
+      ctx.save();
+      ctx.globalAlpha = titleAlpha;
+      ctx.textAlign = "center";
+      ctx.shadowColor = "rgba(0,0,0,0.8)";
+      ctx.shadowBlur = 18;
+      ctx.fillStyle = "rgba(255, 248, 225, 0.96)";
+      ctx.font = "900 44px system-ui, -apple-system, sans-serif";
+      ctx.fillText("FLORA LAWN", W / 2, H * 0.25);
+      ctx.fillStyle = "rgba(251, 191, 36, 0.95)";
+      ctx.font = "800 16px system-ui, -apple-system, sans-serif";
+      ctx.fillText(
+        outroAlpha > introAlpha
+          ? "FOUR SEASONS · RHODE ISLAND & MASSACHUSETTS"
+          : "A 15-SECOND PAPER-CUT LIGHTBOX FILM",
+        W / 2,
+        H * 0.25 + 32
+      );
+      ctx.restore();
+    }
+
+    ctx.restore();
   }, []);
 
-  // Story mode auto-advancing
+  // Main 60fps Animation Loop
   useEffect(() => {
-    if (!isPlaying) return;
-    const interval = 100;
-    const step = 100 / ((scene.duration * 1000) / interval);
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
 
-    const timer = setInterval(() => {
-      setProgress((prev) => {
-        if (prev >= 100) {
-          setActiveIdx((current) => (current + 1) % SCENES.length);
-          return 0;
-        }
-        return prev + step;
-      });
-    }, interval);
+    if (!grainPatternRef.current) {
+      const grainCanvas = createPaperGrainCanvas();
+      grainPatternRef.current = ctx.createPattern(grainCanvas, "repeat");
+    }
 
-    return () => clearInterval(timer);
-  }, [isPlaying, scene.duration, activeIdx]);
+    let rafId;
+    const loop = (now) => {
+      if (lastFrameRef.current === null) lastFrameRef.current = now;
+      const dt = Math.min(0.05, (now - lastFrameRef.current) / 1000);
+      lastFrameRef.current = now;
 
-  // Compute organic camera micro-drift when unhovered
-  // Lemomo spec: Subtle continuous handheld micro-drift (~0.6-1.5px) so the frame never feels statically frozen
-  const autoDriftX = !isHovered ? Math.sin(clock * 0.9) * 0.18 + Math.cos(clock * 1.7) * 0.12 : mouseOffset.x;
-  const autoDriftY = !isHovered ? Math.cos(clock * 0.8) * 0.15 + Math.sin(clock * 1.4) * 0.1 : mouseOffset.y;
+      if (isPlayingRef.current) {
+        timeRef.current = (timeRef.current + dt) % FILM_DURATION;
+      }
 
-  // Mathematical authentic lamp flicker from spec: (1 + 0.05 * sin(7.3t) * sin(3.1t))
-  const organicFlicker = lampOn 
-    ? 0.96 + 0.05 * Math.sin(clock * 7.3) * Math.sin(clock * 3.1) + 0.02 * Math.sin(clock * 14.2)
-    : 0.15;
+      // Smoothly ease mouse parallax
+      const targetX = mouseRef.current.hover ? mouseRef.current.x : 0;
+      const targetY = mouseRef.current.hover ? mouseRef.current.y : 0;
+      smoothMouseRef.current.x += (targetX - smoothMouseRef.current.x) * 0.08;
+      smoothMouseRef.current.y += (targetY - smoothMouseRef.current.y) * 0.08;
 
+      renderFrame(
+        ctx,
+        canvas.width,
+        canvas.height,
+        timeRef.current,
+        smoothMouseRef.current.x,
+        smoothMouseRef.current.y,
+        lampOnRef.current
+      );
+
+      // Sync React UI state ~15fps to avoid unnecessary React re-renders
+      if (now - uiSyncRef.current > 65) {
+        uiSyncRef.current = now;
+        setCurrentTime(timeRef.current);
+      }
+
+      rafId = requestAnimationFrame(loop);
+    };
+
+    rafId = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(rafId);
+  }, [renderFrame]);
+
+  // Mouse Parallax Handlers
   const handleMouseMove = (e) => {
-    if (!boxRef.current) return;
-    const rect = boxRef.current.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width - 0.5) * 2;
-    const y = ((e.clientY - rect.top) / rect.height - 0.5) * 2;
-    setMouseOffset({ x, y });
+    const rect = e.currentTarget.getBoundingClientRect();
+    mouseRef.current = {
+      x: ((e.clientX - rect.left) / rect.width - 0.5) * 2,
+      y: ((e.clientY - rect.top) / rect.height - 0.5) * 2,
+      hover: true,
+    };
   };
 
   const handleMouseLeave = () => {
-    setMouseOffset({ x: 0, y: 0 });
-    setIsHovered(false);
+    mouseRef.current.hover = false;
   };
 
-  const selectScene = (idx) => {
-    setActiveIdx(idx);
-    setProgress(0);
+  // Timeline Scrubber & Chapter Jump
+  const seekTo = (sec) => {
+    const clamped = clamp(sec, 0, FILM_DURATION - 0.01);
+    timeRef.current = clamped;
+    setCurrentTime(clamped);
   };
 
-  const nextScene = () => {
-    setActiveIdx((prev) => (prev + 1) % SCENES.length);
-    setProgress(0);
+  const handleScrub = (e) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const ratio = clamp((e.clientX - rect.left) / rect.width, 0, 1);
+    seekTo(ratio * FILM_DURATION);
   };
 
-  const prevScene = () => {
-    setActiveIdx((prev) => (prev - 1 + SCENES.length) % SCENES.length);
-    setProgress(0);
+  // 1-Click 15-Second Video Export (WebM 60fps via MediaRecorder)
+  const handleExportVideo = () => {
+    const canvas = canvasRef.current;
+    if (!canvas || isRecording || typeof MediaRecorder === "undefined") return;
+
+    try {
+      const stream = canvas.captureStream(60);
+      const mimeType = MediaRecorder.isTypeSupported("video/webm;codecs=vp9")
+        ? "video/webm;codecs=vp9"
+        : "video/webm";
+      const recorder = new MediaRecorder(stream, {
+        mimeType,
+        videoBitsPerSecond: 6000000,
+      });
+      const chunks = [];
+      recorder.ondataavailable = (ev) => {
+        if (ev.data && ev.data.size > 0) chunks.push(ev.data);
+      };
+      recorder.onstop = () => {
+        const blob = new Blob(chunks, { type: mimeType });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "flora-lawn-papercut-15s.webm";
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 4000);
+        setIsRecording(false);
+        setRecordProgress(0);
+      };
+
+      // Reset to 0.0s, ensure playing & lamp lit, record exactly 15 seconds
+      setLampOn(true);
+      lampOnRef.current = true;
+      setIsPlaying(true);
+      isPlayingRef.current = true;
+      timeRef.current = 0;
+      setCurrentTime(0);
+      setIsRecording(true);
+
+      recorder.start();
+      const startMs = performance.now();
+      const progTimer = setInterval(() => {
+        const elapsed = (performance.now() - startMs) / 1000;
+        setRecordProgress(Math.min(100, Math.round((elapsed / FILM_DURATION) * 100)));
+        if (elapsed >= FILM_DURATION) {
+          clearInterval(progTimer);
+          if (recorder.state !== "inactive") recorder.stop();
+        }
+      }, 150);
+    } catch (err) {
+      console.error("Video export failed:", err);
+      setIsRecording(false);
+    }
   };
+
+  const progressPct = (currentTime / FILM_DURATION) * 100;
+  const formatTime = (s) => `00:${s.toFixed(1).padStart(4, "0")}`;
 
   return (
     <section className="relative py-20 md:py-28 bg-gradient-to-b from-[#060a12] via-[#0b121f] to-[#05080f] text-white overflow-hidden selection:bg-amber-500 selection:text-slate-950">
-      
-      {/* CSS KEYFRAME ANIMATIONS FOR THE PHYSICAL PAPERCUT THEATER */}
-      <style jsx>{`
-        @keyframes floatLeaf1 {
-          0% { transform: translate(0px, 0px) rotate(0deg); opacity: 0; }
-          15% { opacity: 0.95; }
-          85% { opacity: 0.95; }
-          100% { transform: translate(240px, -55px) rotate(280deg); opacity: 0; }
-        }
-        @keyframes floatLeaf2 {
-          0% { transform: translate(0px, 0px) rotate(0deg); opacity: 0; }
-          20% { opacity: 0.9; }
-          80% { opacity: 0.9; }
-          100% { transform: translate(260px, -80px) rotate(-340deg); opacity: 0; }
-        }
-        @keyframes floatLeaf3 {
-          0% { transform: translate(0px, 0px) rotate(0deg); opacity: 0; }
-          15% { opacity: 0.85; }
-          85% { opacity: 0.85; }
-          100% { transform: translate(190px, -35px) rotate(190deg); opacity: 0; }
-        }
-        @keyframes snowDrift1 {
-          0% { transform: translate(0px, -20px); opacity: 0; }
-          15% { opacity: 0.95; }
-          85% { opacity: 0.9; }
-          100% { transform: translate(45px, 480px); opacity: 0; }
-        }
-        @keyframes snowDrift2 {
-          0% { transform: translate(0px, -25px); opacity: 0; }
-          15% { opacity: 0.8; }
-          85% { opacity: 0.75; }
-          100% { transform: translate(-35px, 490px); opacity: 0; }
-        }
-        @keyframes snowSprayArc {
-          0% { transform: translate(0px, 0px) scale(0.7); opacity: 0.8; }
-          50% { transform: translate(45px, -30px) scale(1.15); opacity: 0.95; }
-          100% { transform: translate(90px, 15px) scale(1.4); opacity: 0; }
-        }
-        @keyframes mowerVibe {
-          0%, 100% { transform: translate(420px, 260px) scale(1.05); }
-          50% { transform: translate(420.4px, 259.2px) scale(1.05); }
-        }
-        @keyframes grassSprayParticle {
-          0% { transform: translate(0px, 0px) scale(0.6); opacity: 0.95; }
-          100% { transform: translate(65px, -30px) scale(1.2); opacity: 0; }
-        }
-        @keyframes tineSpin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-        @keyframes spadeShimmer {
-          0%, 80%, 100% { opacity: 0.3; transform: scale(0.85); }
-          90% { opacity: 1; transform: scale(1.4); }
-        }
-        @keyframes amberBeaconPulse {
-          0%, 100% { opacity: 0.3; transform: scale(0.9); }
-          50% { opacity: 1; transform: scale(1.4); filter: drop-shadow(0 0 10px #f59e0b); }
-        }
-        @keyframes seedFallParticle {
-          0% { transform: translate(0px, 0px); opacity: 0.9; }
-          100% { transform: translate(15px, 35px); opacity: 0.2; }
-        }
-        @keyframes gentleSway {
-          0%, 100% { transform: rotate(0deg); }
-          50% { transform: rotate(1.2deg); }
-        }
-      `}</style>
-
-      {/* AMBIENT BACKGROUND GLOW (Simulating lightbox backlight scattering into room) */}
-      <div 
-        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1100px] h-[750px] rounded-full blur-[170px] pointer-events-none transition-all duration-1000"
-        style={{ 
-          background: ladder.backlight,
-          opacity: lampOn ? 0.28 : 0.05
+      {/* AMBIENT ROOM SPILL LIGHT */}
+      <div
+        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1100px] h-[720px] rounded-full blur-[170px] pointer-events-none transition-all duration-1000"
+        style={{
+          background:
+            safeChapterIdx === 0
+              ? "#38bdf8"
+              : safeChapterIdx === 1
+              ? "#f97316"
+              : safeChapterIdx === 2
+              ? "#f59e0b"
+              : "#94a3b8",
+          opacity: lampOn ? 0.24 : 0.04,
         }}
       />
 
       <div className="max-w-7xl mx-auto px-4 relative z-10">
-        
-        {/* HEADER SECTION */}
+        {/* HEADER */}
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-6">
           <div className="max-w-2xl">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-black uppercase tracking-widest mb-4 backdrop-blur-md shadow-sm">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-black uppercase tracking-widest mb-4 backdrop-blur-md">
               <SparklesIcon className="w-4 h-4 text-amber-400 animate-pulse" />
-              Paper-Cut Shadow Box Theater · 3D Service Visualizer
+              15-Second Paper-Cut Lightbox Film (纸雕灯)
             </div>
             <h2 className="text-4xl md:text-6xl font-black tracking-tight text-white uppercase italic leading-[1.08]">
-              Experience What We Do <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-amber-400 to-amber-500">In Real Life</span>
+              Four Seasons In{" "}
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-amber-400 to-amber-500">
+                15 Seconds
+              </span>
             </h2>
             <p className="text-slate-400 font-medium text-base md:text-lg mt-3 leading-relaxed">
-              Step inside our illuminated 7-layer shadow box (纸雕灯). Watch how our specialized Rhode Island crews tackle every season with commercial equipment.
+              Watch one continuous 60fps paper-cut shadow-box animation follow a Rhode Island home from Spring mowing to Winter snow defense.
             </p>
           </div>
 
-          {/* CONTROLS BAR */}
-          <div className="flex items-center gap-3 shrink-0">
+          {/* TOP CONTROLS */}
+          <div className="flex flex-wrap items-center gap-2.5 shrink-0">
             <button
               onClick={() => setLampOn(!lampOn)}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-black uppercase tracking-wider border transition-all duration-300 active:scale-95 ${
-                lampOn 
-                  ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 shadow-lg shadow-amber-500/20' 
-                  : 'bg-slate-900/90 text-slate-500 border-slate-800 hover:text-slate-300'
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-black uppercase tracking-wider border transition-all active:scale-95 ${
+                lampOn
+                  ? "bg-amber-500/20 text-amber-300 border-amber-500/40 shadow-lg shadow-amber-500/15"
+                  : "bg-slate-900/90 text-slate-500 border-slate-800 hover:text-slate-300"
               }`}
-              title="Toggle Backlight Lamp"
             >
-              <SunIcon className={`w-4 h-4 ${lampOn ? 'text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.8)]' : 'text-slate-600'}`} />
-              {lampOn ? 'Backlight On' : 'Lamp Off'}
+              <SunIcon className={`w-4 h-4 ${lampOn ? "text-amber-400" : "text-slate-600"}`} />
+              {lampOn ? "Lamp Lit" : "Lamp Off"}
             </button>
 
             <button
-              onClick={() => setIsPlaying(!isPlaying)}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-slate-900/90 border border-slate-800 hover:border-slate-700 text-slate-200 text-xs font-black uppercase tracking-wider transition-all duration-200 active:scale-95"
+              onClick={handleExportVideo}
+              disabled={isRecording}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-black uppercase tracking-wider border transition-all active:scale-95 ${
+                isRecording
+                  ? "bg-red-500/20 text-red-300 border-red-500/40 animate-pulse"
+                  : "bg-slate-900/90 text-slate-200 border-slate-800 hover:border-amber-500/40 hover:text-amber-300"
+              }`}
+              title="Record and download this 15-second animation as a 60fps video"
             >
-              {isPlaying ? <PauseIcon className="w-4 h-4 text-amber-400" /> : <PlayIcon className="w-4 h-4 text-green-400" />}
-              {isPlaying ? 'Pause Story' : 'Play Story'}
+              <ArrowDownTrayIcon className="w-4 h-4" />
+              {isRecording ? `Recording ${recordProgress}%` : "Save 15s Video"}
             </button>
           </div>
         </div>
 
-        {/* SERVICE SELECTOR TABS */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-4 mb-8 scrollbar-none">
-          {SCENES.map((sc, i) => {
-            const isActive = i === activeIdx;
+        {/* CHAPTER JUMP PILLS */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-4 mb-6 scrollbar-none">
+          {CHAPTERS.map((ch, idx) => {
+            const isActive = idx === safeChapterIdx;
             return (
               <button
-                key={sc.id}
-                onClick={() => selectScene(i)}
-                className={`relative shrink-0 px-5 py-3 rounded-2xl font-black text-xs uppercase tracking-wider transition-all flex items-center gap-2.5 border active:scale-95 ${
-                  isActive 
-                    ? "bg-amber-500/15 border-amber-400 text-amber-300 shadow-lg shadow-amber-500/15 scale-[1.02]"
+                key={ch.id}
+                onClick={() => seekTo(ch.start + 0.05)}
+                className={`shrink-0 px-4 py-2.5 rounded-2xl font-black text-xs uppercase tracking-wider transition-all flex items-center gap-2 border active:scale-95 ${
+                  isActive
+                    ? "bg-amber-500/15 border-amber-400 text-amber-300 shadow-lg shadow-amber-500/15"
                     : "bg-slate-900/60 border-slate-800/80 text-slate-400 hover:text-white hover:border-slate-700"
                 }`}
               >
-                <span className="text-sm">{sc.id === 'fall-cleanup' ? '🍂' : sc.id === 'mowing' ? '✂️' : sc.id === 'aeration' ? '🌱' : sc.id === 'mulch' ? '🪵' : '❄️'}</span>
-                <span>{sc.title.split(' ')[0]} {sc.title.split(' ')[1]}</span>
-                {isActive && (
-                  <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping ml-1" />
-                )}
+                <span>{ch.emoji}</span>
+                <span>{ch.label}</span>
+                <span className="text-[10px] opacity-60 font-mono">
+                  0:{Math.floor(ch.start).toString().padStart(2, "0")}
+                </span>
               </button>
             );
           })}
         </div>
 
-        {/* MAIN SHADOW BOX STAGE */}
+        {/* MAIN STAGE */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-          
-          {/* THE PHYSICAL LIGHTBOX CABINET */}
+          {/* PHYSICAL SHADOW BOX VIDEO FRAME */}
           <div className="lg:col-span-8">
-            <div 
-              ref={boxRef}
+            <div
               onMouseMove={handleMouseMove}
-              onMouseEnter={() => setIsHovered(true)}
               onMouseLeave={handleMouseLeave}
-              className="relative rounded-[2.5rem] p-4 md:p-6 bg-gradient-to-br from-[#26160c] via-[#140b06] to-[#0a0503] border-4 border-[#3e2315] shadow-[0_35px_100px_rgba(0,0,0,0.95),inset_0_2px_6px_rgba(255,200,100,0.25)] transition-transform duration-300 group cursor-crosshair overflow-hidden"
-              style={{
-                perspective: "1200px",
-              }}
+              className="relative rounded-[2.4rem] p-3.5 md:p-5 bg-gradient-to-br from-[#28170d] via-[#150c07] to-[#0a0503] border-4 border-[#3f2416] shadow-[0_35px_100px_rgba(0,0,0,0.95),inset_0_2px_6px_rgba(255,200,100,0.22)] overflow-hidden"
             >
-              {/* WOOD FRAME CORNER BRACKETS & RIVETS */}
-              <div className="absolute top-3 left-3 w-5 h-5 border-t-2 border-l-2 border-amber-600/70" />
-              <div className="absolute top-4 left-4 w-1 h-1 rounded-full bg-amber-600/90 shadow-sm" />
-              
-              <div className="absolute top-3 right-3 w-5 h-5 border-t-2 border-r-2 border-amber-600/70" />
-              <div className="absolute top-4 right-4 w-1 h-1 rounded-full bg-amber-600/90 shadow-sm" />
-              
-              <div className="absolute bottom-3 left-3 w-5 h-5 border-b-2 border-l-2 border-amber-600/70" />
-              <div className="absolute bottom-4 left-4 w-1 h-1 rounded-full bg-amber-600/90 shadow-sm" />
-              
-              <div className="absolute bottom-3 right-3 w-5 h-5 border-b-2 border-r-2 border-amber-600/70" />
-              <div className="absolute bottom-4 right-4 w-1 h-1 rounded-full bg-amber-600/90 shadow-sm" />
+              {/* BRASS CORNER HARDWARE */}
+              <div className="absolute top-3 left-3 w-4 h-4 border-t-2 border-l-2 border-amber-600/70 pointer-events-none" />
+              <div className="absolute top-3 right-3 w-4 h-4 border-t-2 border-r-2 border-amber-600/70 pointer-events-none" />
+              <div className="absolute bottom-3 left-3 w-4 h-4 border-b-2 border-l-2 border-amber-600/70 pointer-events-none" />
+              <div className="absolute bottom-3 right-3 w-4 h-4 border-b-2 border-r-2 border-amber-600/70 pointer-events-none" />
 
-              {/* INNER CAVITY (Shadow Box Recessed Interior) */}
-              <div className="relative w-full h-[360px] md:h-[490px] rounded-[1.8rem] overflow-hidden bg-slate-950 border-2 border-black/90 shadow-[inset_0_20px_50px_rgba(0,0,0,0.98),inset_0_-10px_30px_rgba(0,0,0,0.9)]">
-                
-                {/* SVG DEFINITIONS FOR PULP GRAIN, DEPTH-OF-FIELD BLURS, AND CAST SHADOWS */}
-                <svg className="absolute w-0 h-0" aria-hidden="true">
-                  <defs>
-                    {/* PULP GRAIN TEXTURE FILTER (Lemomo spec: Fibre grain texture across all paper sheets) */}
-                    <filter id="pulp-grain" x="0%" y="0%" width="100%" height="100%">
-                      <feTurbulence type="fractalNoise" baseFrequency="0.045" numOctaves="4" result="noise" />
-                      <feColorMatrix type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 0.09 0" result="mottle" />
-                      <feComposite in2="SourceGraphic" in="mottle" operator="in" />
-                    </filter>
-                    
-                    {/* LAYER CAST SHADOWS (Layer n casting soft shadow onto Layer n-1) */}
-                    <filter id="layer-shadow-soft" x="-15%" y="-15%" width="135%" height="145%">
-                      <feDropShadow dx="0" dy="5" stdDeviation="4" floodColor="#000000" floodOpacity="0.45" />
-                    </filter>
-                    <filter id="layer-shadow-deep" x="-20%" y="-20%" width="145%" height="155%">
-                      <feDropShadow dx="0" dy="12" stdDeviation="8" floodColor="#000000" floodOpacity="0.65" />
-                    </filter>
-
-                    {/* WINDOW & LANTERN BLOOM FILTER (Holes burning & blooming through paper) */}
-                    <filter id="window-bloom" x="-30%" y="-30%" width="160%" height="160%">
-                      <feGaussianBlur stdDeviation="3.5" result="coloredBlur"/>
-                      <feMerge>
-                        <feMergeNode in="coloredBlur"/>
-                        <feMergeNode in="SourceGraphic"/>
-                      </feMerge>
-                    </filter>
-
-                    {/* DEPTH-OF-FIELD MACRO BLUR (Far background soft focus) */}
-                    <filter id="dof-far" x="-10%" y="-10%" width="120%" height="120%">
-                      <feGaussianBlur stdDeviation="1.2" />
-                    </filter>
-                  </defs>
-                </svg>
-
-                {/* LAYER 0: WARM BACKLIGHT DIFFUSION THROUGH PAPER STACK */}
-                <div 
-                  className="absolute inset-0 pointer-events-none transition-all duration-700"
-                  style={{
-                    opacity: organicFlicker,
-                    background: `radial-gradient(ellipse at 52% 34%, ${ladder.sky} 0%, ${ladder.backlight} 28%, ${ladder.layer4} 68%, #03060c 98%)`,
-                    filter: "contrast(120%) brightness(108%)",
-                  }}
+              {/* 16:9 HD CANVAS CAVITY */}
+              <div className="relative w-full aspect-video rounded-[1.6rem] overflow-hidden bg-slate-950 border-2 border-black/90 shadow-[inset_0_18px_45px_rgba(0,0,0,0.95)]">
+                <canvas
+                  ref={canvasRef}
+                  width={1280}
+                  height={720}
+                  className="w-full h-full block cursor-pointer"
+                  onClick={() => setIsPlaying((p) => !p)}
                 />
 
-                {/* SCENE SPECIFIC SVG LAYERS WITH DYNAMIC PARALLAX & CONTINUOUS DRIFT */}
-                <div 
-                  className="absolute inset-0 transition-transform duration-300 ease-out"
-                  style={{
-                    transform: `translate3d(${autoDriftX * 14}px, ${autoDriftY * 10}px, 0px)`,
-                  }}
-                >
-                  {/* ============================================================ */}
-                  {/* SCENE 1: FALL LEAF CLEANUP */}
-                  {/* ============================================================ */}
-                  {scene.id === "fall-cleanup" && (
-                    <svg className="w-full h-full" viewBox="0 0 800 500" preserveAspectRatio="xMidYMid slice">
-                      
-                      {/* LAYER 1: BACK SUN DISK (Depth-of-field soft focus) */}
-                      <g 
-                        filter="url(#dof-far)"
-                        style={{ transform: `translate(${autoDriftX * -2}px, ${autoDriftY * -2}px)` }}
-                      >
-                        <circle cx="580" cy="140" r="70" fill={ladder.layer1} opacity={lampOn ? 0.95 : 0.3} />
-                        <circle cx="580" cy="140" r="95" fill={ladder.layer1} opacity={lampOn ? 0.28 : 0.05} />
-                      </g>
+                {/* LIVE VIDEO TRANSPORT & SCRUBBER OVERLAY */}
+                <div className="absolute bottom-3 left-3 right-3 z-20">
+                  <div className="backdrop-blur-md bg-slate-950/80 border border-white/10 rounded-2xl px-4 py-3 shadow-2xl space-y-2.5">
+                    {/* Interactive 15s Timeline Scrubber */}
+                    <div
+                      onClick={handleScrub}
+                      className="relative h-2 w-full bg-slate-800/90 rounded-full cursor-pointer group overflow-hidden"
+                      title="Click anywhere to scrub the 15-second film"
+                    >
+                      {/* Chapter tick marks */}
+                      <div className="absolute left-1/4 top-0 bottom-0 w-px bg-white/25 z-10" />
+                      <div className="absolute left-2/4 top-0 bottom-0 w-px bg-white/25 z-10" />
+                      <div className="absolute left-3/4 top-0 bottom-0 w-px bg-white/25 z-10" />
 
-                      {/* LAYER 2: DISTANT NEW ENGLAND ROLLING HILLS */}
-                      <g style={{ transform: `translate(${autoDriftX * -4}px, ${autoDriftY * -3}px)` }}>
-                        <path 
-                          d="M0,225 Q220,165 430,215 T800,195 L800,500 L0,500 Z" 
-                          fill={ladder.layer2} 
-                          opacity="0.88"
-                          filter="url(#layer-shadow-soft)"
-                          stroke={ladder.rimLight}
-                          strokeWidth="0.8"
-                          strokeOpacity="0.4"
-                        />
-                      </g>
+                      <div
+                        className="h-full bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-300 rounded-full shadow-[0_0_10px_rgba(251,191,36,0.9)]"
+                        style={{ width: `${progressPct}%` }}
+                      />
+                    </div>
 
-                      {/* LAYER 3: DISTANT COLONIAL FARMHOUSE & WINDBREAK TREES */}
-                      <g style={{ transform: `translate(${autoDriftX * -6.5}px, ${autoDriftY * -5}px)` }}>
-                        {/* Pines and Oak tree paper cuts */}
-                        <path d="M120,260 L140,205 L160,260 Z M135,205 L140,190 L145,205 Z" fill={ladder.layer3} />
-                        <path d="M160,270 L185,195 L210,270 Z M180,195 L185,180 L190,195 Z" fill={ladder.layer3} />
-                        
-                        {/* Colonial Farmhouse Silhouette */}
-                        <path 
-                          d="M520,238 L570,188 L620,238 L620,288 L520,288 Z M560,178 L575,178 L575,193 L560,193 Z" 
-                          fill={ladder.layer3} 
-                          filter="url(#layer-shadow-soft)"
-                          stroke={ladder.rimLight}
-                          strokeWidth="0.8"
-                          strokeOpacity="0.3"
-                        />
-                        {/* Emissive Burning Windows with Light Bloom */}
-                        {lampOn && (
-                          <g fill={ladder.windowGlow} filter="url(#window-bloom)">
-                            <rect x="540" y="246" width="14" height="20" rx="2" style={{ opacity: 0.85 + 0.15 * Math.sin(clock * 5) }} />
-                            <rect x="585" y="246" width="14" height="20" rx="2" style={{ opacity: 0.88 + 0.12 * Math.cos(clock * 4.3) }} />
-                            <rect x="562" y="208" width="14" height="14" rx="2" style={{ opacity: 0.9 + 0.1 * Math.sin(clock * 6.2) }} />
-                          </g>
-                        )}
-                        {/* Mid-Hill Line */}
-                        <path 
-                          d="M0,275 Q300,235 500,265 T800,255 L800,500 L0,500 Z" 
-                          fill={ladder.layer3} 
-                          stroke={ladder.rimLight}
-                          strokeWidth="0.7"
-                          strokeOpacity="0.35"
-                        />
-                      </g>
-
-                      {/* LAYER 4: DECIDUOUS TREES SHEDDING LEAVES */}
-                      <g style={{ transform: `translate(${autoDriftX * -9.5}px, ${autoDriftY * -7.5}px)` }}>
-                        {/* Tree Canopies with Paper Rim Highlights */}
-                        <path 
-                          d="M80,330 C70,245 90,195 130,155 C180,115 230,145 250,205 C270,255 250,330 250,330 L80,330 Z" 
-                          fill={ladder.layer4} 
-                          filter="url(#layer-shadow-soft)" 
-                          stroke={ladder.rimLight}
-                          strokeWidth="1.2"
-                          strokeOpacity="0.5"
-                        />
-                        <path 
-                          d="M660,340 C630,255 670,175 720,145 C770,115 810,165 810,340 Z" 
-                          fill={ladder.layer4} 
-                          filter="url(#layer-shadow-soft)" 
-                          stroke={ladder.rimLight}
-                          strokeWidth="1.2"
-                          strokeOpacity="0.5"
-                        />
-                        {/* Mid Lawn Wave */}
-                        <path 
-                          d="M0,318 Q240,296 480,326 T800,306 L800,500 L0,500 Z" 
-                          fill={ladder.layer4} 
-                          stroke={ladder.rimLight}
-                          strokeWidth="0.8"
-                          strokeOpacity="0.4"
-                        />
-                      </g>
-
-                      {/* LAYER 5: SERVICE ACTION LAYER - BACKPACK BLOWER CREW & LEAF VACUUM */}
-                      <g style={{ transform: `translate(${autoDriftX * -13.5}px, ${autoDriftY * -10.5}px)` }}>
-                        {/* Clean Lawn Plateau */}
-                        <path 
-                          d="M0,368 Q380,338 800,358 L800,500 L0,500 Z" 
-                          fill={ladder.layer5} 
-                          filter="url(#layer-shadow-soft)" 
-                          stroke={ladder.rimLight}
-                          strokeWidth="1.0"
-                          strokeOpacity="0.4"
-                        />
-
-                        {/* Silhouette Landscaper with Commercial Backpack Blower */}
-                        <g transform="translate(340, 275) scale(0.95)" fill={ladder.layer6}>
-                          {/* Body torso & cap */}
-                          <circle cx="45" cy="18" r="11" />
-                          <path d="M38,10 L58,14 L55,18 L38,18 Z" /> {/* Cap visor */}
-                          <path d="M35,28 L55,28 L50,68 L32,68 Z" /> {/* Torso */}
-                          <path d="M30,32 L22,38 L24,58 L32,54 Z" fill={ladder.layer7} /> {/* Backpack unit */}
-                          {/* Arms holding blower tube */}
-                          <path d="M48,34 L62,48 L82,54 L80,60 L58,54 Z" />
-                          <path d="M78,54 L125,78 L123,84 L76,60 Z" /> {/* Long blower tube */}
-                          {/* Air velocity shockwave lines from blower muzzle */}
-                          <path 
-                            d="M128,78 Q140,75 155,80 M130,83 Q145,80 162,85" 
-                            stroke={ladder.rimLight} 
-                            strokeWidth="2" 
-                            strokeLinecap="round" 
-                            opacity="0.6" 
-                          />
-                          {/* Legs walking forward */}
-                          <path d="M35,66 L25,102 L33,103 L43,72 Z" />
-                          <path d="M47,66 L58,98 L67,97 L54,68 Z" />
-                        </g>
-
-                        {/* CONTINUOUS DRIFTING LEAVES SWIRLING IN AIR (CSS Animation Loop) */}
-                        <g fill={ladder.accent}>
-                          <path 
-                            d="M470,360 C474,354 482,354 485,358 C488,362 484,369 478,368 Z" 
-                            style={{ animation: "floatLeaf1 2.8s infinite ease-in-out" }}
-                          />
-                          <path 
-                            d="M495,348 C499,342 507,342 510,346 C513,350 509,357 503,356 Z" 
-                            fill={ladder.accentSecondary}
-                            style={{ animation: "floatLeaf2 3.4s infinite ease-in-out 0.4s" }}
-                          />
-                          <path 
-                            d="M525,365 C530,358 538,360 541,366 C544,372 537,377 531,374 Z" 
-                            style={{ animation: "floatLeaf3 3.1s infinite ease-in-out 0.9s" }}
-                          />
-                          <path 
-                            d="M480,352 C485,345 495,348 497,355 C499,362 491,366 485,363 Z" 
-                            fill={ladder.accentSecondary}
-                            style={{ animation: "floatLeaf1 2.9s infinite ease-in-out 1.5s" }}
-                          />
-                          <path 
-                            d="M510,362 C514,356 522,356 525,360 C528,364 524,371 518,370 Z" 
-                            style={{ animation: "floatLeaf2 3.6s infinite ease-in-out 1.1s" }}
-                          />
-                        </g>
-
-                        {/* Large Curbside Composting Leaf Pile */}
-                        <path 
-                          d="M620,400 C640,358 710,348 750,378 C770,393 780,410 780,420 L610,420 Z" 
-                          fill={ladder.layer6} 
-                          stroke={ladder.rimLight}
-                          strokeWidth="1.2"
-                          strokeOpacity="0.4"
-                        />
-                      </g>
-
-                      {/* LAYER 6: FOREGROUND FENCE & CURBSIDE LAWN EDGE */}
-                      <g style={{ transform: `translate(${autoDriftX * -18.5}px, ${autoDriftY * -14.5}px)` }}>
-                        {/* Front Turf Rolling Shelf */}
-                        <path 
-                          d="M0,418 Q320,388 800,408 L800,500 L0,500 Z" 
-                          fill={ladder.layer6} 
-                          filter="url(#layer-shadow-deep)" 
-                          stroke={ladder.rimLight}
-                          strokeWidth="1.4"
-                          strokeOpacity="0.45"
-                        />
-                        
-                        {/* Crisp Split Rail Fence */}
-                        <g fill={ladder.layer7}>
-                          <rect x="60" y="378" width="10" height="72" rx="2" stroke={ladder.rimLight} strokeWidth="0.7" strokeOpacity="0.3" />
-                          <rect x="180" y="373" width="10" height="77" rx="2" stroke={ladder.rimLight} strokeWidth="0.7" strokeOpacity="0.3" />
-                          <rect x="58" y="393" width="134" height="6" rx="2" transform="rotate(-3 60 400)" />
-                          <rect x="58" y="413" width="134" height="6" rx="2" transform="rotate(-3 60 420)" />
-                        </g>
-                      </g>
-
-                      {/* LAYER 7: FRONT BLACK VIGNETTE SILHOUETTES */}
-                      <g style={{ transform: `translate(${autoDriftX * -24.5}px, ${autoDriftY * -18.5}px)` }}>
-                        {/* Overhanging Oak Silhouette Branch */}
-                        <path 
-                          d="M-20,-10 C90,40 180,60 260,30 C200,60 160,110 90,130 C40,140 0,110 -20,80 Z" 
-                          fill={ladder.layer7} 
-                          filter="url(#layer-shadow-deep)"
-                        />
-                        <path d="M140,55 C160,80 150,110 125,120 C105,115 110,85 140,55 Z" fill={ladder.layer7} />
-                        <path d="M210,45 C235,65 230,95 205,100 C190,95 195,70 210,45 Z" fill={ladder.layer7} />
-
-                        {/* Bottom Dark Frame Rim */}
-                        <rect x="0" y="475" width="800" height="25" fill={ladder.layer7} />
-                      </g>
-
-                    </svg>
-                  )}
-
-                  {/* ============================================================ */}
-                  {/* SCENE 2: PRECISION MOWING & STRIPING */}
-                  {/* ============================================================ */}
-                  {scene.id === "mowing" && (
-                    <svg className="w-full h-full" viewBox="0 0 800 500" preserveAspectRatio="xMidYMid slice">
-                      
-                      {/* LAYER 1: DAWN SUN */}
-                      <g 
-                        filter="url(#dof-far)"
-                        style={{ transform: `translate(${autoDriftX * -2}px, ${autoDriftY * -2}px)` }}
-                      >
-                        <circle cx="240" cy="130" r="75" fill={ladder.layer1} opacity={lampOn ? 0.9 : 0.25} />
-                        <circle cx="240" cy="130" r="105" fill={ladder.layer1} opacity={lampOn ? 0.22 : 0.05} />
-                      </g>
-
-                      {/* LAYER 2: DISTANT HILLS */}
-                      <g style={{ transform: `translate(${autoDriftX * -4}px, ${autoDriftY * -3}px)` }}>
-                        <path 
-                          d="M0,208 Q280,158 550,208 T800,188 L800,500 L0,500 Z" 
-                          fill={ladder.layer2} 
-                          opacity="0.82" 
-                          filter="url(#layer-shadow-soft)"
-                          stroke={ladder.rimLight}
-                          strokeWidth="0.8"
-                          strokeOpacity="0.4"
-                        />
-                      </g>
-
-                      {/* LAYER 3: LUXURY ESTATE HOUSE SILHOUETTE */}
-                      <g style={{ transform: `translate(${autoDriftX * -7}px, ${autoDriftY * -5}px)` }}>
-                        <path d="M180,240 L240,180 L300,240 L300,280 L180,280 Z M280,160 L295,160 L295,185 L280,185 Z" fill={ladder.layer3} />
-                        <path d="M295,210 L380,210 L380,280 L295,280 Z" fill={ladder.layer3} />
-                        <path d="M100,240 L185,240 L185,280 L100,280 Z" fill={ladder.layer3} />
-
-                        {lampOn && (
-                          <g fill={ladder.windowGlow} filter="url(#window-bloom)">
-                            <rect x="228" y="248" width="16" height="24" rx="2" style={{ opacity: 0.88 + 0.12 * Math.sin(clock * 4.5) }} />
-                            <rect x="320" y="230" width="18" height="22" rx="2" style={{ opacity: 0.9 + 0.1 * Math.cos(clock * 3.8) }} />
-                            <rect x="130" y="250" width="16" height="20" rx="2" style={{ opacity: 0.85 + 0.15 * Math.sin(clock * 5.1) }} />
-                          </g>
-                        )}
-                        <path 
-                          d="M0,268 Q400,228 800,258 L800,500 L0,500 Z" 
-                          fill={ladder.layer3} 
-                          stroke={ladder.rimLight}
-                          strokeWidth="0.8"
-                          strokeOpacity="0.35"
-                        />
-                      </g>
-
-                      {/* LAYER 4: ROLLING LAWN WITH DIAMOND STRIPING PATTERN */}
-                      <g style={{ transform: `translate(${autoDriftX * -11}px, ${autoDriftY * -8}px)` }}>
-                        <path 
-                          d="M0,308 Q350,278 800,308 L800,500 L0,500 Z" 
-                          fill={ladder.layer4} 
-                          filter="url(#layer-shadow-soft)"
-                          stroke={ladder.rimLight}
-                          strokeWidth="1.1"
-                          strokeOpacity="0.45"
-                        />
-                        
-                        {/* Alternating Diamond Stripes with Subtle Glow */}
-                        <g opacity="0.3" fill="#ffffff">
-                          <polygon points="120,303 160,303 220,358 170,358" />
-                          <polygon points="230,303 270,303 340,358 290,358" />
-                          <polygon points="340,303 380,303 460,358 410,358" />
-                          <polygon points="450,303 490,303 580,358 530,358" />
-                          <polygon points="560,303 600,303 700,358 650,358" />
-                        </g>
-                      </g>
-
-                      {/* LAYER 5: SERVICE ACTION - ZERO-TURN COMMERCIAL MOWER WITH ACTIVE VIBRATION */}
-                      <g style={{ transform: `translate(${autoDriftX * -15}px, ${autoDriftY * -11}px)` }}>
-                        <path 
-                          d="M0,358 Q450,328 800,358 L800,500 L0,500 Z" 
-                          fill={ladder.layer5} 
-                          filter="url(#layer-shadow-soft)"
-                          stroke={ladder.rimLight}
-                          strokeWidth="1.1"
-                          strokeOpacity="0.4"
-                        />
-
-                        {/* ZERO-TURN MOWER SILHOUETTE (With Subtle Engine Idle Vibration) */}
-                        <g style={{ animation: "mowerVibe 0.22s infinite ease-in-out" }} fill={ladder.layer6}>
-                          {/* Driver */}
-                          <circle cx="55" cy="22" r="11" />
-                          <path d="M48,15 L68,18 L65,22 L48,22 Z" /> {/* Cap */}
-                          <path d="M46,33 L64,33 L58,62 L44,62 Z" /> {/* Torso */}
-                          <path d="M58,40 L76,46 L74,52 L56,46 Z" /> {/* Arm steering lever */}
-                          {/* ROPS roll bar */}
-                          <path d="M30,10 L44,10 L38,62 L32,62 Z" />
-                          {/* Chassis & Seat */}
-                          <path d="M36,48 L56,48 L54,66 L34,66 Z" /> {/* Seat */}
-                          <path d="M22,64 L86,64 L96,82 L15,82 Z" /> {/* Engine base */}
-                          {/* Cutting Deck with Golden Trim */}
-                          <path d="M60,82 L110,82 L108,92 L58,92 Z" fill={ladder.accent} />
-                          {/* Big Rear Drive Tire with Rim */}
-                          <circle cx="35" cy="84" r="19" fill={ladder.layer7} />
-                          <circle cx="35" cy="84" r="9" fill={ladder.layer4} />
-                          {/* Front Caster Wheel */}
-                          <circle cx="104" cy="90" r="10" fill={ladder.layer7} />
-                          <circle cx="104" cy="90" r="4" fill={ladder.layer3} />
-                        </g>
-
-                        {/* ACTIVE FLYING GRASS CLIPPING PARTICLES (Continuous Discharge Stream) */}
-                        <g fill={ladder.accentSecondary}>
-                          <circle cx="535" cy="345" r="2" style={{ animation: "grassSprayParticle 0.8s infinite ease-out" }} />
-                          <circle cx="538" cy="342" r="2.5" style={{ animation: "grassSprayParticle 0.7s infinite ease-out 0.15s" }} />
-                          <circle cx="542" cy="348" r="1.8" style={{ animation: "grassSprayParticle 0.9s infinite ease-out 0.35s" }} />
-                          <circle cx="545" cy="340" r="2.2" style={{ animation: "grassSprayParticle 0.75s infinite ease-out 0.5s" }} />
-                        </g>
-                      </g>
-
-                      {/* LAYER 6: FOREGROUND SCULPTED BOXWOOD HEDGES */}
-                      <g style={{ transform: `translate(${autoDriftX * -20}px, ${autoDriftY * -15}px)` }}>
-                        <path 
-                          d="M0,408 Q400,388 800,408 L800,500 L0,500 Z" 
-                          fill={ladder.layer6} 
-                          filter="url(#layer-shadow-deep)"
-                          stroke={ladder.rimLight}
-                          strokeWidth="1.3"
-                          strokeOpacity="0.45"
-                        />
-                        
-                        {/* Trimmed Boxwood Hedges with Top Highlight */}
-                        <path d="M60,420 C60,370 120,370 120,420 Z" fill={ladder.layer7} stroke={ladder.rimLight} strokeWidth="0.8" strokeOpacity="0.3" />
-                        <path d="M110,425 C110,380 160,380 160,425 Z" fill={ladder.layer7} stroke={ladder.rimLight} strokeWidth="0.8" strokeOpacity="0.3" />
-                        <path d="M150,420 C150,375 200,375 200,420 Z" fill={ladder.layer7} stroke={ladder.rimLight} strokeWidth="0.8" strokeOpacity="0.3" />
-                      </g>
-
-                      {/* LAYER 7: NEAR-FRAME SILHOUETTES */}
-                      <g style={{ transform: `translate(${autoDriftX * -26}px, ${autoDriftY * -19}px)` }}>
-                        <path d="M820,-20 L680,80 L740,160 L820,130 Z" fill={ladder.layer7} filter="url(#layer-shadow-deep)" />
-                        <rect x="0" y="475" width="800" height="25" fill={ladder.layer7} />
-                      </g>
-
-                    </svg>
-                  )}
-
-                  {/* ============================================================ */}
-                  {/* SCENE 3: AERATION & OVERSEEDING */}
-                  {/* ============================================================ */}
-                  {scene.id === "aeration" && (
-                    <svg className="w-full h-full" viewBox="0 0 800 500" preserveAspectRatio="xMidYMid slice">
-                      
-                      {/* LAYER 1: WARM GOLDEN DAWN */}
-                      <g 
-                        filter="url(#dof-far)"
-                        style={{ transform: `translate(${autoDriftX * -2}px, ${autoDriftY * -2}px)` }}
-                      >
-                        <circle cx="400" cy="160" r="90" fill={ladder.layer1} opacity={lampOn ? 0.95 : 0.25} />
-                        <circle cx="400" cy="160" r="120" fill={ladder.layer1} opacity={lampOn ? 0.2 : 0.04} />
-                      </g>
-
-                      {/* LAYER 2: DISTANT RIDGELINES */}
-                      <g style={{ transform: `translate(${autoDriftX * -4}px, ${autoDriftY * -3}px)` }}>
-                        <path 
-                          d="M0,228 Q200,178 400,228 T800,208 L800,500 L0,500 Z" 
-                          fill={ladder.layer2} 
-                          opacity="0.86" 
-                          filter="url(#layer-shadow-soft)"
-                          stroke={ladder.rimLight}
-                          strokeWidth="0.8"
-                          strokeOpacity="0.35"
-                        />
-                      </g>
-
-                      {/* LAYER 3: DISTANT NEIGHBORHOOD ROOFTOPS */}
-                      <g style={{ transform: `translate(${autoDriftX * -7}px, ${autoDriftY * -5}px)` }}>
-                        <path d="M60,250 L110,210 L160,250 L160,290 L60,290 Z" fill={ladder.layer3} />
-                        <path d="M650,250 L700,210 L750,250 L750,290 L650,290 Z" fill={ladder.layer3} />
-                        {lampOn && (
-                          <g fill={ladder.windowGlow} filter="url(#window-bloom)">
-                            <rect x="100" y="255" width="18" height="20" rx="2" style={{ opacity: 0.9 }} />
-                            <rect x="690" y="255" width="18" height="20" rx="2" style={{ opacity: 0.88 }} />
-                          </g>
-                        )}
-                        <path 
-                          d="M0,278 Q400,248 800,278 L800,500 L0,500 Z" 
-                          fill={ladder.layer3} 
-                          stroke={ladder.rimLight}
-                          strokeWidth="0.8"
-                          strokeOpacity="0.4"
-                        />
-                      </g>
-
-                      {/* LAYER 4: CROSS-SECTION SOIL & COMPACTION RELIEF LAYER */}
-                      <g style={{ transform: `translate(${autoDriftX * -11}px, ${autoDriftY * -8}px)` }}>
-                        <path 
-                          d="M0,328 Q400,308 800,328 L800,500 L0,500 Z" 
-                          fill={ladder.layer4} 
-                          filter="url(#layer-shadow-soft)"
-                          stroke={ladder.rimLight}
-                          strokeWidth="1.0"
-                          strokeOpacity="0.4"
-                        />
-                      </g>
-
-                      {/* LAYER 5: SERVICE ACTION - COMMERCIAL CORE AERATOR & CORING DRUM */}
-                      <g style={{ transform: `translate(${autoDriftX * -15}px, ${autoDriftY * -11}px)` }}>
-                        <path 
-                          d="M0,373 Q400,353 800,373 L800,500 L0,500 Z" 
-                          fill={ladder.layer5} 
-                          filter="url(#layer-shadow-soft)"
-                          stroke={ladder.rimLight}
-                          strokeWidth="1.1"
-                          strokeOpacity="0.4"
-                        />
-
-                        {/* AERATOR MACHINE SILHOUETTE */}
-                        <g transform="translate(320, 275)" fill={ladder.layer6}>
-                          {/* Operator */}
-                          <circle cx="15" cy="22" r="10" />
-                          <path d="M8,15 L26,18 L24,22 L8,22 Z" />
-                          <path d="M10,32 L26,32 L22,64 L8,64 Z" />
-                          <path d="M22,38 L45,42 L42,48 L22,46 Z" /> {/* Hand holding handles */}
-                          <path d="M12,64 L2,98 L10,98 L20,68 Z" />
-                          {/* Aerator machine frame */}
-                          <path d="M42,44 L70,72 L85,72 L85,92 L50,92 L35,46 Z" />
-                          {/* Engine block with green accent */}
-                          <rect x="52" y="58" width="28" height="22" rx="2" fill={ladder.accent} />
-                          {/* Tine Drum with Spikes (Rotating anim) */}
-                          <g transform="translate(68, 94)">
-                            <g style={{ animation: "tineSpin 3s linear infinite" }}>
-                              <circle cx="0" cy="0" r="16" fill={ladder.layer7} />
-                              <line x1="0" y1="-20" x2="0" y2="20" stroke={ladder.layer7} strokeWidth="4" />
-                              <line x1="-20" y1="0" x2="20" y2="0" stroke={ladder.layer7} strokeWidth="4" />
-                            </g>
-                          </g>
-                        </g>
-
-                        {/* EXTRACTED CORE PLUGS RESTING ON TURF */}
-                        <g fill={ladder.layer4} stroke={ladder.rimLight} strokeWidth="0.5">
-                          <rect x="180" y="376" width="6" height="14" rx="2" transform="rotate(25 180 376)" />
-                          <rect x="220" y="373" width="6" height="14" rx="2" transform="rotate(-15 220 373)" />
-                          <rect x="260" y="378" width="6" height="14" rx="2" transform="rotate(35 260 378)" />
-                          <rect x="440" y="380" width="6" height="14" rx="2" transform="rotate(-30 440 380)" />
-                          <rect x="490" y="377" width="6" height="14" rx="2" transform="rotate(15 490 377)" />
-                          <rect x="540" y="379" width="6" height="14" rx="2" transform="rotate(-10 540 379)" />
-                        </g>
-
-                        {/* FALLING OVERSEED SEED PARTICLES (Golden Seed Rain) */}
-                        <g fill={ladder.ladder1 || "#fde047"}>
-                          <circle cx="430" cy="345" r="2.2" style={{ animation: "seedFallParticle 1.4s infinite linear" }} />
-                          <circle cx="445" cy="353" r="2" style={{ animation: "seedFallParticle 1.2s infinite linear 0.3s" }} />
-                          <circle cx="460" cy="342" r="2.4" style={{ animation: "seedFallParticle 1.5s infinite linear 0.6s" }} />
-                          <circle cx="475" cy="357" r="1.9" style={{ animation: "seedFallParticle 1.3s infinite linear 0.9s" }} />
-                          <circle cx="490" cy="349" r="2.3" style={{ animation: "seedFallParticle 1.6s infinite linear 0.2s" }} />
-                        </g>
-                      </g>
-
-                      {/* LAYER 6: FOREGROUND DEEP SOIL CUT & NEW SHOOTS */}
-                      <g style={{ transform: `translate(${autoDriftX * -20}px, ${autoDriftY * -15}px)` }}>
-                        <path 
-                          d="M0,418 Q400,398 800,418 L800,500 L0,500 Z" 
-                          fill={ladder.layer6} 
-                          filter="url(#layer-shadow-deep)"
-                          stroke={ladder.rimLight}
-                          strokeWidth="1.2"
-                          strokeOpacity="0.4"
-                        />
-                        
-                        {/* Sprouting Germinated Grass Shoots with Glow */}
-                        <g stroke={ladder.accent} strokeWidth="3" strokeLinecap="round" opacity="0.95">
-                          <line x1="80" y1="418" x2="85" y2="393" style={{ animation: "gentleSway 3s infinite ease-in-out" }} />
-                          <line x1="88" y1="418" x2="96" y2="388" />
-                          <line x1="160" y1="418" x2="164" y2="390" />
-                          <line x1="680" y1="418" x2="685" y2="388" />
-                          <line x1="692" y1="418" x2="702" y2="393" style={{ animation: "gentleSway 3.5s infinite ease-in-out" }} />
-                        </g>
-                      </g>
-
-                      {/* LAYER 7: FRAME OVERHANG */}
-                      <g style={{ transform: `translate(${autoDriftX * -26}px, ${autoDriftY * -19}px)` }}>
-                        <rect x="0" y="475" width="800" height="25" fill={ladder.layer7} />
-                      </g>
-
-                    </svg>
-                  )}
-
-                  {/* ============================================================ */}
-                  {/* SCENE 4: MULCH & EDGING */}
-                  {/* ============================================================ */}
-                  {scene.id === "mulch" && (
-                    <svg className="w-full h-full" viewBox="0 0 800 500" preserveAspectRatio="xMidYMid slice">
-                      
-                      {/* LAYER 1: AFTERNOON WARM LIGHT */}
-                      <g 
-                        filter="url(#dof-far)"
-                        style={{ transform: `translate(${autoDriftX * -2}px, ${autoDriftY * -2}px)` }}
-                      >
-                        <circle cx="620" cy="130" r="75" fill={ladder.layer1} opacity={lampOn ? 0.9 : 0.25} />
-                        <circle cx="620" cy="130" r="105" fill={ladder.layer1} opacity={lampOn ? 0.25 : 0.05} />
-                      </g>
-
-                      {/* LAYER 2: DISTANT HILLS */}
-                      <g style={{ transform: `translate(${autoDriftX * -4}px, ${autoDriftY * -3}px)` }}>
-                        <path 
-                          d="M0,218 Q300,168 560,218 T800,198 L800,500 L0,500 Z" 
-                          fill={ladder.layer2} 
-                          opacity="0.86" 
-                          filter="url(#layer-shadow-soft)"
-                          stroke={ladder.rimLight}
-                          strokeWidth="0.8"
-                          strokeOpacity="0.4"
-                        />
-                      </g>
-
-                      {/* LAYER 3: COTTAGE & FLOWER TRELLIS */}
-                      <g style={{ transform: `translate(${autoDriftX * -7}px, ${autoDriftY * -5}px)` }}>
-                        <path d="M140,240 L190,190 L240,240 L240,285 L140,285 Z" fill={ladder.layer3} />
-                        {lampOn && (
-                          <rect 
-                            x="175" 
-                            y="245" 
-                            width="16" 
-                            height="20" 
-                            rx="2" 
-                            fill={ladder.windowGlow} 
-                            filter="url(#window-bloom)"
-                            style={{ opacity: 0.9 + 0.1 * Math.sin(clock * 4.2) }}
-                          />
-                        )}
-                        <path 
-                          d="M0,268 Q400,238 800,268 L800,500 L0,500 Z" 
-                          fill={ladder.layer3} 
-                          stroke={ladder.rimLight}
-                          strokeWidth="0.8"
-                          strokeOpacity="0.35"
-                        />
-                      </g>
-
-                      {/* LAYER 4: SCULPTED FLOWER BED PROFILE */}
-                      <g style={{ transform: `translate(${autoDriftX * -11}px, ${autoDriftY * -8}px)` }}>
-                        <path 
-                          d="M0,318 Q280,298 540,323 T800,308 L800,500 L0,500 Z" 
-                          fill={ladder.layer4} 
-                          filter="url(#layer-shadow-soft)"
-                          stroke={ladder.rimLight}
-                          strokeWidth="1.1"
-                          strokeOpacity="0.45"
-                        />
-                      </g>
-
-                      {/* LAYER 5: SERVICE ACTION - CLEAN EDGED TRENCH & DARK MULCH BED */}
-                      <g style={{ transform: `translate(${autoDriftX * -15}px, ${autoDriftY * -11}px)` }}>
-                        {/* Deep Hand-Spaded Trench Boundary */}
-                        <path 
-                          d="M0,368 C200,338 380,408 520,358 C660,308 750,378 800,368 L800,500 L0,500 Z" 
-                          fill={ladder.layer5} 
-                          filter="url(#layer-shadow-soft)" 
-                          stroke={ladder.rimLight}
-                          strokeWidth="1.2"
-                          strokeOpacity="0.5"
-                        />
-                        {/* Fresh Bark Texture Band */}
-                        <path 
-                          d="M0,378 C200,348 380,418 520,368 C660,318 750,388 800,378 L800,500 L0,500 Z" 
-                          fill={ladder.layer6} 
-                        />
-
-                        {/* Silhouette Wheelbarrow with Rich Mulch Mound */}
-                        <g transform="translate(360, 290)" fill={ladder.layer6}>
-                          {/* Wheelbarrow tub */}
-                          <path d="M30,55 L85,55 L75,78 L25,78 Z" />
-                          <circle cx="85" cy="85" r="12" fill={ladder.layer7} /> {/* Wheel */}
-                          <line x1="30" y1="65" x2="5" y2="70" stroke={ladder.layer6} strokeWidth="5" /> {/* Handles */}
-                          <line x1="35" y1="78" x2="30" y2="92" stroke={ladder.layer6} strokeWidth="4" /> {/* Leg support */}
-                          {/* Mound of Mulch inside tub */}
-                          <path d="M28,55 C40,40 75,40 85,55 Z" fill={ladder.layer7} />
-                          {/* Steel Spade with Periodic Sunlight Glint */}
-                          <line x1="60" y1="45" x2="72" y2="20" stroke={ladder.layer5} strokeWidth="4" />
-                          <polygon points="68,15 76,15 74,22 66,22" fill={ladder.accent} />
-                          {/* Blade reflection glint */}
-                          <circle 
-                            cx="71" 
-                            cy="17" 
-                            r="4" 
-                            fill="#ffffff" 
-                            style={{ animation: "spadeShimmer 2.5s infinite ease-in-out" }}
-                          />
-                        </g>
-                      </g>
-
-                      {/* LAYER 6: FOREGROUND ORNAMENTAL GRASSES & CRUST BORDER */}
-                      <g style={{ transform: `translate(${autoDriftX * -20}px, ${autoDriftY * -15}px)` }}>
-                        <path 
-                          d="M0,423 Q380,398 800,423 L800,500 L0,500 Z" 
-                          fill={ladder.layer6} 
-                          filter="url(#layer-shadow-deep)"
-                          stroke={ladder.rimLight}
-                          strokeWidth="1.3"
-                          strokeOpacity="0.4"
-                        />
-                        
-                        {/* Botanical paper cuts along bed edge */}
-                        <path d="M120,430 C110,380 140,360 150,430 Z" fill={ladder.layer7} stroke={ladder.rimLight} strokeWidth="0.8" strokeOpacity="0.3" />
-                        <path d="M145,430 C140,370 175,355 180,430 Z" fill={ladder.layer7} stroke={ladder.rimLight} strokeWidth="0.8" strokeOpacity="0.3" />
-                        <path d="M620,430 C610,375 645,360 655,430 Z" fill={ladder.layer7} stroke={ladder.rimLight} strokeWidth="0.8" strokeOpacity="0.3" />
-                      </g>
-
-                      {/* LAYER 7: FRAME OVERHANG */}
-                      <g style={{ transform: `translate(${autoDriftX * -26}px, ${autoDriftY * -19}px)` }}>
-                        <rect x="0" y="475" width="800" height="25" fill={ladder.layer7} />
-                      </g>
-
-                    </svg>
-                  )}
-
-                  {/* ============================================================ */}
-                  {/* SCENE 5: WINTER FREEZE & SNOW DEFENSE */}
-                  {/* ============================================================ */}
-                  {scene.id === "snow" && (
-                    <svg className="w-full h-full" viewBox="0 0 800 500" preserveAspectRatio="xMidYMid slice">
-                      
-                      {/* LAYER 1: COLD MOON THROUGH WINTER SKY */}
-                      <g 
-                        filter="url(#dof-far)"
-                        style={{ transform: `translate(${autoDriftX * -2}px, ${autoDriftY * -2}px)` }}
-                      >
-                        <circle cx="300" cy="140" r="70" fill={ladder.layer1} opacity={lampOn ? 0.92 : 0.25} />
-                        <circle cx="300" cy="140" r="100" fill={ladder.layer1} opacity={lampOn ? 0.25 : 0.05} />
-                      </g>
-
-                      {/* LAYER 2: DISTANT SNOW-COVERED RIDGES */}
-                      <g style={{ transform: `translate(${autoDriftX * -4}px, ${autoDriftY * -3}px)` }}>
-                        <path 
-                          d="M0,228 Q250,168 500,218 T800,198 L800,500 L0,500 Z" 
-                          fill={ladder.layer2} 
-                          opacity="0.86" 
-                          filter="url(#layer-shadow-soft)"
-                          stroke={ladder.rimLight}
-                          strokeWidth="0.9"
-                          strokeOpacity="0.4"
-                        />
-                      </g>
-
-                      {/* LAYER 3: SNOWY PINE TREES & WARM HEARTH COTTAGE */}
-                      <g style={{ transform: `translate(${autoDriftX * -7}px, ${autoDriftY * -5}px)` }}>
-                        {/* Snow pines with white snowy caps */}
-                        <path d="M80,260 L105,200 L130,260 Z" fill={ladder.layer3} />
-                        <path d="M95,215 L105,200 L115,215 Z" fill="#ffffff" opacity="0.8" />
-                        <path d="M125,270 L150,190 L175,270 Z" fill={ladder.layer3} />
-                        <path d="M140,210 L150,190 L160,210 Z" fill="#ffffff" opacity="0.8" />
-                        
-                        {/* Cozy Cottage */}
-                        <path d="M480,240 L540,180 L600,240 L600,285 L480,285 Z M525,170 L540,170 L540,190 L525,190 Z" fill={ladder.layer3} />
-                        {/* Warm Golden Glowing Hearth Windows */}
-                        {lampOn && (
-                          <g fill={ladder.windowGlow} filter="url(#window-bloom)">
-                            <rect x="505" y="248" width="16" height="22" rx="2" style={{ opacity: 0.9 + 0.1 * Math.sin(clock * 6) }} />
-                            <rect x="560" y="248" width="16" height="22" rx="2" style={{ opacity: 0.88 + 0.12 * Math.cos(clock * 5.2) }} />
-                            <circle cx="540" cy="210" r="8" style={{ opacity: 0.95 }} />
-                          </g>
-                        )}
-                        <path 
-                          d="M0,278 Q400,243 800,273 L800,500 L0,500 Z" 
-                          fill={ladder.layer3} 
-                          stroke={ladder.rimLight}
-                          strokeWidth="0.8"
-                          strokeOpacity="0.4"
-                        />
-                      </g>
-
-                      {/* LAYER 4: SNOW BLANKET LAWN WITH CLEARED PATH */}
-                      <g style={{ transform: `translate(${autoDriftX * -11}px, ${autoDriftY * -8}px)` }}>
-                        <path 
-                          d="M0,323 Q380,298 800,323 L800,500 L0,500 Z" 
-                          fill={ladder.layer4} 
-                          filter="url(#layer-shadow-soft)"
-                          stroke={ladder.rimLight}
-                          strokeWidth="1.2"
-                          strokeOpacity="0.5"
-                        />
-                      </g>
-
-                      {/* LAYER 5: SERVICE ACTION - COMMERCIAL SNOW PLOW WITH PULSING ROOF BEACON */}
-                      <g style={{ transform: `translate(${autoDriftX * -15}px, ${autoDriftY * -11}px)` }}>
-                        <path 
-                          d="M0,368 Q400,343 800,368 L800,500 L0,500 Z" 
-                          fill={ladder.layer5} 
-                          filter="url(#layer-shadow-soft)"
-                          stroke={ladder.rimLight}
-                          strokeWidth="1.2"
-                          strokeOpacity="0.45"
-                        />
-
-                        {/* SNOW PLOW TRUCK SILHOUETTE */}
-                        <g transform="translate(330, 275) scale(1.05)" fill={ladder.layer6}>
-                          {/* Truck Cab & Bed */}
-                          <path d="M20,55 L65,55 L90,68 L115,68 L115,86 L10,86 L10,55 Z" />
-                          <rect x="35" y="58" width="22" height="18" rx="2" fill={ladder.windowGlow} opacity="0.85" filter="url(#window-bloom)" />
-                          {/* Heavy Duty Wheels */}
-                          <circle cx="32" cy="88" r="16" fill={ladder.layer7} />
-                          <circle cx="32" cy="88" r="7" fill={ladder.layer4} />
-                          <circle cx="98" cy="88" r="16" fill={ladder.layer7} />
-                          <circle cx="98" cy="88" r="7" fill={ladder.layer4} />
-                          {/* Front Commercial Angled V-Plow Blade */}
-                          <path d="M115,74 L142,65 L145,95 L115,92 Z" fill={ladder.accent} />
-                          {/* Roof Amber Warning Strobe Beacon (Authentic Safety Flashing) */}
-                          {lampOn && (
-                            <polygon 
-                              points="46,55 54,55 52,49 48,49" 
-                              fill="#f59e0b" 
-                              style={{ animation: "amberBeaconPulse 0.9s infinite ease-in-out" }}
-                            />
+                    {/* Controls + Caption Row */}
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          onClick={() => setIsPlaying((p) => !p)}
+                          className="w-8 h-8 rounded-full bg-amber-500 hover:bg-amber-400 text-slate-950 flex items-center justify-center transition-transform active:scale-95"
+                          aria-label={isPlaying ? "Pause animation" : "Play animation"}
+                        >
+                          {isPlaying ? (
+                            <PauseIcon className="w-4 h-4 stroke-[2.5]" />
+                          ) : (
+                            <PlayIcon className="w-4 h-4 stroke-[2.5] ml-0.5" />
                           )}
-                        </g>
+                        </button>
+                        <button
+                          onClick={() => {
+                            seekTo(0);
+                            setIsPlaying(true);
+                          }}
+                          className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-200 flex items-center justify-center transition-colors"
+                          aria-label="Replay 15-second film"
+                        >
+                          <ArrowPathIcon className="w-4 h-4" />
+                        </button>
+                        <span className="text-[11px] font-mono font-bold text-amber-300 ml-1">
+                          {formatTime(currentTime)} <span className="text-slate-500">/ 00:15.0</span>
+                        </span>
+                      </div>
 
-                        {/* REALISTIC ROARING SNOW PLOW DISCHARGE WAVE (Billowing Snow Arc) */}
-                        <g fill="#ffffff">
-                          <path 
-                            d="M480,368 C515,340 555,335 585,370 Z" 
-                            opacity="0.85" 
-                            stroke={ladder.rimLight}
-                            strokeWidth="1.2"
-                          />
-                          {/* Discharging Snow Mist Spray */}
-                          <circle cx="490" cy="355" r="4" style={{ animation: "snowSprayArc 1.2s infinite ease-out" }} />
-                          <circle cx="515" cy="342" r="5" style={{ animation: "snowSprayArc 1.1s infinite ease-out 0.2s" }} />
-                          <circle cx="545" cy="338" r="6" style={{ animation: "snowSprayArc 1.3s infinite ease-out 0.4s" }} />
-                        </g>
-                      </g>
-
-                      {/* LAYER 6: FOREGROUND SNOWDRIFT ACCENTS & CLEARED WALKWAY */}
-                      <g style={{ transform: `translate(${autoDriftX * -20}px, ${autoDriftY * -15}px)` }}>
-                        <path 
-                          d="M0,418 Q320,393 800,413 L800,500 L0,500 Z" 
-                          fill={ladder.layer6} 
-                          filter="url(#layer-shadow-deep)"
-                          stroke={ladder.rimLight}
-                          strokeWidth="1.3"
-                          strokeOpacity="0.4"
-                        />
-                        
-                        {/* Shoveled Clean Walkway Edge */}
-                        <path d="M220,440 L340,415 L360,425 L240,455 Z" fill={ladder.layer7} />
-                      </g>
-
-                      {/* LAYER 7: FROSTED FRONT BRANCHES */}
-                      <g style={{ transform: `translate(${autoDriftX * -26}px, ${autoDriftY * -19}px)` }}>
-                        <path d="M-10,-10 C70,50 140,60 210,30 L200,45 C140,70 70,60 -10,10 Z" fill={ladder.layer7} filter="url(#layer-shadow-deep)" />
-                        <rect x="0" y="475" width="800" height="25" fill={ladder.layer7} />
-                      </g>
-
-                      {/* MULTI-DEPTH PAPER SNOWFLAKES DRIFTING DOWN */}
-                      <g fill="#ffffff">
-                        <circle cx="120" cy="50" r="2.5" style={{ animation: "snowDrift1 4.5s infinite linear" }} />
-                        <circle cx="280" cy="80" r="3.2" style={{ animation: "snowDrift2 5.2s infinite linear 0.7s" }} />
-                        <circle cx="440" cy="30" r="2.2" style={{ animation: "snowDrift1 4.8s infinite linear 1.2s" }} />
-                        <circle cx="620" cy="60" r="3.5" style={{ animation: "snowDrift2 4.2s infinite linear 0.4s" }} />
-                        <circle cx="710" cy="20" r="2.0" style={{ animation: "snowDrift1 5.5s infinite linear 2.0s" }} />
-                        <circle cx="360" cy="40" r="2.8" style={{ animation: "snowDrift2 4.9s infinite linear 1.6s" }} />
-                      </g>
-
-                    </svg>
-                  )}
-                </div>
-
-                {/* PHYSICAL GLASS REFLECTION GLARE (Sells the tactile physical shadowbox lamp front) */}
-                <div 
-                  className="absolute inset-0 pointer-events-none"
-                  style={{
-                    background: "linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 25%, transparent 55%, rgba(255,255,255,0.01) 100%)",
-                  }}
-                />
-
-                {/* BOTTOM STORY SUBTITLE BAR (BURNED-IN PAPER CUT CAPTION) */}
-                <div className="absolute bottom-4 left-4 right-4 z-20 pointer-events-none">
-                  <div className="backdrop-blur-md bg-slate-950/85 border border-white/10 rounded-2xl px-5 py-3.5 shadow-2xl flex items-center justify-between gap-4">
-                    <p className="text-xs md:text-sm font-medium text-slate-200 leading-snug">
-                      <span className="font-black text-amber-300 uppercase tracking-wider mr-2 text-[11px] md:text-xs px-2 py-0.5 rounded bg-amber-500/15 border border-amber-500/25">
-                        Scene {activeIdx + 1} of {SCENES.length}
-                      </span>
-                      {scene.storyStep}
-                    </p>
-                    <div className="hidden sm:flex items-center gap-1.5 shrink-0">
-                      {SCENES.map((_, i) => (
-                        <div 
-                          key={i} 
-                          className={`h-1.5 rounded-full transition-all duration-300 ${i === activeIdx ? 'w-6 bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.8)]' : 'w-2 bg-slate-700'}`} 
-                        />
-                      ))}
+                      <p className="hidden sm:block text-xs text-slate-300 font-medium truncate">
+                        <span className="text-amber-400 font-black uppercase mr-1.5">
+                          {chapter.label}:
+                        </span>
+                        {chapter.storyStep}
+                      </p>
                     </div>
                   </div>
                 </div>
-
-                {/* SLIDE PROGRESS TIMELINE BAR */}
-                <div className="absolute top-0 left-0 right-0 h-1 bg-slate-800/80 z-20">
-                  <div 
-                    className="h-full bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-300 transition-all duration-100 ease-linear shadow-[0_0_12px_rgba(251,191,36,0.9)]"
-                    style={{ width: `${progress}%` }}
-                  />
-                </div>
-
-                {/* MANUAL NAVIGATION CHEVRONS */}
-                <button
-                  onClick={prevScene}
-                  className="absolute left-3.5 top-1/2 -translate-y-1/2 z-20 w-11 h-11 rounded-full bg-black/65 hover:bg-black/90 text-white flex items-center justify-center border border-white/15 transition-all backdrop-blur-md hover:scale-110 active:scale-95 shadow-xl"
-                  aria-label="Previous service scene"
-                >
-                  <ChevronLeftIcon className="w-5 h-5 text-amber-300" />
-                </button>
-                <button
-                  onClick={nextScene}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 z-20 w-11 h-11 rounded-full bg-black/65 hover:bg-black/90 text-white flex items-center justify-center border border-white/15 transition-all backdrop-blur-md hover:scale-110 active:scale-95 shadow-xl"
-                  aria-label="Next service scene"
-                >
-                  <ChevronRightIcon className="w-5 h-5 text-amber-300" />
-                </button>
-
               </div>
 
-              {/* LAMP BASE EMBOSSED BRASS PLAQUE */}
-              <div className="mt-3.5 flex items-center justify-between px-2 text-[10px] md:text-[11px] font-black uppercase tracking-[0.2em] text-[#b38f65]">
+              {/* LAMP BASE BRASS PLAQUE */}
+              <div className="mt-3 flex items-center justify-between px-2 text-[10px] font-black uppercase tracking-[0.2em] text-[#b38f65]">
                 <span className="flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_6px_rgba(245,158,11,0.8)]" />
-                  Flora Lawn Shadow Box
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                  Flora Lawn · 15s Continuous Film
                 </span>
-                <span className="hidden sm:inline-block opacity-75">
-                  Multi-Layer 3D Paper Cut Lightbox (纸雕灯)
+                <span className="hidden sm:inline opacity-75">
+                  7-Layer Canvas2D Shadow Box (60fps)
                 </span>
-                <span>Rhode Island &amp; MA</span>
+                <span>RI &amp; Southern MA</span>
               </div>
             </div>
           </div>
 
-          {/* SERVICE DETAIL & ESTIMATE CARD */}
+          {/* LIVE SYNCED SERVICE DETAIL CARD */}
           <div className="lg:col-span-4 flex flex-col justify-between h-full space-y-6">
             <div className="bg-slate-900/85 border border-slate-800/90 rounded-[2.2rem] p-7 backdrop-blur-xl relative overflow-hidden shadow-2xl">
-              
               <div className="flex items-center justify-between gap-2 mb-4">
                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-green-500/10 border border-green-500/20 text-green-400 text-[10px] font-black uppercase tracking-widest">
                   <CheckBadgeIcon className="w-3.5 h-3.5" />
-                  Program #{activeIdx + 1}
+                  Act {safeChapterIdx + 1} of 4
                 </div>
                 <span className="text-[10px] font-black uppercase tracking-wider text-amber-400/90 bg-amber-500/10 px-2.5 py-0.5 rounded-full border border-amber-500/20">
-                  {scene.seasonBadge}
+                  {chapter.seasonBadge}
                 </span>
               </div>
 
               <h3 className="text-2xl md:text-3xl font-black text-white uppercase tracking-tight mb-2">
-                {scene.title}
+                {chapter.title}
               </h3>
 
               <p className="text-amber-300/90 text-xs font-bold uppercase tracking-wide mb-6">
-                {scene.tagline}
+                {chapter.tagline}
               </p>
 
               <div className="space-y-3 pt-4 border-t border-slate-800/80 mb-8">
-                {scene.keyPoints.map((pt, idx) => (
+                {chapter.keyPoints.map((pt, idx) => (
                   <div key={idx} className="flex items-start gap-3">
-                    <div className="w-5 h-5 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0 mt-0.5 text-xs font-bold shadow-sm">
+                    <div className="w-5 h-5 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0 mt-0.5 text-xs font-bold">
                       ✓
                     </div>
                     <span className="text-sm font-semibold text-slate-300 leading-snug">
@@ -1338,11 +1630,10 @@ export default function PapercutLightbox() {
                 ))}
               </div>
 
-              {/* DIRECT ACTION BUTTONS */}
               <div className="space-y-3">
                 <Link
-                  href={`/contact?service=${encodeURIComponent(scene.serviceParam)}`}
-                  className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 hover:from-amber-400 hover:to-amber-300 text-slate-950 font-black text-sm uppercase tracking-wider flex items-center justify-center gap-3 shadow-lg shadow-amber-500/25 transition-all transform hover:-translate-y-0.5 active:translate-y-0"
+                  href={`/contact?service=${encodeURIComponent(chapter.serviceParam)}`}
+                  className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 hover:from-amber-400 hover:to-amber-300 text-slate-950 font-black text-sm uppercase tracking-wider flex items-center justify-center gap-3 shadow-lg shadow-amber-500/25 transition-all transform hover:-translate-y-0.5"
                 >
                   Get Instant Free Quote
                   <ArrowRightIcon className="w-4 h-4" />
@@ -1355,21 +1646,17 @@ export default function PapercutLightbox() {
               </div>
             </div>
 
-            {/* CALL DIRECT QUICK BAR */}
             <div className="bg-slate-900/50 border border-slate-800/70 rounded-2xl p-4 flex items-center justify-between text-xs backdrop-blur-md">
               <span className="text-slate-400 font-semibold">Need custom scheduling?</span>
-              <a 
-                href="tel:4013890913" 
+              <a
+                href="tel:4013890913"
                 className="text-amber-400 hover:text-amber-300 font-black flex items-center gap-1.5 transition-colors"
               >
                 (401) 389-0913 &rarr;
               </a>
             </div>
-
           </div>
-
         </div>
-
       </div>
     </section>
   );
