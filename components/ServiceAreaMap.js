@@ -11,18 +11,19 @@ import {
   ArrowsPointingOutIcon,
   ArrowsPointingInIcon,
   ClockIcon,
+  MapIcon,
 } from '@heroicons/react/24/outline';
 
 const HQ = { name: 'Pawtucket HQ', lat: 41.879, lng: -71.383 };
 
 const TOWNS = [
-  { name: 'Providence', state: 'RI', lat: 41.824, lng: -71.413, major: true, labelDx: -42, labelDy: -10 },
+  { name: 'Providence', state: 'RI', lat: 41.824, lng: -71.413, major: true },
   { name: 'Cranston', state: 'RI', lat: 41.78, lng: -71.437 },
   { name: 'Pawtucket', state: 'RI', lat: 41.879, lng: -71.383 },
   { name: 'Central Falls', state: 'RI', lat: 41.89, lng: -71.392 },
   { name: 'East Providence', state: 'RI', lat: 41.814, lng: -71.37 },
   { name: 'North Providence', state: 'RI', lat: 41.85, lng: -71.466 },
-  { name: 'Woonsocket', state: 'RI', lat: 42.003, lng: -71.515, major: true, labelDx: 0, labelDy: -14 },
+  { name: 'Woonsocket', state: 'RI', lat: 42.003, lng: -71.515, major: true },
   { name: 'Cumberland', state: 'RI', lat: 41.967, lng: -71.433 },
   { name: 'Lincoln', state: 'RI', lat: 41.911, lng: -71.435 },
   { name: 'Johnston', state: 'RI', lat: 41.822, lng: -71.507 },
@@ -32,7 +33,7 @@ const TOWNS = [
   { name: 'Glocester', state: 'RI', lat: 41.905, lng: -71.68 },
   { name: 'Foster', state: 'RI', lat: 41.854, lng: -71.758 },
   { name: 'Scituate', state: 'RI', lat: 41.81, lng: -71.6 },
-  { name: 'Warwick', state: 'RI', lat: 41.7, lng: -71.416, major: true, labelDx: 38, labelDy: 4 },
+  { name: 'Warwick', state: 'RI', lat: 41.7, lng: -71.416, major: true },
   { name: 'West Warwick', state: 'RI', lat: 41.697, lng: -71.522 },
   { name: 'Coventry', state: 'RI', lat: 41.686, lng: -71.6 },
   { name: 'East Greenwich', state: 'RI', lat: 41.66, lng: -71.456 },
@@ -44,9 +45,9 @@ const TOWNS = [
   { name: 'Richmond', state: 'RI', lat: 41.505, lng: -71.669 },
   { name: 'Hopkinton', state: 'RI', lat: 41.461, lng: -71.778 },
   { name: 'Charlestown', state: 'RI', lat: 41.383, lng: -71.642 },
-  { name: 'Westerly', state: 'RI', lat: 41.378, lng: -71.827, major: true, labelDx: 0, labelDy: -14 },
+  { name: 'Westerly', state: 'RI', lat: 41.378, lng: -71.827, major: true },
   { name: 'Jamestown', state: 'RI', lat: 41.497, lng: -71.367 },
-  { name: 'Newport', state: 'RI', lat: 41.49, lng: -71.313, major: true, labelDx: 34, labelDy: 14 },
+  { name: 'Newport', state: 'RI', lat: 41.49, lng: -71.313, major: true },
   { name: 'Middletown', state: 'RI', lat: 41.546, lng: -71.291 },
   { name: 'Portsmouth', state: 'RI', lat: 41.6, lng: -71.251 },
   { name: 'Tiverton', state: 'RI', lat: 41.626, lng: -71.214 },
@@ -57,7 +58,7 @@ const TOWNS = [
   { name: 'New Shoreham', state: 'RI', lat: 41.173, lng: -71.558, island: true },
   { name: 'Seekonk', state: 'MA', lat: 41.808, lng: -71.337 },
   { name: 'Rehoboth', state: 'MA', lat: 41.84, lng: -71.249 },
-  { name: 'Attleboro', state: 'MA', lat: 41.945, lng: -71.285, major: true, labelDx: 44, labelDy: -4 },
+  { name: 'Attleboro', state: 'MA', lat: 41.945, lng: -71.285, major: true },
   { name: 'North Attleboro', state: 'MA', lat: 41.984, lng: -71.333 },
   { name: 'Plainville', state: 'MA', lat: 42.004, lng: -71.333 },
   { name: 'Wrentham', state: 'MA', lat: 42.067, lng: -71.328 },
@@ -69,14 +70,36 @@ const FILTERS = [
   { id: 'MA', label: 'Mass.' },
 ];
 
-// Geographic projection: (lat, lng) -> 900x720 Shadow Box SVG space
-function project(lat, lng) {
-  const x = 135 + ((lng - -71.88) / 0.8) * 630;
-  const y = 660 - ((lat - 41.12) / 1.0) * 590;
-  return { x: Math.round(x * 10) / 10, y: Math.round(y * 10) / 10 };
+// Exact Web Mercator projection at zoom 10 matching real CartoDB @2x map tiles
+const ZOOM = 10;
+const TILE_N = 1 << ZOOM; // 1024
+const TILE_SIZE = 256;
+const TILE_X_MIN = 306;
+const TILE_X_MAX = 310;
+const TILE_Y_MIN = 379;
+const TILE_Y_MAX = 383;
+
+// SVG viewBox framing Rhode Island & Southern Massachusetts
+const VIEW_X = 210;
+const VIEW_Y = 145;
+const VIEW_W = 920;
+const VIEW_H = 985;
+const VIEW_CX = VIEW_X + VIEW_W / 2;
+const VIEW_CY = VIEW_Y + VIEW_H / 2;
+
+function projectMercator(lat, lng) {
+  const tx = ((lng + 180) / 360) * TILE_N;
+  const latRad = (lat * Math.PI) / 180;
+  const ty =
+    ((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2) *
+    TILE_N;
+  return {
+    x: Math.round((tx - TILE_X_MIN) * TILE_SIZE * 10) / 10,
+    y: Math.round((ty - TILE_Y_MIN) * TILE_SIZE * 10) / 10,
+  };
 }
 
-// Haversine miles from Pawtucket HQ for realistic route badge
+// Haversine miles from Pawtucket HQ
 function milesFromHQ(lat, lng) {
   const R = 3958.8;
   const dLat = ((lat - HQ.lat) * Math.PI) / 180;
@@ -89,7 +112,22 @@ function milesFromHQ(lat, lng) {
   return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
 }
 
-const HQ_PT = project(HQ.lat, HQ.lng);
+const HQ_PT = projectMercator(HQ.lat, HQ.lng);
+
+// Precompute 5x5 grid of real map tiles (zero API key, retina @2x)
+const MAP_TILES = [];
+for (let ty = TILE_Y_MIN; ty <= TILE_Y_MAX; ty++) {
+  for (let tx = TILE_X_MIN; tx <= TILE_X_MAX; tx++) {
+    const sub = ['a', 'b', 'c', 'd'][(tx + ty) % 4];
+    MAP_TILES.push({
+      key: `${tx}-${ty}`,
+      x: (tx - TILE_X_MIN) * TILE_SIZE,
+      y: (ty - TILE_Y_MIN) * TILE_SIZE,
+      darkUrl: `https://${sub}.basemaps.cartocdn.com/dark_all/${ZOOM}/${tx}/${ty}@2x.png`,
+      voyagerUrl: `https://${sub}.basemaps.cartocdn.com/rastertiles/voyager/${ZOOM}/${tx}/${ty}@2x.png`,
+    });
+  }
+}
 
 export default function ServiceAreaMap() {
   const [filter, setFilter] = useState('all');
@@ -98,7 +136,7 @@ export default function ServiceAreaMap() {
   const [hovered, setHovered] = useState(null);
   const [lampOn, setLampOn] = useState(true);
   const [zoomed, setZoomed] = useState(false);
-  const [tilt, setTilt] = useState({ x: 0, y: 0 });
+  const [mapTheme, setMapTheme] = useState('dark'); // 'dark' | 'voyager'
 
   const counts = useMemo(
     () => ({
@@ -113,7 +151,7 @@ export default function ServiceAreaMap() {
     () =>
       TOWNS.map((t) => ({
         ...t,
-        ...project(t.lat, t.lng),
+        ...projectMercator(t.lat, t.lng),
         miles: milesFromHQ(t.lat, t.lng),
       })),
     []
@@ -132,36 +170,26 @@ export default function ServiceAreaMap() {
     [projectedTowns, active, hovered]
   );
 
-  const spotlightX = activeTown ? (activeTown.x / 900) * 100 : 54;
-  const spotlightY = activeTown ? (activeTown.y / 720) * 100 : 38;
+  // Backlight spotlight coordinates aligned to active town
+  const spotlightX = activeTown ? ((activeTown.x - VIEW_X) / VIEW_W) * 100 : 54;
+  const spotlightY = activeTown ? ((activeTown.y - VIEW_Y) / VIEW_H) * 100 : 38;
 
   // Curved quadratic dispatch arc from Pawtucket HQ -> Active Town
   const dispatchArc = useMemo(() => {
     if (!activeTown) return '';
     const mx = (HQ_PT.x + activeTown.x) / 2;
-    const my = (HQ_PT.y + activeTown.y) / 2 - 28;
+    const my = (HQ_PT.y + activeTown.y) / 2 - 42;
     return `M ${HQ_PT.x} ${HQ_PT.y} Q ${mx} ${my} ${activeTown.x} ${activeTown.y}`;
   }, [activeTown]);
 
-  // Smooth zoom camera transform centered on selected town
+  // Smooth Focus Zoom transform centered on active town
   const cameraTransform = useMemo(() => {
     if (!zoomed || !activeTown) return 'scale(1) translate(0px, 0px)';
-    const scale = 1.48;
-    const tx = (450 - activeTown.x) * 0.55;
-    const ty = (360 - activeTown.y) * 0.55;
+    const scale = 1.72;
+    const tx = (VIEW_CX - activeTown.x) * 0.68;
+    const ty = (VIEW_CY - activeTown.y) * 0.68;
     return `scale(${scale}) translate(${tx}px, ${ty}px)`;
   }, [zoomed, activeTown]);
-
-  const handleMouseMove = (e) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width - 0.5) * 2;
-    const y = ((e.clientY - rect.top) / rect.height - 0.5) * 2;
-    setTilt({ x, y });
-  };
-
-  const handleMouseLeave = () => {
-    setTilt({ x: 0, y: 0 });
-  };
 
   const changeFilter = (id) => {
     setFilter(id);
@@ -171,14 +199,14 @@ export default function ServiceAreaMap() {
 
   return (
     <div className="relative overflow-hidden rounded-[2.6rem] border-4 border-[#3f2416] bg-gradient-to-br from-[#2a180e] via-[#150c07] to-[#0a0503] p-3.5 shadow-[0_40px_110px_rgba(0,0,0,0.65),inset_0_2px_8px_rgba(255,210,120,0.22)] md:p-5">
-      {/* ANIMATED MAP KEYFRAMES */}
+      {/* ANIMATED DISPATCH ARC & RADAR KEYFRAMES */}
       <style jsx>{`
         @keyframes mapRadarPulse {
-          0% { transform: scale(0.5); opacity: 0.9; }
-          100% { transform: scale(2.4); opacity: 0; }
+          0% { transform: scale(0.5); opacity: 0.95; }
+          100% { transform: scale(2.8); opacity: 0; }
         }
         @keyframes routeFlow {
-          from { stroke-dashoffset: 36; }
+          from { stroke-dashoffset: 40; }
           to { stroke-dashoffset: 0; }
         }
         .map-radar {
@@ -187,11 +215,11 @@ export default function ServiceAreaMap() {
           transform-origin: center;
         }
         .map-route-flow {
-          animation: routeFlow 1.3s linear infinite;
+          animation: routeFlow 1.2s linear infinite;
         }
       `}</style>
 
-      {/* BRASS CORNER BRACKETS + RIVETS */}
+      {/* BRASS CORNER BRACKETS */}
       <div className="pointer-events-none absolute left-3 top-3 h-5 w-5 border-l-2 border-t-2 border-amber-600/75" />
       <div className="pointer-events-none absolute right-3 top-3 h-5 w-5 border-r-2 border-t-2 border-amber-600/75" />
       <div className="pointer-events-none absolute bottom-3 left-3 h-5 w-5 border-b-2 border-l-2 border-amber-600/75" />
@@ -203,7 +231,7 @@ export default function ServiceAreaMap() {
           <div className="flex items-center justify-between gap-2">
             <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-amber-300">
               <SparklesIcon className="h-3.5 w-3.5 text-amber-400" />
-              Nautical Lightbox Map
+              Live Dispatch Map
             </span>
             <span className="text-[10px] font-mono font-bold text-slate-500">
               41.8°N · 71.4°W
@@ -215,7 +243,7 @@ export default function ServiceAreaMap() {
             <span className="inline-block pr-1 text-amber-400">RI &amp; Mass.</span>
           </h3>
           <p className="mt-1.5 text-xs font-medium text-slate-400 leading-relaxed">
-            Select any town to trace our live crew dispatch route from headquarters.
+            Tap any town to illuminate its live route from our Pawtucket headquarters on the real map.
           </p>
 
           {/* STATE FILTER TABS */}
@@ -313,23 +341,10 @@ export default function ServiceAreaMap() {
           </div>
         </aside>
 
-        {/* RIGHT STAGE: LASER-CUT ILLUMINATED BATHYMETRIC PAPER-CUT MAP */}
-        <div
-          onMouseMove={handleMouseMove}
-          onMouseLeave={handleMouseLeave}
-          className="relative order-1 min-h-[450px] overflow-hidden bg-[#050a12] sm:min-h-[540px] lg:order-2 lg:min-h-[630px]"
-        >
-          {/* MULTI-LAYER AMBIENT BACKLIGHT TRACKING SELECTED TOWN */}
-          <div
-            className="pointer-events-none absolute inset-0 transition-all duration-700"
-            style={{
-              opacity: lampOn ? 1 : 0.14,
-              background: `radial-gradient(circle at ${spotlightX}% ${spotlightY}%, rgba(254, 240, 138, 0.45) 0%, rgba(245, 158, 11, 0.24) 22%, rgba(16, 185, 129, 0.14) 48%, rgba(8, 25, 44, 0.85) 75%, rgba(4, 9, 18, 0.98) 100%)`,
-            }}
-          />
-
+        {/* RIGHT STAGE: REAL CARTOGRAPHIC MAP + ILLUMINATED ANIMATED OVERLAY */}
+        <div className="relative order-1 min-h-[450px] overflow-hidden bg-[#090d14] sm:min-h-[540px] lg:order-2 lg:min-h-[630px]">
           {/* TOP HUD CONTROLS */}
-          <div className="absolute left-4 top-4 z-20 flex items-center gap-2.5 rounded-2xl border border-white/10 bg-slate-950/80 px-3.5 py-2 backdrop-blur-md shadow-xl">
+          <div className="absolute left-4 top-4 z-20 flex items-center gap-2.5 rounded-2xl border border-white/15 bg-slate-950/85 px-3.5 py-2 backdrop-blur-md shadow-xl">
             <span className="relative flex h-2.5 w-2.5">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
               <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400" />
@@ -339,14 +354,24 @@ export default function ServiceAreaMap() {
             </p>
           </div>
 
-          <div className="absolute right-4 top-4 z-20 flex items-center gap-2">
+          <div className="absolute right-4 top-4 z-20 flex flex-wrap items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setMapTheme((m) => (m === 'dark' ? 'voyager' : 'dark'))}
+              className="flex items-center gap-1.5 rounded-2xl border border-white/15 bg-slate-950/85 px-3 py-2 text-[11px] font-black uppercase tracking-wider text-slate-200 backdrop-blur-md transition-all hover:border-amber-400/50 hover:text-amber-300"
+              title="Switch between Dark Night Map and Terrain/Road Map"
+            >
+              <MapIcon className="h-3.5 w-3.5 text-amber-400" />
+              {mapTheme === 'dark' ? 'Dark' : 'Color'}
+            </button>
+
             <button
               type="button"
               onClick={() => setZoomed((z) => !z)}
               className={`flex items-center gap-1.5 rounded-2xl border px-3 py-2 text-[11px] font-black uppercase tracking-wider backdrop-blur-md transition-all ${
                 zoomed
                   ? 'border-emerald-400/50 bg-emerald-500/20 text-emerald-300'
-                  : 'border-white/10 bg-slate-950/80 text-slate-300 hover:border-white/25'
+                  : 'border-white/15 bg-slate-950/85 text-slate-200 hover:border-white/30'
               }`}
               title={zoomed ? 'Zoom out to full map' : 'Zoom in on selected town'}
             >
@@ -364,29 +389,22 @@ export default function ServiceAreaMap() {
               className={`flex items-center gap-1.5 rounded-2xl border px-3 py-2 text-[11px] font-black uppercase tracking-wider backdrop-blur-md transition-all ${
                 lampOn
                   ? 'border-amber-400/40 bg-amber-500/20 text-amber-300 shadow-lg shadow-amber-500/10'
-                  : 'border-slate-700 bg-slate-950/80 text-slate-400'
+                  : 'border-slate-700 bg-slate-950/85 text-slate-400'
               }`}
             >
               <SunIcon className="h-3.5 w-3.5" />
-              {lampOn ? 'Lamp On' : 'Off'}
+              {lampOn ? 'Glow On' : 'Off'}
             </button>
           </div>
 
-          {/* 7-LAYER ILLUMINATED BATHYMETRIC PAPER-CUT SVG */}
+          {/* REAL WEB MERCATOR MAP + ANIMATED DISPATCH OVERLAY SVG */}
           <svg
-            viewBox="0 0 900 720"
-            preserveAspectRatio="xMidYMid meet"
+            viewBox={`${VIEW_X} ${VIEW_Y} ${VIEW_W} ${VIEW_H}`}
+            preserveAspectRatio="xMidYMid slice"
             className="relative z-10 h-full w-full select-none"
           >
             <defs>
-              {/* SOFT & DEEP PAPER-CUT LAYER SHADOWS */}
-              <filter id="bath-shadow-1" x="-15%" y="-15%" width="135%" height="135%">
-                <feDropShadow dx="0" dy="5" stdDeviation="5" floodColor="#000" floodOpacity="0.55" />
-              </filter>
-              <filter id="bath-shadow-2" x="-20%" y="-20%" width="145%" height="145%">
-                <feDropShadow dx="0" dy="10" stdDeviation="8" floodColor="#000" floodOpacity="0.72" />
-              </filter>
-              <filter id="lantern-bloom" x="-100%" y="-100%" width="300%" height="300%">
+              <filter id="realmap-bloom" x="-100%" y="-100%" width="300%" height="300%">
                 <feGaussianBlur stdDeviation="4.5" result="blur" />
                 <feMerge>
                   <feMergeNode in="blur" />
@@ -394,409 +412,187 @@ export default function ServiceAreaMap() {
                 </feMerge>
               </filter>
 
-              {/* SUBTLE LAND CARDSTOCK GRADIENTS (Warm Backlit Depth) */}
-              <linearGradient id="ri-land-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#265f47" />
-                <stop offset="55%" stopColor="#1a4635" />
-                <stop offset="100%" stopColor="#123125" />
-              </linearGradient>
-              <linearGradient id="ma-land-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#24473a" />
-                <stop offset="100%" stopColor="#132a22" />
-              </linearGradient>
-              <linearGradient id="bay-shallow" x1="0%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" stopColor="#13334c" />
-                <stop offset="100%" stopColor="#0a1e30" />
-              </linearGradient>
+              <radialGradient
+                id="active-spotlight"
+                cx={`${spotlightX}%`}
+                cy={`${spotlightY}%`}
+                r="42%"
+              >
+                <stop offset="0%" stopColor="#fde047" stopOpacity="0.28" />
+                <stop offset="45%" stopColor="#f59e0b" stopOpacity="0.1" />
+                <stop offset="100%" stopColor="#050a12" stopOpacity="0" />
+              </radialGradient>
             </defs>
 
-            {/* CAMERA ZOOM GROUP */}
+            {/* CAMERA ZOOM GROUP (Real Map Tiles + Exact Aligned Pins & Arcs) */}
             <g
               style={{
                 transform: cameraTransform,
-                transformOrigin: '450px 360px',
+                transformOrigin: `${VIEW_CX}px ${VIEW_CY}px`,
                 transition: 'transform 650ms cubic-bezier(0.22, 1, 0.36, 1)',
               }}
             >
-              {/* ENGRAVED NAUTICAL GRATICULE GRID */}
-              <g stroke="#93c5fd" strokeOpacity={lampOn ? 0.08 : 0.03} strokeWidth="0.8">
-                {[180, 360, 540, 720].map((x) => (
-                  <line key={`vx-${x}`} x1={x} y1="0" x2={x} y2="720" />
+              {/* REAL CARTOGRAPHIC MAP TILES (CartoDB Retina @2x — 0px Drift) */}
+              <g
+                style={{
+                  filter:
+                    mapTheme === 'dark'
+                      ? 'contrast(1.12) brightness(1.06) saturate(1.15)'
+                      : 'contrast(1.05) brightness(0.92) saturate(0.95)',
+                }}
+              >
+                {MAP_TILES.map((tile) => (
+                  <image
+                    key={tile.key}
+                    href={mapTheme === 'dark' ? tile.darkUrl : tile.voyagerUrl}
+                    x={tile.x}
+                    y={tile.y}
+                    width={TILE_SIZE + 0.5}
+                    height={TILE_SIZE + 0.5}
+                    preserveAspectRatio="none"
+                  />
                 ))}
-                {[144, 288, 432, 576].map((y) => (
-                  <line key={`hy-${y}`} x1="0" y1={y} x2="900" y2={y} />
-                ))}
               </g>
 
-              {/* LAYER 1: STEPPED BATHYMETRIC OCEAN DEPTH CONTOURS (3 LASER-CUT SHEETS) */}
-              <g
-                style={{
-                  transform: `translate(${tilt.x * -3}px, ${tilt.y * -2}px)`,
-                  transition: 'transform 260ms ease-out',
-                }}
-              >
-                {/* Coastal Shoal Shelf */}
-                <path
-                  d="M0,455 C140,490 250,535 375,560 C495,582 610,515 745,485 C815,470 865,455 900,448 L900,720 L0,720 Z"
-                  fill="url(#bay-shallow)"
-                  stroke="#7dd3fc"
-                  strokeOpacity={lampOn ? 0.24 : 0.06}
-                  strokeWidth="1.1"
-                  filter="url(#bath-shadow-1)"
+              {/* WARM BACKLIGHT SPOTLIGHT OVERLAY TRACKING SELECTED TOWN */}
+              {lampOn && (
+                <rect
+                  x={0}
+                  y={0}
+                  width={1280}
+                  height={1280}
+                  fill="url(#active-spotlight)"
+                  pointerEvents="none"
                 />
-                {/* Mid Continental Shelf */}
-                <path
-                  d="M0,538 C165,568 295,602 435,620 C560,636 690,562 815,532 L900,520 L900,720 L0,720 Z"
-                  fill="#091929"
-                  stroke="#38bdf8"
-                  strokeOpacity={lampOn ? 0.18 : 0.05}
-                  strokeWidth="1"
-                  filter="url(#bath-shadow-1)"
-                />
-                {/* Deep Atlantic Trench */}
-                <path
-                  d="M0,628 C210,645 360,685 520,682 C675,678 785,620 900,602 L900,720 L0,720 Z"
-                  fill="#050e1a"
-                  stroke="#38bdf8"
-                  strokeOpacity={lampOn ? 0.12 : 0.03}
-                  strokeWidth="0.9"
-                />
-              </g>
+              )}
 
-              {/* LAYER 2: SURROUNDING NEW ENGLAND & SOUTHERN MASSACHUSETTS SHEET */}
-              <g
-                style={{
-                  transform: `translate(${tilt.x * -6}px, ${tilt.y * -4}px)`,
-                  transition: 'transform 260ms ease-out',
-                }}
-                filter="url(#bath-shadow-1)"
-              >
-                {/* Surrounding CT / MA landmass silhouette */}
-                <path
-                  d="M-20,-20 L920,-20 L920,385 C855,392 795,382 745,355 C715,338 698,308 665,288 C620,262 565,252 535,212 L495,134 L212,132 L152,512 C110,524 45,535 -20,540 Z"
-                  fill="#0f211c"
-                  stroke="#fde68a"
-                  strokeOpacity={lampOn ? 0.2 : 0.06}
-                  strokeWidth="1.1"
-                />
-
-                {/* Highlighted Southern Massachusetts Service Zone (6 Towns) */}
-                <path
-                  d="M494,134 C505,102 522,74 558,68 C602,60 648,84 684,128 C716,166 742,226 732,278 C722,308 686,322 645,314 C600,305 562,282 538,242 L530,196 Z"
-                  fill="url(#ma-land-grad)"
-                  stroke="#fbbf24"
-                  strokeOpacity={lampOn ? 0.52 : 0.14}
-                  strokeWidth="1.6"
-                  filter="url(#bath-shadow-1)"
-                />
-              </g>
-
-              {/* LAYER 3: SCULPTED RHODE ISLAND COASTLINE, EAST BAY & ISLANDS */}
-              <g
-                style={{
-                  transform: `translate(${tilt.x * -10}px, ${tilt.y * -7}px)`,
-                  transition: 'transform 260ms ease-out',
-                }}
-                filter="url(#bath-shadow-2)"
-              >
-                {/* Rhode Island Mainland (Smooth Organic Narragansett Bay Coves) */}
-                <path
-                  d="M212,132 L496,132 C516,158 532,178 540,198 C544,218 534,242 526,262 C518,282 512,294 522,312 C532,328 534,344 516,360 C498,376 490,396 492,422 C494,450 494,478 480,498 C462,512 430,508 392,514 C342,522 276,528 214,528 C184,528 164,524 156,510 C148,488 158,452 168,408 C180,348 194,252 212,132 Z"
-                  fill="url(#ri-land-grad)"
-                  stroke="#fef08a"
-                  strokeOpacity={lampOn ? 0.68 : 0.18}
-                  strokeWidth="2"
-                />
-
-                {/* East Bay Peninsula (East Providence, Barrington, Warren, Bristol, Tiverton, Little Compton) */}
-                <path
-                  d="M532,226 C552,228 572,240 588,262 C606,288 624,310 650,320 C676,328 696,336 708,358 C722,386 728,424 716,454 C704,468 684,468 672,452 C658,430 656,396 638,378 C622,364 602,374 584,368 C568,360 568,334 558,312 C548,290 532,276 528,256 Z"
-                  fill="url(#ri-land-grad)"
-                  stroke="#fef08a"
-                  strokeOpacity={lampOn ? 0.6 : 0.16}
-                  strokeWidth="1.7"
-                />
-
-                {/* Aquidneck Island (Portsmouth, Middletown, Newport) */}
-                <path
-                  d="M614,354 C632,352 648,364 644,386 C640,412 628,440 606,464 C590,478 564,474 560,454 C556,434 570,406 584,382 C594,364 602,356 614,354 Z"
-                  fill="#255e47"
-                  stroke="#fef08a"
-                  strokeOpacity={lampOn ? 0.72 : 0.2}
-                  strokeWidth="1.7"
-                />
-
-                {/* Conanicut Island (Jamestown) */}
-                <path
-                  d="M538,400 C548,400 554,414 552,434 C550,454 544,470 532,468 C522,464 524,442 528,422 C530,408 532,400 538,400 Z"
-                  fill="#255e47"
-                  stroke="#fef08a"
-                  strokeOpacity={lampOn ? 0.65 : 0.16}
-                  strokeWidth="1.5"
-                />
-
-                {/* Prudence Island (Scenic detail in Narragansett Bay) */}
-                <path
-                  d="M548,354 C556,356 558,372 552,386 C546,390 540,382 542,368 Z"
-                  fill="#235742"
-                  stroke="#fef08a"
-                  strokeOpacity={lampOn ? 0.5 : 0.12}
-                  strokeWidth="1.1"
-                />
-
-                {/* Block Island (New Shoreham) */}
-                <path
-                  d="M388,604 C402,606 410,620 404,638 C398,652 380,652 374,638 C368,624 376,604 388,604 Z"
-                  fill="#255e47"
-                  stroke="#fef08a"
-                  strokeOpacity={lampOn ? 0.72 : 0.2}
-                  strokeWidth="1.7"
-                />
-              </g>
-
-              {/* LAYER 4: ELEVATED WESTERN HILLS + SCORED BORDER + LIVE DISPATCH ARC */}
-              <g
-                style={{
-                  transform: `translate(${tilt.x * -13}px, ${tilt.y * -9}px)`,
-                  transition: 'transform 260ms ease-out',
-                }}
-              >
-                {/* Western RI Topographic Elevation Sheet */}
-                <path
-                  d="M236,166 C288,162 346,184 372,238 C398,294 388,378 348,424 C306,456 242,442 214,394 C194,354 202,248 236,166 Z"
-                  fill="#173d2e"
-                  fillOpacity="0.82"
-                  stroke="#fde68a"
-                  strokeOpacity={lampOn ? 0.34 : 0.08}
-                  strokeWidth="1.2"
-                  filter="url(#bath-shadow-1)"
-                />
-
-                {/* Subtle Dashed RI / MA State Line */}
-                <path
-                  d="M212,132 L496,132 C516,158 532,178 540,198 C544,218 534,242 526,262 L650,320 L688,332"
-                  fill="none"
-                  stroke="#fbbf24"
-                  strokeOpacity={lampOn ? 0.5 : 0.14}
-                  strokeWidth="1.4"
-                  strokeDasharray="6 5"
-                />
-
-                {/* Ambient Highway Corridors (I-95, I-295, I-195, Rt 4) */}
-                <g
-                  fill="none"
-                  stroke="#fef08a"
-                  strokeOpacity={lampOn ? 0.2 : 0.05}
-                  strokeWidth="1.4"
-                >
-                  <path d="M570,101 Q555,165 503,245 Q475,345 360,445 Q260,488 177,508" />
-                  <path d="M422,139 Q465,192 503,245 Q595,245 685,260" />
-                  <path d="M503,245 Q490,375 470,477" />
-                  <path d="M503,245 Q555,345 582,442" />
+              {/* LIVE ANIMATED DISPATCH ARC: PAWTUCKET HQ -> SELECTED TOWN */}
+              {activeTown && activeTown.name !== 'Pawtucket' && (
+                <g pointerEvents="none">
+                  <path
+                    d={dispatchArc}
+                    fill="none"
+                    stroke="#f59e0b"
+                    strokeOpacity={lampOn ? 0.35 : 0.2}
+                    strokeWidth="6"
+                    strokeLinecap="round"
+                  />
+                  <path
+                    d={dispatchArc}
+                    fill="none"
+                    stroke="#fef08a"
+                    strokeWidth="2.8"
+                    strokeDasharray="10 10"
+                    strokeLinecap="round"
+                    className="map-route-flow"
+                    filter={lampOn ? 'url(#realmap-bloom)' : undefined}
+                  />
                 </g>
+              )}
 
-                {/* LIVE ANIMATED DISPATCH ARC: HQ -> SELECTED TOWN */}
-                {activeTown && activeTown.name !== 'Pawtucket' && (
-                  <g>
-                    <path
-                      d={dispatchArc}
-                      fill="none"
-                      stroke="#fbbf24"
-                      strokeOpacity={lampOn ? 0.25 : 0.1}
-                      strokeWidth="4"
-                    />
-                    <path
-                      d={dispatchArc}
-                      fill="none"
-                      stroke="#fef08a"
-                      strokeWidth="2"
-                      strokeDasharray="8 10"
-                      className="map-route-flow"
-                      filter={lampOn ? 'url(#lantern-bloom)' : undefined}
-                    />
-                  </g>
-                )}
-
-                {/* Engraved Map Watermarks */}
-                <text
-                  x="632"
-                  y="548"
-                  fill="#93c5fd"
-                  fillOpacity={lampOn ? 0.38 : 0.12}
-                  fontSize="11"
-                  fontWeight="800"
-                  letterSpacing="4.5"
-                >
-                  NARRAGANSETT BAY
-                </text>
-                <text
-                  x="638"
-                  y="566"
-                  fill="#7dd3fc"
-                  fillOpacity={lampOn ? 0.22 : 0.08}
-                  fontSize="9"
-                  fontWeight="700"
-                  letterSpacing="3"
-                >
-                  ATLANTIC OCEAN
-                </text>
-                <text
-                  x="612"
-                  y="112"
-                  fill="#fde68a"
-                  fillOpacity={lampOn ? 0.36 : 0.12}
-                  fontSize="10"
-                  fontWeight="800"
-                  letterSpacing="3"
-                >
-                  SOUTHERN MASS.
-                </text>
-                <text
-                  x="418"
-                  y="634"
-                  fill="#a7f3d0"
-                  fillOpacity={lampOn ? 0.48 : 0.16}
-                  fontSize="9"
-                  fontWeight="800"
-                  letterSpacing="1.8"
-                >
-                  BLOCK ISLAND
-                </text>
+              {/* HQ PULSE MARKER (PAWTUCKET) */}
+              <g transform={`translate(${HQ_PT.x}, ${HQ_PT.y})`} pointerEvents="none">
+                <circle r="10" fill="#10b981" fillOpacity="0.25" />
+                <circle r="5" fill="#34d399" stroke="#052e16" strokeWidth="1.5" />
               </g>
 
-              {/* LAYER 5: ALL 45 EMISSIVE TOWN LANTERN PINS */}
-              <g
-                style={{
-                  transform: `translate(${tilt.x * -15}px, ${tilt.y * -10}px)`,
-                  transition: 'transform 260ms ease-out',
-                }}
-              >
-                {projectedTowns.map((town) => {
-                  const isFilteredOut = filter !== 'all' && town.state !== filter;
-                  const isSelected = active === town.name;
-                  const isHover = hovered === town.name;
-                  const isHighlighted = isSelected || isHover;
+              {/* ALL 45 EXACT-COORDINATE INTERACTIVE TOWN PINS */}
+              {projectedTowns.map((town) => {
+                const isFilteredOut = filter !== 'all' && town.state !== filter;
+                const isSelected = active === town.name;
+                const isHover = hovered === town.name;
+                const isHighlighted = isSelected || isHover;
 
-                  return (
-                    <g
-                      key={town.name}
-                      transform={`translate(${town.x}, ${town.y})`}
-                      onClick={() => setActive(town.name)}
-                      onMouseEnter={() => setHovered(town.name)}
-                      onMouseLeave={() => setHovered(null)}
-                      className="cursor-pointer"
-                      style={{ opacity: isFilteredOut ? 0.15 : 1, transition: 'opacity 250ms ease' }}
-                    >
-                      <circle r="14" fill="transparent" />
+                return (
+                  <g
+                    key={town.name}
+                    transform={`translate(${town.x}, ${town.y})`}
+                    onClick={() => setActive(town.name)}
+                    onMouseEnter={() => setHovered(town.name)}
+                    onMouseLeave={() => setHovered(null)}
+                    className="cursor-pointer"
+                    style={{ opacity: isFilteredOut ? 0.16 : 1, transition: 'opacity 250ms ease' }}
+                  >
+                    <circle r="16" fill="transparent" />
 
-                      {/* Expanding Radar Pulse on Active Town */}
-                      {isHighlighted && (
-                        <>
-                          <circle
-                            r="14"
-                            fill="none"
-                            stroke="#fde047"
-                            strokeWidth="2"
-                            className="map-radar"
-                          />
-                          <circle
-                            r="16"
-                            fill="#fbbf24"
-                            fillOpacity={lampOn ? 0.22 : 0.08}
-                          />
-                        </>
-                      )}
+                    {/* Expanding Animated Radar Ring on Selected/Hovered Town */}
+                    {isHighlighted && (
+                      <>
+                        <circle
+                          r="16"
+                          fill="none"
+                          stroke="#fde047"
+                          strokeWidth="2.4"
+                          className="map-radar"
+                        />
+                        <circle
+                          r="20"
+                          fill="#fbbf24"
+                          fillOpacity={lampOn ? 0.25 : 0.12}
+                        />
+                      </>
+                    )}
 
-                      {/* Glowing Cardstock Pinhole Beacon */}
-                      <circle
-                        r={isHighlighted ? 6.5 : town.major ? 4.4 : 3.0}
-                        fill={
-                          isHighlighted
-                            ? '#fef08a'
-                            : town.state === 'MA'
-                            ? '#fb923c'
-                            : '#34d399'
-                        }
-                        stroke="#052e16"
-                        strokeWidth={isHighlighted ? 2 : 1.1}
-                        filter={isHighlighted && lampOn ? 'url(#lantern-bloom)' : undefined}
-                      />
+                    {/* Glowing Town Pin */}
+                    <circle
+                      r={isHighlighted ? 8 : town.major ? 5.5 : 4.2}
+                      fill={
+                        isHighlighted
+                          ? '#fef08a'
+                          : town.state === 'MA'
+                          ? '#fb923c'
+                          : '#34d399'
+                      }
+                      stroke="#05131f"
+                      strokeWidth={isHighlighted ? 2.5 : 1.6}
+                      filter={isHighlighted && lampOn ? 'url(#realmap-bloom)' : undefined}
+                    />
 
-                      {/* Clean Non-Overlapping Major Hub Labels */}
-                      {town.major && !isHighlighted && !isFilteredOut && (
+                    {/* Elevated Glass Label Pill for Active / Hovered Town */}
+                    {isHighlighted && !isFilteredOut && (
+                      <g transform="translate(0, -22)">
+                        <rect
+                          x={-(town.name.length * 4.8 + 18)}
+                          y="-16"
+                          width={town.name.length * 9.6 + 36}
+                          height="24"
+                          rx="8"
+                          fill="#070c16"
+                          fillOpacity="0.95"
+                          stroke="#fbbf24"
+                          strokeWidth="1.5"
+                        />
                         <text
-                          x={town.labelDx || 0}
-                          y={town.labelDy || -12}
                           textAnchor="middle"
-                          fill="#e2e8f0"
-                          fillOpacity="0.88"
-                          fontSize="9.5"
-                          fontWeight="800"
-                          letterSpacing="0.4"
-                          style={{ textShadow: '0 2px 6px rgba(0,0,0,0.95)' }}
+                          y="0"
+                          fill="#fef08a"
+                          fontSize="13"
+                          fontWeight="900"
                         >
                           {town.name}
                         </text>
-                      )}
-
-                      {/* Elevated Glass Pill Label for Active / Hovered Town */}
-                      {isHighlighted && !isFilteredOut && (
-                        <g transform="translate(0, -18)">
-                          <rect
-                            x={-(town.name.length * 4 + 14)}
-                            y="-13"
-                            width={town.name.length * 8 + 28}
-                            height="20"
-                            rx="7"
-                            fill="#070c16"
-                            fillOpacity="0.94"
-                            stroke="#fbbf24"
-                            strokeWidth="1.2"
-                          />
-                          <text
-                            textAnchor="middle"
-                            y="0"
-                            fill="#fef08a"
-                            fontSize="11"
-                            fontWeight="900"
-                          >
-                            {town.name}
-                          </text>
-                        </g>
-                      )}
-                    </g>
-                  );
-                })}
-              </g>
-            </g>
-
-            {/* VINTAGE BRASS COMPASS ROSE (Fixed HUD in Ocean Corner) */}
-            <g transform="translate(812, 622)" opacity={lampOn ? 0.62 : 0.22}>
-              <circle r="28" fill="#060c16" fillOpacity="0.55" stroke="#d97706" strokeWidth="1" />
-              <circle r="22" fill="none" stroke="#d97706" strokeWidth="0.6" strokeDasharray="3 3" />
-              <polygon points="0,-25 4,-4 0,-8 -4,-4" fill="#fbbf24" />
-              <polygon points="0,25 4,4 0,8 -4,4" fill="#92400e" />
-              <polygon points="-25,0 -4,-4 -8,0 -4,4" fill="#92400e" />
-              <polygon points="25,0 4,-4 8,0 4,4" fill="#92400e" />
-              <text y="-32" textAnchor="middle" fill="#fde68a" fontSize="10" fontWeight="900">
-                N
-              </text>
+                      </g>
+                    )}
+                  </g>
+                );
+              })}
             </g>
           </svg>
 
-          {/* SUBTLE PROTECTIVE GLASS SHEEN */}
+          {/* SHADOWBOX INNER VIGNETTE & PROTECTIVE GLASS SHEEN */}
           <div
             className="pointer-events-none absolute inset-0 z-10"
             style={{
+              boxShadow: 'inset 0 0 65px rgba(0,0,0,0.65)',
               background:
-                'linear-gradient(135deg, rgba(255,255,255,0.055) 0%, rgba(255,255,255,0.015) 28%, transparent 55%)',
+                'linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.01) 28%, transparent 55%)',
             }}
           />
 
           {/* ACTIVE TOWN ROUTE SPOTLIGHT CARD */}
           {activeTown && (
-            <div className="absolute bottom-4 left-4 right-4 z-20 sm:right-auto sm:min-w-[330px]">
-              <div className="flex items-center justify-between gap-4 rounded-2xl border border-amber-400/35 bg-slate-950/88 px-4 py-3.5 backdrop-blur-md shadow-2xl">
+            <div className="absolute bottom-4 left-4 right-4 z-20 sm:right-auto sm:min-w-[335px]">
+              <div className="flex items-center justify-between gap-4 rounded-2xl border border-amber-400/35 bg-slate-950/90 px-4 py-3.5 backdrop-blur-md shadow-2xl">
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-amber-400/35 bg-amber-500/15 text-amber-300">
                     <MapPinIcon className="h-5 w-5" />
@@ -835,12 +631,12 @@ export default function ServiceAreaMap() {
       <div className="mt-3 flex items-center justify-between px-2 text-[10px] font-black uppercase tracking-[0.2em] text-[#b38f65]">
         <span className="flex items-center gap-1.5">
           <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
-          Flora Lawn · Nautical Paper-Cut Map
+          Flora Lawn · Real Cartographic Lightbox
         </span>
         <span className="hidden opacity-75 sm:inline">
           39 RI Towns · 6 Southern MA Towns · Live Dispatch Routes
         </span>
-        <span>Zero-Latency Interactive</span>
+        <span>© OpenStreetMap · CARTO</span>
       </div>
     </div>
   );
