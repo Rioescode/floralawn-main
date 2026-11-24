@@ -1,6 +1,9 @@
--- Careers applications. Safe to run once on a database that never had
--- job_applications, and also after 20250115000000_create_job_applications_table.sql.
--- Not applied by this change. The API still emails the application if the insert fails.
+-- Careers applications. Idempotent. Touches only public.job_applications.
+-- Supersedes supabase/migrations/20250115000000_create_job_applications_table.sql,
+-- which was never applied. That older file required address, zip, and both
+-- email and phone, and let anyone insert. This file is the one to run.
+-- The API writes with the service role, which bypasses RLS. There is no
+-- public insert policy. Not applied by this change.
 
 CREATE TABLE IF NOT EXISTS public.job_applications (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -102,18 +105,25 @@ CREATE INDEX IF NOT EXISTS idx_job_applications_email
 ALTER TABLE public.job_applications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.job_applications FORCE ROW LEVEL SECURITY;
 
-DROP POLICY IF EXISTS "Anyone can submit job applications" ON public.job_applications;
-CREATE POLICY "Anyone can submit job applications"
-  ON public.job_applications
-  FOR INSERT
-  TO anon, authenticated
-  WITH CHECK (true);
+-- Drop every policy on this table, including "Anyone can submit job applications"
+-- from the older unapplied file. anon and authenticated get no policies.
+-- service_role has BYPASSRLS, so the API can still insert.
+DO $$
+DECLARE
+  pol record;
+BEGIN
+  FOR pol IN
+    SELECT policyname
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'job_applications'
+  LOOP
+    EXECUTE format('DROP POLICY IF EXISTS %I ON public.job_applications', pol.policyname);
+  END LOOP;
+END $$;
 
--- service_role bypasses RLS and is what the API uses. anon and authenticated
--- can insert only. There is no select policy for those roles.
 REVOKE ALL ON TABLE public.job_applications FROM PUBLIC, anon, authenticated;
-GRANT INSERT ON TABLE public.job_applications TO anon, authenticated;
 GRANT ALL ON TABLE public.job_applications TO service_role;
 
 COMMENT ON TABLE public.job_applications IS
-  'Job applications from /careers. Insert-only for anon. The API reads and writes with the service role.';
+  'Job applications from /careers. No public policies. The API writes with the service role.';

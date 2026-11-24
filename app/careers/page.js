@@ -187,10 +187,10 @@ export default function CareersPage() {
             </h1>
             <p className="mt-4 text-lg leading-relaxed text-slate-200">
               Flora Lawn &amp; Landscaping is a Pawtucket crew. The work is outdoors:
-              lawn care, landscaping, seasonal cleanups, and snow.
+              lawn care, landscaping, seasonal cleanups, and snow removal.
             </p>
             <p className="mt-3 text-sm text-slate-400">
-              Trabaja con Flora en Rhode Island. Esta forma está en inglés.
+              ¿Hablas español? Puedes aplicar aquí y marcar Spanish en idiomas.
             </p>
           </div>
         </section>
@@ -198,8 +198,7 @@ export default function CareersPage() {
         <section className="mx-auto max-w-3xl px-4 py-10">
           <h2 className="text-2xl font-black tracking-tight">The work</h2>
           <p className="mt-2 text-slate-600">
-            These are the jobs already on the site. You do not need years of experience.
-            Say what you have done, even if that is nothing yet.
+            Here&apos;s the kind of work our crew does. Experience helps but isn&apos;t required — just tell us what you&apos;ve done so far.
           </p>
           <div className="mt-6 grid gap-3 sm:grid-cols-2">
             {WORK.map((item) => (
@@ -218,7 +217,7 @@ export default function CareersPage() {
                 <CheckCircleIcon className="mx-auto h-12 w-12 text-green-600" />
                 <h2 className="mt-4 text-3xl font-black tracking-tight">We got your application</h2>
                 <p className="mx-auto mt-3 max-w-md text-slate-600">
-                  Thanks, {submittedName}. Flora has your details and will be in touch.
+                  Thanks, {submittedName}. We have your application and will be in touch.
                 </p>
                 <p className="mt-2 text-sm text-slate-500">Gracias. Recibimos tu solicitud.</p>
                 <button
@@ -233,9 +232,9 @@ export default function CareersPage() {
               <>
                 <h2 className="text-2xl font-black tracking-tight">Apply</h2>
                 <p className="mt-1 text-sm text-slate-600">
-                  Name, plus a phone number or an email. The rest helps us call the right person.
+                  Your name, and a phone number or an email. The other questions are optional.
                 </p>
-                <p className="text-xs text-slate-500">Nombre, y un teléfono o un correo.</p>
+                <p className="text-xs text-slate-500">Tu nombre, y un teléfono o un correo. Lo demás es opcional.</p>
 
                 {formError ? (
                   <div className="mt-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
@@ -441,7 +440,7 @@ export default function CareersPage() {
                       rows={4}
                       value={form.message}
                       onChange={(event) => setField('message', event.target.value)}
-                      placeholder="Anything you want us to know."
+                      placeholder="Anything you'd like us to know."
                       className={inputClass}
                     />
                   </Field>

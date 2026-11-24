@@ -3,7 +3,6 @@ import fs from 'fs/promises';
 import config from '@/config';
 import { sendEmail } from '@/libs/resend';
 import { supabaseAdmin } from '@/lib/supabase';
-import { generalApiLimiter } from '@/lib/rate-limiter';
 import {
   validateApplication,
   normalizeApplication,
@@ -18,6 +17,34 @@ export const dynamic = 'force-dynamic';
 
 const BOTH_FAILED =
   'We could not send your application. Please call (401) 389-0913 and we will take it over the phone.';
+
+const LIMIT_WINDOW_MS = 10 * 60 * 1000;
+const LIMIT_MAX = 5;
+const submissionHits = new Map();
+
+function clientIp(request) {
+  const forwarded = request.headers.get('x-forwarded-for');
+  const first = forwarded ? forwarded.split(',')[0].trim() : '';
+  return first || request.headers.get('x-real-ip') || 'unknown';
+}
+
+function tooManyApplications(request) {
+  const ip = clientIp(request);
+  const now = Date.now();
+  const recent = (submissionHits.get(ip) || []).filter((time) => now - time < LIMIT_WINDOW_MS);
+  if (recent.length >= LIMIT_MAX) {
+    submissionHits.set(ip, recent);
+    return true;
+  }
+  recent.push(now);
+  submissionHits.set(ip, recent);
+  if (submissionHits.size > 5000) {
+    for (const [key, times] of submissionHits) {
+      if (!times.some((time) => now - time < LIMIT_WINDOW_MS)) submissionHits.delete(key);
+    }
+  }
+  return false;
+}
 
 function applicationRecipients() {
   const fromContactLeads = config.resend.supportEmail;
@@ -107,9 +134,6 @@ async function emailApplication(application, received) {
 
 export async function POST(request) {
   try {
-    const limited = await generalApiLimiter(request);
-    if (limited) return limited;
-
     let body;
     try {
       body = await request.json();
@@ -121,12 +145,20 @@ export async function POST(request) {
     }
 
     if (body && typeof body.companyWebsite === 'string' && body.companyWebsite.trim()) {
+      console.log('Job application honeypot dropped a submission.');
       return NextResponse.json({ success: true });
     }
 
     const errors = validateApplication(body);
     if (errors.length) {
       return NextResponse.json({ error: errors[0].message, errors }, { status: 400 });
+    }
+
+    if (tooManyApplications(request)) {
+      return NextResponse.json(
+        { error: 'Please wait a few minutes before sending another application, or call (401) 389-0913.' },
+        { status: 429 }
+      );
     }
 
     const application = normalizeApplication(body);

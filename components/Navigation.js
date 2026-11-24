@@ -79,6 +79,7 @@ export default function Navigation() {
   ];
 
   const aboutLink = { name: 'About Us', href: '/about', icon: UserGroupIcon };
+  const careersLink = { name: 'Careers', href: '/careers', icon: UserIcon };
 
   const accountPage = pathname === '/login' || pathname.startsWith('/customer');
 
@@ -137,6 +138,16 @@ export default function Navigation() {
                  </div>
               </div>
 
+               <Link
+                  href={careersLink.href}
+                  className={`px-3 py-2 rounded-xl text-[11px] xl:text-xs font-black transition-all uppercase tracking-wider ${
+                    pathname === careersLink.href
+                      ? 'bg-green-600 text-white'
+                      : 'text-slate-600 hover:bg-slate-100'
+                  }`}
+                >
+                  {careersLink.name}
+                </Link>
                <Link
                   href={aboutLink.href}
                   className={`px-3 py-2 rounded-xl text-[11px] xl:text-xs font-black transition-all uppercase tracking-wider ${
@@ -208,6 +219,17 @@ export default function Navigation() {
                      <ArrowRightIcon className="w-8 h-8 text-green-600 group-active:text-white shrink-0" />
                   </Link>
                ))}
+
+               <Link
+                 href={careersLink.href}
+                 onClick={() => setMobileMenuOpen(false)}
+                 className="flex justify-between items-center p-6 bg-slate-50 border-l-8 border-green-600 rounded-3xl group active:bg-green-600 transition-all"
+               >
+                 <span className="text-3xl font-black text-slate-900 uppercase tracking-tighter italic group-active:text-white transition-colors">
+                   {careersLink.name}
+                 </span>
+                 <ArrowRightIcon className="w-8 h-8 text-green-600 group-active:text-white shrink-0" />
+               </Link>
                
                <div className="pt-6 px-4 space-y-4">
                   <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest opacity-40">Our Fast Quoting Services</p>
