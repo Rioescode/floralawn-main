@@ -13,7 +13,29 @@ const WIDGET_CSS = `
 .overlay { overflow: hidden !important; height: 100% !important; }
 .sheet { max-height: 100% !important; height: 100% !important; }
 input, textarea, [contenteditable="true"] { font-size: 16px !important; }
+.overlay:has(.terms) {
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  align-items: stretch !important;
+  justify-content: stretch !important;
+}
+.overlay:has(.terms) > * {
+  display: flex !important;
+  flex-direction: column !important;
+  width: 100% !important;
+  max-width: none !important;
+  height: 100% !important;
+  max-height: 100% !important;
+  margin: 0 !important;
+  box-sizing: border-box !important;
+  padding-top: 3.25rem !important;
+}
+.terms { font-size: 16px !important; overflow: auto !important; }
 `;
+
+let pendingMessage = '';
+let pendingSend = false;
 
 let stopViewport = () => {};
 
@@ -56,11 +78,58 @@ function widgetEl() {
 
 function hideLauncher(el) {
   const root = el?.shadowRoot;
-  if (!root || root.getElementById('flora-hide-launcher')) return;
-  const style = document.createElement('style');
-  style.id = 'flora-hide-launcher';
-  style.textContent = WIDGET_CSS;
-  root.appendChild(style);
+  if (!root) return;
+  let style = root.getElementById('flora-hide-launcher');
+  if (!style) {
+    style = document.createElement('style');
+    style.id = 'flora-hide-launcher';
+    root.appendChild(style);
+  }
+  if (style.textContent !== WIDGET_CSS) style.textContent = WIDGET_CSS;
+  bindWidgetActions(el);
+}
+
+function bindWidgetActions(el) {
+  const root = el?.shadowRoot;
+  if (!root || root.__floraActions) return;
+  root.__floraActions = true;
+  root.addEventListener('input', (event) => {
+    const value = event.target?.value;
+    if (typeof value === 'string' && value.trim()) pendingMessage = value;
+  }, true);
+  root.addEventListener('click', (event) => {
+    const button = event.target?.closest?.('button');
+    if (!button) return;
+    const label = button.getAttribute('aria-label') || '';
+    if (label === 'Send') {
+      const field = messageField(el);
+      if (field?.value?.trim()) pendingMessage = field.value;
+      pendingSend = true;
+    }
+    if (/^\s*accept\s*$/i.test(button.textContent || '')) {
+      setTimeout(finishPendingSend, 400);
+      setTimeout(finishPendingSend, 1000);
+    }
+  }, true);
+}
+
+function finishPendingSend() {
+  const el = widgetEl();
+  if (!el?.classList.contains('flora-chat-open') || !pendingSend || !pendingMessage) return;
+  const field = messageField(el);
+  if (!field) return;
+  if (!(field.value || '').trim()) {
+    const proto = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')
+      || Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value');
+    proto?.set?.call(field, pendingMessage);
+    field.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+  const send = [...el.shadowRoot.querySelectorAll('button')]
+    .find((button) => button.getAttribute('aria-label') === 'Send' && button.getClientRects().length);
+  if (!send) return;
+  pendingSend = false;
+  pendingMessage = '';
+  send.click();
 }
 
 function setChatOpen(open) {
