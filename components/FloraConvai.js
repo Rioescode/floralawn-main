@@ -1,5 +1,8 @@
 'use client';
 
+// Not mounted. The embed was freezing the live site. Do not import this
+// from the layout, header, or mobile bar until that is fixed.
+
 import Script from 'next/script';
 import { useEffect, useState } from 'react';
 

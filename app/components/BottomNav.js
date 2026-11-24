@@ -12,8 +12,7 @@ import {
   CalendarIcon,
   HomeIcon,
   XMarkIcon,
-  SparklesIcon,
-  ChatBubbleLeftRightIcon
+  SparklesIcon
 } from '@heroicons/react/24/solid';
 
 export default function BottomNav() {
@@ -31,7 +30,6 @@ export default function BottomNav() {
 
   const [customerSignedIn, setCustomerSignedIn] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [chatOpen, setChatOpen] = useState(false);
   const onCustomerDash = pathname === '/customer/dashboard';
   const customerBar = customerSignedIn || onCustomerDash;
 
@@ -73,31 +71,16 @@ export default function BottomNav() {
     window.dispatchEvent(new Event('flora-open-ask-ai'));
   }
 
-  function openFloraChat(event) {
-    event.preventDefault();
-    window.dispatchEvent(new Event('flora-open-convai'));
-  }
-
-  useEffect(() => {
-    const onVisibility = (event) => setChatOpen(!!event.detail?.open);
-    window.addEventListener('flora-convai-visibility', onVisibility);
-    return () => window.removeEventListener('flora-convai-visibility', onVisibility);
-  }, []);
-
-  const chatItem = { label: 'CHAT', icon: ChatBubbleLeftRightIcon, onClick: openFloraChat };
-
   const navItems = customerBar
     ? [
         { href: 'tel:4012053853', label: 'CALL NOW', icon: PhoneIcon, isExternal: true },
         { href: '/customer/dashboard', label: 'DASH', icon: HomeIcon },
         { href: '/customer/dashboard#ask-ai', label: 'ASK AI', icon: SparklesIcon, onClick: openAskAi, primary: true },
-        chatItem,
       ]
     : [
         { href: 'tel:4012053853', label: 'CALL NOW', icon: PhoneIcon, isExternal: true },
         { href: '/contact', label: 'GET QUOTE', icon: SparklesIcon, primary: true },
         ...(isAdmin ? [{ href: '/schedule', label: 'SCHEDULE', icon: CalendarIcon }] : []),
-        chatItem,
       ];
 
   // Hide on schedule page — it has its own nav
@@ -107,7 +90,7 @@ export default function BottomNav() {
     <>
     <SafeBoundary><YardPhotoChat sheetOnly /></SafeBoundary>
     <AnimatePresence>
-      {isVisible && !chatOpen && (
+      {isVisible && (
         <motion.div 
           initial={{ y: 100, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
@@ -162,7 +145,7 @@ export default function BottomNav() {
         </motion.div>
       )}
 
-      {!isVisible && !chatOpen && (
+      {!isVisible && (
         <motion.button
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}

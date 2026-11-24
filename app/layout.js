@@ -3,7 +3,6 @@ import ClientLayout from "@/components/LayoutClient";
 import config from "@/config";
 import "./globals.css";
 import BottomNav from './components/BottomNav';
-import FloraConvai from '@/components/FloraConvai';
 import SafeBoundary from '@/components/SafeBoundary';
 import { AuthProvider } from '@/lib/context/AuthContext';
 import { metadata } from './metadata';
@@ -76,7 +75,6 @@ export default function RootLayout({ children }) {
 					strategy="beforeInteractive"
 				/>
 				<SafeBoundary><BottomNav /></SafeBoundary>
-				<FloraConvai />
 			</body>
 		</html>
 	);
