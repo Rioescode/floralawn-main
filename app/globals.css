@@ -226,6 +226,11 @@ html.flora-chat-open body {
   overscroll-behavior: none;
 }
 
+html.flora-chat-open header,
+html.flora-chat-open .flora-mobile-bar {
+  z-index: 1400 !important;
+}
+
 .flora-chat-close {
   position: fixed;
   z-index: 1300;
