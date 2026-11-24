@@ -9,7 +9,7 @@ const WIDGET_SRC = 'https://unpkg.com/@elevenlabs/convai-widget-embed';
 // Hide the idle launcher. Keep the open .sheet, and let that sheet fill
 // the host so messages scroll inside it.
 const WIDGET_CSS = `
-.overlay > *:not(.sheet):not(:has(.sheet)) { display: none !important; }
+.overlay > *:not(.sheet):not(:has(.sheet)):not(:has(.terms)):not(:has([role="alertdialog"])) { display: none !important; }
 .overlay { overflow: hidden !important; height: 100% !important; }
 .sheet { max-height: 100% !important; height: 100% !important; }
 input, textarea, [contenteditable="true"] { font-size: 16px !important; }
@@ -79,44 +79,47 @@ function collapseWidget() {
   setChatOpen(false);
 }
 
-let stopWatch = () => {};
-
-function watchDismiss(el) {
-  stopWatch();
-  const root = el?.shadowRoot;
-  if (!root) return;
-  let seenSheet = false;
-  const observer = new MutationObserver(() => {
-    const open = !!root.querySelector('.sheet');
-    if (open) seenSheet = true;
-    else if (seenSheet) {
-      observer.disconnect();
-      el.classList.remove('flora-chat-open');
-      setChatOpen(false);
-    }
-  });
-  observer.observe(root, { childList: true, subtree: true });
-  stopWatch = () => observer.disconnect();
+function messageField(el) {
+  return el?.shadowRoot?.querySelector('textarea, input, [contenteditable="true"]') || null;
 }
 
+function focusMessageField() {
+  const field = messageField(widgetEl());
+  if (!field) return;
+  field.focus();
+}
+
+// The sheet node is replaced when the widget re-renders (focus, typing, send).
+// Watching for it to disappear treated those updates as a close. The panel
+// stays up until Close or Escape.
 function expandWidget() {
   const el = widgetEl();
   if (!el) return;
+  const alreadyOpen = el.classList.contains('flora-chat-open');
+  if (alreadyOpen) {
+    focusMessageField();
+    fitOpenPanel();
+    return;
+  }
   el.classList.add('flora-chat-open');
   hideLauncher(el);
   setChatOpen(true);
+  fitOpenPanel();
+  let tries = 0;
   const fire = () => {
+    const current = widgetEl();
+    hideLauncher(current);
+    if (current?.shadowRoot?.querySelector('.sheet')) {
+      fitOpenPanel();
+      return;
+    }
     document.dispatchEvent(new CustomEvent('elevenlabs-agent:expand', {
       detail: { action: 'expand' },
     }));
-    hideLauncher(widgetEl());
+    tries += 1;
+    if (tries < 6) setTimeout(fire, 150);
   };
   fire();
-  fitOpenPanel();
-  setTimeout(fire, 200);
-  setTimeout(fire, 700);
-  setTimeout(fitOpenPanel, 50);
-  setTimeout(() => watchDismiss(widgetEl()), 800);
 }
 
 function ensureWidget(done) {
@@ -145,13 +148,22 @@ export default function FloraConvai() {
       ensureWidget(expandWidget);
     };
     const onVisibility = (event) => setOpen(!!event.detail?.open);
+    const onKey = (event) => {
+      if (event.key === 'Escape' && document.documentElement.classList.contains('flora-chat-open')) {
+        event.preventDefault();
+        collapseWidget();
+        setOpen(false);
+      }
+    };
     window.addEventListener('flora-open-convai', onOpen);
     window.addEventListener('flora-convai-visibility', onVisibility);
+    window.addEventListener('keydown', onKey);
     const arm = () => hideLauncher(widgetEl());
     const timers = [0, 400, 1200].map((delay) => setTimeout(arm, delay));
     return () => {
       window.removeEventListener('flora-open-convai', onOpen);
       window.removeEventListener('flora-convai-visibility', onVisibility);
+      window.removeEventListener('keydown', onKey);
       timers.forEach(clearTimeout);
       document.documentElement.classList.remove('flora-chat-open');
     };
