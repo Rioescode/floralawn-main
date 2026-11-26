@@ -1,3 +1,4 @@
+import { requireAdmin } from '@/lib/api-auth';
 import { NextResponse } from 'next/server';
 import { sendEmail } from '@/libs/resend';
 import { emailLayout, textBlock, button, buttonRow } from '@/libs/email-template';
@@ -9,6 +10,9 @@ const supabaseAdmin = createClient(
 );
 
 export async function POST(request) {
+  const adminCheck = await requireAdmin(request);
+  if (adminCheck.response) return adminCheck.response;
+
   try {
     const { customer_email, customer_name, lead_id, subject: customSubject, body: customBody } = await request.json();
 

@@ -1,4 +1,5 @@
 'use client';
+import { authFetch } from '@/lib/auth-fetch';
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
@@ -37,7 +38,7 @@ function AdminReferralsContent() {
       setLoading(true);
       const [referralsRes, invitationsRes] = await Promise.all([
         fetch('/api/referrals?all=true'),
-        fetch('/api/referrals/invite?all=true')
+        authFetch('/api/referrals/invite?all=true')
       ]);
       
       const referralsData = await referralsRes.json();

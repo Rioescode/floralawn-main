@@ -1,4 +1,5 @@
 "use client";
+import { authFetch } from '@/lib/auth-fetch';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase, supabaseAdmin } from '@/lib/supabase';
@@ -382,7 +383,7 @@ export default function SchedulePage() {
       for (const job of toSendNow) {
         console.log(`Auto-sending review request to ${job.customer_name} (${job.customer_email})`);
         
-        await fetch('/api/customers/send-message', {
+        await authFetch('/api/customers/send-message', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -426,7 +427,7 @@ export default function SchedulePage() {
 
     try {
       setIsSendingReply(true);
-      const response = await fetch('/api/customers/send-message', {
+      const response = await authFetch('/api/customers/send-message', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1890,7 +1891,7 @@ export default function SchedulePage() {
 
           const completionMsg = `Your ${customer.service_type?.replace(/_/g, ' ') || 'service'} has been completed successfully! Thank you for choosing Flora Lawn & Landscaping.`;
 
-          await fetch('/api/customers/send-message', {
+          await authFetch('/api/customers/send-message', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -2364,7 +2365,7 @@ export default function SchedulePage() {
         };
 
         // Use the same API endpoint but with customer data
-        const response = await fetch('/api/customers/send-message', {
+        const response = await authFetch('/api/customers/send-message', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -2782,7 +2783,7 @@ export default function SchedulePage() {
       setMarkingDone(true); // Re-use loading state
       const customer = selectedCustomerForDelay;
       
-      const response = await fetch('/api/customers/send-message', {
+      const response = await authFetch('/api/customers/send-message', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -3133,7 +3134,7 @@ export default function SchedulePage() {
 
   const moveToWaitlist = async (id) => {
     try {
-      const response = await fetch('/api/leads', {
+      const response = await authFetch('/api/leads', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, status: 'waitlist' })
@@ -3153,7 +3154,7 @@ export default function SchedulePage() {
   const deleteAppointment = async (id) => {
     if (!confirm('Are you sure you want to remove this lead?')) return;
     try {
-      const response = await fetch('/api/leads', {
+      const response = await authFetch('/api/leads', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id })
@@ -3244,7 +3245,7 @@ export default function SchedulePage() {
         body: emailBody
       };
 
-      const response = await fetch(endpoint, {
+      const response = await authFetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(bodyPayload)
@@ -3307,7 +3308,7 @@ export default function SchedulePage() {
     
     try {
       setConfirmingJob(true);
-      const response = await fetch('/api/leads', {
+      const response = await authFetch('/api/leads', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -3339,7 +3340,7 @@ export default function SchedulePage() {
   const revertToPending = async (id) => {
     if (!confirm('Revert this job back to pending status?')) return;
     try {
-      const response = await fetch('/api/leads', {
+      const response = await authFetch('/api/leads', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, status: 'pending' })
@@ -3365,7 +3366,7 @@ export default function SchedulePage() {
       setSavingManualJob(true);
       
       if (isEditingLead && manualJobForm.id) {
-        const response = await fetch('/api/leads', {
+        const response = await authFetch('/api/leads', {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
@@ -3397,7 +3398,7 @@ export default function SchedulePage() {
         
         alert('✅ Lead updated successfully!');
       } else {
-        const response = await fetch('/api/leads', {
+        const response = await authFetch('/api/leads', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -3488,7 +3489,7 @@ export default function SchedulePage() {
 
       if (diffDays === 7 || diffDays === 3) {
         try {
-          const response = await fetch('/api/send-reminder-email', {
+          const response = await authFetch('/api/send-reminder-email', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ job, diffDays })
@@ -4937,7 +4938,7 @@ export default function SchedulePage() {
                                   if (!apt.customer_email) { alert('No email on file for this customer.'); return; }
                                   try {
                                     setSendingReviewFor(apt.id);
-                                    const res = await fetch('/api/customers/send-message', {
+                                    const res = await authFetch('/api/customers/send-message', {
                                       method: 'POST',
                                       headers: { 'Content-Type': 'application/json' },
                                       body: JSON.stringify({
@@ -6537,7 +6538,7 @@ export default function SchedulePage() {
                   onClick={async () => {
                     try {
                       setMarkingDone(true);
-                      const res = await fetch('/api/customers/send-message', {
+                      const res = await authFetch('/api/customers/send-message', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({

@@ -1,7 +1,11 @@
+import { requireAdmin } from '@/lib/api-auth';
 import { NextResponse } from 'next/server';
 import { geocodingService } from '../../../lib/geocoding.js';
 
 export async function POST(request) {
+  const adminCheck = await requireAdmin(request);
+  if (adminCheck.response) return adminCheck.response;
+
   try {
     const { addresses } = await request.json();
 

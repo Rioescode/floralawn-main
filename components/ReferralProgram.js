@@ -1,4 +1,5 @@
 'use client';
+import { authFetch } from '@/lib/auth-fetch';
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
@@ -187,7 +188,7 @@ export default function ReferralProgram({ userId, customerId }) {
 
   const fetchSentInvitations = async () => {
     try {
-      const response = await fetch(`/api/referrals/invite?userId=${userId || ''}&customerId=${customerId || ''}&referralCode=${referralCode || ''}`);
+      const response = await authFetch(`/api/referrals/invite?userId=${userId || ''}&customerId=${customerId || ''}&referralCode=${referralCode || ''}`);
       const data = await response.json();
       
       if (data.invitations) {
@@ -376,7 +377,7 @@ export default function ReferralProgram({ userId, customerId }) {
       const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
       const referralLink = `${baseUrl}/contact?ref=${referralCode}`;
       
-      const response = await fetch('/api/referrals/invite', {
+      const response = await authFetch('/api/referrals/invite', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

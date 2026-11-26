@@ -1,4 +1,5 @@
 "use client";
+import { authFetch } from '@/lib/auth-fetch';
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
@@ -37,7 +38,7 @@ export default function RegisterForm({ onClose, onShowLogin, serviceParam, cityP
             // Send welcome email for new account
             try {
               console.log('📧 Sending welcome email to new user:', user.email);
-              const emailResponse = await fetch('/api/send-welcome-email', {
+              const emailResponse = await authFetch('/api/send-welcome-email', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

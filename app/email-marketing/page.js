@@ -1,4 +1,5 @@
 'use client';
+import { authFetch } from '@/lib/auth-fetch';
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
@@ -260,7 +261,7 @@ Flora Lawn & Landscaping Team`
       const activeSubscribers = filteredSubscribers;
 
       // Send emails via API
-      const response = await fetch('/api/send-marketing-email', {
+      const response = await authFetch('/api/send-marketing-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -295,7 +296,7 @@ Flora Lawn & Landscaping Team`
     setSending(true);
     try {
       // Send single email via API
-      const response = await fetch('/api/send-marketing-email', {
+      const response = await authFetch('/api/send-marketing-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -1,4 +1,5 @@
 'use client';
+import { authFetch } from '@/lib/auth-fetch';
 
 import { useState, useEffect } from 'react';
 import { supabase, supabaseAdmin } from '@/lib/supabase';
@@ -940,7 +941,7 @@ function SignUpsLeadsContent() {
 
                         setSendingEmail(true);
                         try {
-                          const response = await fetch('/api/leads/send-email', {
+                          const response = await authFetch('/api/leads/send-email', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({

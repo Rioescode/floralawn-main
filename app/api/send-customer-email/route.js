@@ -1,8 +1,12 @@
+import { requireAdmin } from '@/lib/api-auth';
 import { NextResponse } from 'next/server';
 import { sendEmail } from '@/libs/resend';
 import { emailLayout, signature } from '@/libs/email-template';
 
 export async function POST(request) {
+  const adminCheck = await requireAdmin(request);
+  if (adminCheck.response) return adminCheck.response;
+
   try {
     let body;
     try {

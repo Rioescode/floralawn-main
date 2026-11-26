@@ -1,4 +1,5 @@
 'use client';
+import { authFetch } from '@/lib/auth-fetch';
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
@@ -152,7 +153,7 @@ export default function LeadsPage() {
     
     setActionLoading(selectedLeadForReview.id + '-review');
     try {
-      const response = await fetch('/api/customers/send-message', {
+      const response = await authFetch('/api/customers/send-message', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

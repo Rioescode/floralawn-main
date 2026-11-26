@@ -1,3 +1,4 @@
+import { requireAdmin } from '@/lib/api-auth';
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 
@@ -7,6 +8,9 @@ const supabase = createClient(
 );
 
 export async function POST(request) {
+  const adminCheck = await requireAdmin(request);
+  if (adminCheck.response) return adminCheck.response;
+
   try {
     const { appointmentId, message, sendEmail: sendEmailFlag, sendSMS: sendSMSFlag, customerData, type, subject } = await request.json();
 

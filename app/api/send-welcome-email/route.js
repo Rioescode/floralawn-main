@@ -1,8 +1,18 @@
+import { requireUser } from '@/lib/api-auth';
+import { tooManyCalls } from '@/lib/request-guard';
 import { NextResponse } from 'next/server';
 import { sendEmail } from '@/libs/resend';
 import { emailLayout, heading, paragraph, steps, button, buttonRow, signature, escapeHtml, siteUrl } from '@/libs/email-template';
 
 export async function POST(request) {
+  // Sent right after sign-up from the auth callback. Only to the signed-in
+  // user's own address, so it cannot be used to email other people.
+  const auth = await requireUser(request);
+  if (auth.response) return auth.response;
+  if (tooManyCalls(`welcome:${auth.user.id}`, 3, 24 * 60 * 60 * 1000)) {
+    return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+  }
+
   try {
     let body;
     try {
@@ -13,7 +23,8 @@ export async function POST(request) {
         { status: 400 }
       );
     }
-    const { email, name } = body;
+    const email = auth.user.email;
+    const name = String((body && body.name) || auth.user.user_metadata?.full_name || '').slice(0, 100);
 
     if (!email) {
       return NextResponse.json({ error: 'Email is required' }, { status: 400 });

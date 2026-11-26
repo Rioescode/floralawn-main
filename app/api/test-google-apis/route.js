@@ -1,6 +1,10 @@
+import { requireAdmin } from '@/lib/api-auth';
 import { NextResponse } from 'next/server';
 
-export async function GET() {
+export async function GET(request) {
+  const adminCheck = await requireAdmin(request);
+  if (adminCheck.response) return adminCheck.response;
+
   const API_KEY = process.env.GOOGLE_MAPS_API_KEY;
   const results = [];
 

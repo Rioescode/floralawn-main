@@ -1,3 +1,5 @@
+import { requireUser } from '@/lib/api-auth';
+import { tooManyCalls, escapeForEmail, SIMPLE_EMAIL } from '@/lib/request-guard';
 import { NextResponse } from 'next/server';
 import { sendEmail } from '@/libs/resend';
 import { supabase, supabaseAdmin } from '@/lib/supabase';
@@ -6,6 +8,9 @@ export const dynamic = 'force-dynamic';
 
 // GET - Fetch sent invitations for a user or all (admin)
 export async function GET(request) {
+  const auth = await requireUser(request);
+  if (auth.response) return auth.response;
+
   try {
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('userId');
@@ -14,6 +19,24 @@ export async function GET(request) {
     const all = searchParams.get('all');
 
     const client = supabaseAdmin || supabase;
+
+    if (!auth.isAdmin) {
+      // Customers only see the invitations they sent.
+      const ownEmail = String(auth.user.email || '').toLowerCase().replace(/[^a-z0-9@._+-]/g, '');
+      const filters = [`referrer_id.eq.${auth.user.id}`];
+      if (ownEmail) filters.push(`referrer_email.ilike.${ownEmail}`);
+      const { data: own, error: ownError } = await client
+        .from('referral_invitations')
+        .select('*')
+        .or(filters.join(','))
+        .order('created_at', { ascending: false })
+        .limit(200);
+      if (ownError) {
+        console.error('Error fetching own invitations:', ownError);
+        return NextResponse.json({ error: 'Failed to fetch invitations' }, { status: 500 });
+      }
+      return NextResponse.json({ invitations: own || [] });
+    }
 
     let query = client
       .from('referral_invitations')
@@ -48,15 +71,44 @@ export async function GET(request) {
 }
 
 export async function POST(request) {
+  const auth = await requireUser(request);
+  if (auth.response) return auth.response;
+
   try {
     const body = await request.json();
-    const { friendEmail, friendName, referralCode, referralLink, userId, customerId } = body;
+    let { friendEmail, friendName, referralCode, referralLink, userId, customerId } = body;
 
     if (!friendEmail || !referralCode) {
       return NextResponse.json(
         { error: 'Friend email and referral code are required' },
         { status: 400 }
       );
+    }
+
+    if (typeof friendEmail !== 'string' || friendEmail.length > 254 || !SIMPLE_EMAIL.test(friendEmail.trim())) {
+      return NextResponse.json({ error: 'Please enter a valid email for your friend.' }, { status: 400 });
+    }
+    friendEmail = friendEmail.trim();
+    if (typeof referralCode !== 'string' || !/^[A-Za-z0-9_-]{3,40}$/.test(referralCode)) {
+      return NextResponse.json({ error: 'Invalid referral code' }, { status: 400 });
+    }
+    friendName = typeof friendName === 'string' ? friendName.trim().slice(0, 80) : '';
+
+    if (!auth.isAdmin) {
+      // Customers can only send invites as themselves.
+      userId = auth.user.id;
+      if (customerId) {
+        const { data: ownCustomer } = await (supabaseAdmin || supabase)
+          .from('customers')
+          .select('email')
+          .eq('id', customerId)
+          .maybeSingle();
+        const ownEmail = String(auth.user.email || '').toLowerCase().trim();
+        if (!ownCustomer || String(ownCustomer.email || '').toLowerCase().trim() !== ownEmail) customerId = null;
+      }
+      if (tooManyCalls(`referral-invite:${auth.user.id}`, 10, 24 * 60 * 60 * 1000)) {
+        return NextResponse.json({ error: 'You have sent a lot of invites today. Please try again tomorrow.' }, { status: 429 });
+      }
     }
 
     // Use admin client for database operations
@@ -118,7 +170,10 @@ export async function POST(request) {
     const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://floralawn-and-landscaping.com';
     const contactLink = `${baseUrl}/contact?ref=${referralCode}`;
     
-    const greeting = friendName ? `Hi ${friendName}` : 'Hi there';
+    // Names go into email HTML and the subject line.
+    const referrerNameText = String(referrerName || 'A friend').replace(/[\r\n\t]+/g, ' ').slice(0, 80);
+    referrerName = escapeForEmail(referrerNameText, 80);
+    const greeting = friendName ? `Hi ${escapeForEmail(friendName, 80)}` : 'Hi there';
 
     const emailHtml = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
@@ -249,7 +304,7 @@ Phone: (401) 205-3853
     // Send the email
     const result = await sendEmail({
       to: friendEmail,
-      subject: `${referrerName} invited you to Flora Lawn & Landscaping! 🌿`,
+      subject: `${referrerNameText} invited you to Flora Lawn & Landscaping! 🌿`,
       text: emailText,
       html: emailHtml,
       replyTo: 'floralawncareri@gmail.com'
@@ -262,7 +317,7 @@ Phone: (401) 205-3853
       referrer_id: userId || null,
       referrer_customer_id: customerId || null,
       referrer_email: referrerEmail,
-      referrer_name: referrerName,
+      referrer_name: referrerNameText,
       friend_email: friendEmail.toLowerCase().trim(),
       friend_name: friendName?.trim() || null,
       referral_code: referralCode,
@@ -275,7 +330,7 @@ Phone: (401) 205-3853
         .from('referral_invitations')
         .update({ 
           updated_at: new Date().toISOString(),
-          referrer_name: referrerName 
+          referrer_name: referrerNameText 
         })
         .eq('id', existingInvite.id);
     } else {
