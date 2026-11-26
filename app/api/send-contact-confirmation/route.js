@@ -24,6 +24,7 @@ import {
 import { forwardConsentedFloraLead } from '@/libs/mgr-partner-lead';
 import { contactLeadIntakePayload, sendToMgr } from '@/libs/mgr-crew-intake';
 import { BACKUP_REFERRAL_CONSENT_TEXT } from '@/lib/backup-referral-consent';
+import { isSameOrigin, overLimit, headerSafe, honeypotTripped, tooFast, spamReason, silentDrop, rejectJson } from '@/lib/spam-guard';
 
 function getClientIP(request) {
   const forwarded = request.headers.get('x-forwarded-for');
@@ -75,17 +76,16 @@ export async function POST(request) {
     // Get client IP for logging
     const clientIP = getClientIP(request);
 
-    // Validate origin (optional but recommended)
-    const origin = request.headers.get('origin');
-    const allowedOrigins = [
-      'https://floralawn-and-landscaping.com',
-      'https://riyardworks.com',
-      'http://localhost:3000' // For development
-    ];
-    
-    if (origin && !allowedOrigins.some(allowed => origin.includes(allowed))) {
-      console.warn(`Invalid origin: ${origin}`);
-      // Don't block, but log it
+    // Only accept posts that come from a page on this site. Bots that post
+    // straight to this endpoint used to get through because this was log-only.
+    if (!isSameOrigin(request)) {
+      console.warn(`Contact form blocked: foreign or missing origin from ${clientIP}`);
+      return rejectJson('Please send this form from our website.', 403);
+    }
+
+    // 5 submissions per 10 minutes per IP on top of the general limiter.
+    if (overLimit(`contact-ip:${clientIP}`, 5, 10 * 60 * 1000)) {
+      return rejectJson('Too many requests. Please wait a few minutes or call (401) 205-3853.', 429);
     }
 
     let body;
@@ -99,7 +99,17 @@ export async function POST(request) {
       );
     }
     
+    if (!body || typeof body !== 'object' || Array.isArray(body)) {
+      return rejectJson('Invalid request body');
+    }
     const { email, name, service, message, phone, address, city, state, zipCode, sendSMS, hasMedia, mediaUrls, discountApplied, cleanupData, promoCode, partnerBackupConsent } = body;
+
+    // Quote updates come from signed-in customers editing a saved quote and
+    // must match the lead's email, so the bot checks below apply to new leads.
+    const isQuoteUpdate = Boolean(body.leadId);
+    if (honeypotTripped(body)) return silentDrop('honeypot', request);
+    if (!isQuoteUpdate && tooFast(body)) return silentDrop('too fast or no timing', request);
+
     const partnerBackupRequested = Boolean(
       partnerBackupConsent === true ||
       partnerBackupConsent === 'true' ||
@@ -120,11 +130,11 @@ export async function POST(request) {
 
     // Sanitize inputs
     const sanitizedEmail = email.trim().toLowerCase();
-    const sanitizedName = sanitizeText(name, 100);
-    const sanitizedService = sanitizeText(service || '', 200);
+    const sanitizedName = headerSafe(sanitizeText(name, 100), 100);
+    const sanitizedService = headerSafe(sanitizeText(service || '', 200), 200);
     const sanitizedMessage = sanitizeText(message || '', 5000);
     const sanitizedAddress = sanitizeText(address || 'Not Provided', 200);
-    const sanitizedCity = sanitizeText(city || '', 100);
+    const sanitizedCity = headerSafe(sanitizeText(city || '', 100), 100);
     const sanitizedState = sanitizeText(state || 'RI', 50);
     const sanitizedZip = sanitizeText(zipCode || '', 20);
 
@@ -135,6 +145,29 @@ export async function POST(request) {
 
     if (sanitizedEmail.length > 254) {
       return NextResponse.json({ error: 'Email address is too long' }, { status: 400 });
+    }
+
+    if (phone != null && phone !== '') {
+      const phoneDigitCount = digitsOnly(phone).length;
+      if (typeof phone !== 'string' || phone.length > 30 || phoneDigitCount < 7 || phoneDigitCount > 15) {
+        return rejectJson('Please enter a valid phone number.');
+      }
+    }
+
+    if (!isQuoteUpdate) {
+      const spam = spamReason({
+        name: sanitizedName,
+        message: sanitizedMessage,
+        extra: `${sanitizedAddress} ${sanitizedCity} ${sanitizedService}`,
+      });
+      if (spam) {
+        console.warn(`Contact form flagged (${spam}) from ${clientIP}`);
+        return rejectJson('Our spam filter stopped this message. Please remove any links and try again, or call (401) 205-3853.');
+      }
+      // Stops the form from being used to flood one inbox with confirmations.
+      if (overLimit(`contact-email:${sanitizedEmail}`, 3, 60 * 60 * 1000)) {
+        return rejectJson('We already got several requests from this email. We will reply soon, or call (401) 205-3853.', 429);
+      }
     }
 
     console.log('Received contact confirmation request:', { 
@@ -410,7 +443,7 @@ export async function POST(request) {
     try {
       const customerEmailResult = await sendEmail({
         to: sanitizedEmail,
-        subject: `We got your request: ${serviceText}`,
+        subject: `We got your request: ${headerSafe(serviceText, 150)}`,
         text: [
           `Thanks, ${firstName}. We got your request for ${serviceText}.`,
           'We reply with your price in 1 to 6 hours.',
@@ -500,7 +533,7 @@ export async function POST(request) {
       console.log('📧 Sending lead alert to admin');
       await sendEmail({
         to: 'floralawncareri@gmail.com',
-        subject: `New lead: ${sanitizedName} · ${serviceText}${sanitizedCity ? ` · ${sanitizedCity}` : ''}`,
+        subject: headerSafe(`New lead: ${sanitizedName} · ${serviceText}${sanitizedCity ? ` · ${sanitizedCity}` : ''}`, 200),
         text: [
           `New lead: ${sanitizedName}`,
           `Services: ${serviceText}`,

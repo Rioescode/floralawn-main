@@ -1,5 +1,7 @@
 'use client';
 
+import { formElapsedMs } from '@/lib/form-timing';
+
 import { useState, useEffect } from 'react';
 import { supabase, supabaseAdmin } from '@/lib/supabase';
 import GoogleSignInButton from '@/components/GoogleSignInButton';
@@ -250,6 +252,7 @@ export default function SpringCleanupFunnel() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
+              formElapsedMs: formElapsedMs(),
               email: formData.email,
               name: formData.name,
               service: formData.service || 'Spring Cleanup',

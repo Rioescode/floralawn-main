@@ -1,5 +1,7 @@
 'use client';
 
+import { formElapsedMs } from '@/lib/form-timing';
+
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { format } from 'date-fns';
@@ -323,6 +325,7 @@ export default function YardAccount({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          formElapsedMs: formElapsedMs(),
           name: quoteName,
           email: quoteEmail,
           phone: phone || yard?.phone || '',
@@ -709,6 +712,7 @@ export default function YardAccount({
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({
+                    formElapsedMs: formElapsedMs(),
                     name: quoteName,
                     email: quoteEmail,
                     phone: phone || yard?.phone || '',

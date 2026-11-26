@@ -1,5 +1,7 @@
 'use client';
 
+import { formElapsedMs } from '@/lib/form-timing';
+
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { autoMeasureLawn } from '@/libs/actions/auto-measure';
@@ -732,7 +734,8 @@ export default function InstantQuoteMap({ onQuoteComplete, selectedPlace, setSel
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...dbPayload,
-          isPartial: true
+          isPartial: true,
+          formElapsedMs: formElapsedMs()
         })
       }).catch(e => console.error("Email notification failed for partial lead", e));
 
@@ -772,7 +775,7 @@ export default function InstantQuoteMap({ onQuoteComplete, selectedPlace, setSel
           services: getFullBreakdown(),
           map_image_url: mapImageUrl || null,
           notes: leadForm.notes || null,
-          notes: leadForm.notes || null
+          formElapsedMs: formElapsedMs()
         };
         await fetch('/api/lead', {
           method: 'POST',

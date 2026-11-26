@@ -1,5 +1,7 @@
 'use client';
 
+import { formElapsedMs } from '@/lib/form-timing';
+
 import { useEffect, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { YARD_SERVICES } from '@/lib/yardServices';
@@ -268,6 +270,7 @@ export default function YardPhotoChat({ user, yard, address, phone, yardSize, on
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          formElapsedMs: formElapsedMs(),
           name: quoteName,
           email: quoteEmail,
           phone: activePhone || '',
