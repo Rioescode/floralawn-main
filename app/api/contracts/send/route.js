@@ -1,3 +1,4 @@
+import { requireAdmin } from '@/lib/api-auth';
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 
@@ -22,6 +23,9 @@ const LAWN_CARE_SERVICES = {
 };
 
 export async function POST(request) {
+  const adminCheck = await requireAdmin(request);
+  if (adminCheck.response) return adminCheck.response;
+
   try {
     const { contractId, sendEmail, sendSMS } = await request.json();
 

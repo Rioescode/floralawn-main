@@ -1,4 +1,5 @@
 'use client';
+import { authFetch } from '@/lib/auth-fetch';
 
 import { useState, useEffect } from 'react';
 import { supabase, supabaseAdmin } from '@/lib/supabase';
@@ -285,7 +286,7 @@ export default function CompletedJobsPage() {
       if (updateError) throw updateError;
 
       // Send invoice email
-      const response = await fetch('/api/send-invoice', {
+      const response = await authFetch('/api/send-invoice', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

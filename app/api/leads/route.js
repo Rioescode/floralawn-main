@@ -1,3 +1,4 @@
+import { requireAdmin } from '@/lib/api-auth';
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import { contactLeadIntakePayload, sendToMgr } from '@/libs/mgr-crew-intake';
@@ -8,6 +9,9 @@ const supabaseAdmin = createClient(
 );
 
 export async function POST(request) {
+  const adminCheck = await requireAdmin(request);
+  if (adminCheck.response) return adminCheck.response;
+
   try {
     const body = await request.json();
     
@@ -46,6 +50,9 @@ export async function POST(request) {
 }
 
 export async function PATCH(request) {
+  const adminCheck = await requireAdmin(request);
+  if (adminCheck.response) return adminCheck.response;
+
   try {
     const { id, ...updates } = await request.json();
 
@@ -68,6 +75,9 @@ export async function PATCH(request) {
 }
 
 export async function DELETE(request) {
+  const adminCheck = await requireAdmin(request);
+  if (adminCheck.response) return adminCheck.response;
+
   try {
     const { id } = await request.json();
 

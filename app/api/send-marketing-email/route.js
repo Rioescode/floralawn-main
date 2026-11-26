@@ -1,3 +1,4 @@
+import { requireAdmin } from '@/lib/api-auth';
 import { NextResponse } from 'next/server';
 import { sendEmail } from '@/libs/resend';
 import { generalApiLimiter } from '@/lib/rate-limiter';
@@ -314,6 +315,9 @@ const emailTemplates = {
 };
 
 export async function POST(request) {
+  const adminCheck = await requireAdmin(request);
+  if (adminCheck.response) return adminCheck.response;
+
   try {
     // Rate limiting
     const rateLimitResult = await generalApiLimiter(request);

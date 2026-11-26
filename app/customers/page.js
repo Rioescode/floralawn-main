@@ -1,4 +1,5 @@
 "use client";
+import { authFetch } from '@/lib/auth-fetch';
 
 import { useState, useEffect } from 'react';
 import { supabase, supabaseAdmin } from '@/lib/supabase';
@@ -599,7 +600,7 @@ export default function CustomersPage() {
 
       // Send message if requested
       if (sendEmail || sendSMS) {
-        const response = await fetch('/api/customers/send-message', {
+        const response = await authFetch('/api/customers/send-message', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

@@ -1,15 +1,38 @@
+import { fromOwnSite, requestIp, tooManyCalls, escapeForEmail, SIMPLE_EMAIL } from '@/lib/request-guard';
 import { NextResponse } from 'next/server';
 import { sendEmail } from '@/libs/resend';
 import { supabaseAdmin } from '@/lib/supabase';
 
 export async function POST(request) {
   try {
+    // Public booking form on /auto-lawn. It stays open, but only from this
+    // site and with limits, because it emails the address typed in the form.
+    if (!fromOwnSite(request)) {
+      return NextResponse.json({ error: 'Please send this form from our website.' }, { status: 403 });
+    }
+    if (tooManyCalls(`quote-review-ip:${requestIp(request)}`, 5, 10 * 60 * 1000)) {
+      return NextResponse.json({ error: 'Too many requests. Please wait a few minutes or call (401) 205-3853.' }, { status: 429 });
+    }
+
     const body = await request.json();
-    const { email, name, phone, address, area, ai_original_area, price, breakdown, preferredDate, customJobDetails } = body;
+    let { email, name, phone, address, area, ai_original_area, price, breakdown, preferredDate, customJobDetails } = body;
 
     if (!email || !name || !address) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
+    if (typeof email !== 'string' || email.length > 254 || !SIMPLE_EMAIL.test(email.trim())) {
+      return NextResponse.json({ error: 'Please enter a valid email.' }, { status: 400 });
+    }
+    email = email.trim();
+    if (tooManyCalls(`quote-review-email:${email.toLowerCase()}`, 3, 60 * 60 * 1000)) {
+      return NextResponse.json({ error: 'We already got this quote. We will contact you soon.' }, { status: 429 });
+    }
+    area = Number(area) || 0;
+    price = Number(price) || 0;
+    ai_original_area = Number(ai_original_area) || 0;
+    breakdown = Array.isArray(breakdown)
+      ? breakdown.slice(0, 30).map((item) => ({ name: String(item?.name ?? '').slice(0, 120), price: Number(item?.price) || 0 }))
+      : [];
 
     const adminEmail = 'floralawncareri@gmail.com';
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://floralawn-and-landscaping.com';
@@ -47,6 +70,14 @@ export async function POST(request) {
         console.error('Lead persistence error:', err);
       }
     }
+
+    // Everything below goes into email HTML or subject lines.
+    name = escapeForEmail(name, 100);
+    address = escapeForEmail(address, 300);
+    phone = escapeForEmail(phone, 40);
+    preferredDate = escapeForEmail(preferredDate, 60);
+    customJobDetails = escapeForEmail(customJobDetails, 2000);
+    breakdown = breakdown.map((item) => ({ ...item, name: escapeForEmail(item.name, 120) }));
 
     // 1. EMAIL TO CUSTOMER
     const customerHtml = `
@@ -217,6 +248,6 @@ export async function POST(request) {
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error sending quote review email:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: 'Could not send the quote' }, { status: 500 });
   }
 }

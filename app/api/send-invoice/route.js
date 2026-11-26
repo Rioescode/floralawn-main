@@ -1,8 +1,12 @@
+import { requireAdmin } from '@/lib/api-auth';
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { sendEmail } from '@/libs/resend';
 
 export async function POST(request) {
+  const adminCheck = await requireAdmin(request);
+  if (adminCheck.response) return adminCheck.response;
+
   try {
     const body = await request.json();
     const {

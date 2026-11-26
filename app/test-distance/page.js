@@ -1,4 +1,5 @@
 'use client';
+import { authFetch } from '@/lib/auth-fetch';
 
 import { useState, useEffect, useRef } from 'react';
 import { MapPin, Calculator, Plus, Trash2, Navigation } from 'lucide-react';
@@ -270,7 +271,7 @@ export default function TestDistancePage() {
   const calculateDistances = async () => {
     setLoading(true);
     try {
-      const response = await fetch('/api/test-distance', {
+      const response = await authFetch('/api/test-distance', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

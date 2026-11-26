@@ -1,4 +1,5 @@
 "use client";
+import { authFetch } from '@/lib/auth-fetch';
 
 import { useState, useEffect, useRef, Suspense } from 'react';
 import { supabase } from '@/lib/supabase';
@@ -860,7 +861,7 @@ function InvoiceMakerContent() {
                                 btn.disabled = true;
                                 try {
                                   let selectedCustomer = isManual ? invoiceData.manual_customer : customers.find(c => c.id === invoiceData.customer_id);
-                                  const response = await fetch('/api/send-invoice-email', {
+                                  const response = await authFetch('/api/send-invoice-email', {
                                     method: 'POST',
                                     headers: { 'Content-Type': 'application/json' },
                                     body: JSON.stringify({

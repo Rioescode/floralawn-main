@@ -1,4 +1,5 @@
 "use client";
+import { authFetch } from '@/lib/auth-fetch';
 
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -136,7 +137,7 @@ export default function AuthCallbackPage() {
             // Send welcome email for new account
             try {
               console.log('📧 Sending welcome email to new user:', user.email);
-              const emailResponse = await fetch('/api/send-welcome-email', {
+              const emailResponse = await authFetch('/api/send-welcome-email', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
