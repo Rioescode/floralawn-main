@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import emailjs from '@emailjs/browser';
+import { formElapsedMs } from '@/lib/form-timing';
 import Navigation from "@/components/Navigation";
 import LeafSeason, { LeafGround } from "@/components/LeafSeason";
 import { businessInfo } from "@/utils/business-info";
@@ -159,6 +160,7 @@ function ContactForm() {
   const fileInputRef = useRef(null);
 
   const addressRef = useRef(null);
+  const honeypotRef = useRef(null);
 
   const searchParams = useSearchParams();
 
@@ -529,7 +531,6 @@ function ContactForm() {
         discount_status: (showMediaSection && (mediaFiles.length > 0 || (isMulchService && mulchAssessment.edgingMeasurement))) ? '10% CONCIERGE CREDIT APPLIED' : 'NONE'
       };
       setSubmissionStep('Sending Secure Inquiry...');
-      await emailjs.send(process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID, process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID, templateParams);
       
       // --- ELITE MEDIA UPLOAD ---
       let uploadedUrls = [];
@@ -558,8 +559,6 @@ function ContactForm() {
 
       // Note: Lead saving and subscriber logic moved to server-side API route for reliability
       
-      await sendNotification(`📬 New Elite Quote Inquiry from ${formData.name} in ${formData.city}!`);
-      
       setSubmissionStep('Finalizing Lead Dossier...');
       
       // Send professional confirmation to customer + Save to DB via internal API
@@ -568,6 +567,8 @@ function ContactForm() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            formElapsedMs: formElapsedMs(),
+            website: honeypotRef.current?.value || '',
             name: formData.name,
             email: formData.email,
             phone: formData.phone,
@@ -601,6 +602,19 @@ function ContactForm() {
 
         if (!response.ok) {
           throw new Error(result.error || 'Server processing failed');
+        }
+
+        // The server checks for spam first. Only then send the EmailJS backup
+        // alert and the Telegram ping, so bots cannot trigger them.
+        if (result.accepted !== false) {
+          if (process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID && process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID) {
+            try {
+              await emailjs.send(process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID, process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID, templateParams);
+            } catch (emailjsError) {
+              console.error('EmailJS backup alert failed:', emailjsError);
+            }
+          }
+          await sendNotification(`📬 New Elite Quote Inquiry from ${formData.name} in ${formData.city}!`);
         }
 
         if (accountUser?.id) {
@@ -850,6 +864,11 @@ function ContactForm() {
                   <div className="bg-white p-6 md:p-20 rounded-[2.5rem] md:rounded-[4rem] shadow-2xl border border-slate-50 relative">
                      
                       <form onSubmit={handleSubmit} className="space-y-8">
+                        {/* Hidden from people; bots fill it and get dropped by the server. */}
+                        <div aria-hidden="true" style={{ position: 'absolute', left: '-10000px', top: 'auto', width: '1px', height: '1px', overflow: 'hidden' }}>
+                           <label htmlFor="website">Leave this field empty</label>
+                           <input ref={honeypotRef} type="text" id="website" name="website" tabIndex={-1} autoComplete="off" defaultValue="" />
+                        </div>
                         {prefilledFromAccount && (
                           <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border-2 border-green-200 bg-green-50 px-5 py-4">
                             <p className="text-sm font-semibold text-green-900">

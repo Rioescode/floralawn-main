@@ -3,6 +3,7 @@ import fs from 'fs/promises';
 import config from '@/config';
 import { sendEmail } from '@/libs/resend';
 import { supabaseAdmin } from '@/lib/supabase';
+import { isSameOrigin } from '@/lib/spam-guard';
 import {
   validateApplication,
   normalizeApplication,
@@ -134,6 +135,10 @@ async function emailApplication(application, received) {
 
 export async function POST(request) {
   try {
+    if (!isSameOrigin(request)) {
+      return NextResponse.json({ error: 'Please send this form from our website.' }, { status: 403 });
+    }
+
     let body;
     try {
       body = await request.json();

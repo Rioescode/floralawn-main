@@ -1,14 +1,39 @@
 import { NextResponse } from "next/server";
 import { sendEmail } from "@/libs/resend";
 import { emailLayout, heading, chips, button, buttonRow, section, detailsTable, escapeHtml } from "@/libs/email-template";
+import { validateEmail } from "@/lib/validation";
+import { clientIp, isSameOrigin, overLimit, headerSafe, honeypotTripped, tooFast, spamReason, silentDrop, rejectJson } from "@/lib/spam-guard";
 
 // This route receives lead data and sends an email notification using Resend
 export async function POST(req) {
   try {
-    const body = await req.json();
+    if (!isSameOrigin(req)) {
+      return rejectJson("Please send this form from our website.", 403);
+    }
+    if (overLimit(`lead-ip:${clientIp(req)}`, 5, 10 * 60 * 1000)) {
+      return rejectJson("Too many requests. Please wait a few minutes.", 429);
+    }
 
-    if (!body.email) {
+    const body = await req.json();
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
+      return rejectJson("Invalid request body");
+    }
+    if (honeypotTripped(body)) return silentDrop("honeypot", req);
+    if (tooFast(body)) return silentDrop("too fast or no timing", req);
+
+    if (!body.email || typeof body.email !== "string" || !validateEmail(body.email.trim())) {
       return NextResponse.json({ error: "Email is required" }, { status: 400 });
+    }
+    body.email = body.email.trim().slice(0, 254);
+    body.name = headerSafe(typeof body.name === "string" ? body.name : "", 100);
+    body.phone = headerSafe(typeof body.phone === "string" ? body.phone : "", 30);
+    body.address = typeof body.address === "string" ? body.address.slice(0, 300) : "";
+    body.price = Number(body.price) || 0;
+    body.sqft = Number(body.sqft) || 0;
+    const spam = spamReason({ name: body.name, message: typeof body.notes === "string" ? body.notes : "", extra: body.address });
+    if (spam) {
+      console.warn(`Instant quote lead flagged (${spam})`);
+      return rejectJson("Our spam filter stopped this message. Please remove any links and try again.");
     }
 
     const services = Array.isArray(body.services) ? body.services : [];
@@ -23,7 +48,7 @@ export async function POST(req) {
         buttonRow([
           phoneDigits ? button(`tel:${phoneDigits}`, 'Call', 'primary') : '',
           phoneDigits ? button(`sms:${phoneDigits}`, 'Text', 'dark') : '',
-          button(`mailto:${body.email}`, 'Email', 'outline'),
+          button(`mailto:${encodeURIComponent(body.email)}`, 'Email', 'outline'),
         ]),
         section('Contact', detailsTable([
           { label: 'Phone', value: body.phone || 'Not provided' },
@@ -55,6 +80,6 @@ export async function POST(req) {
     return NextResponse.json({ success: true });
   } catch (e) {
     console.error("Error processing lead email:", e);
-    return NextResponse.json({ error: e.message }, { status: 500 });
+    return NextResponse.json({ error: "Could not send the lead" }, { status: 500 });
   }
 }
