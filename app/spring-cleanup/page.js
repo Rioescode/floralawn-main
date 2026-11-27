@@ -1,15 +1,12 @@
 'use client';
 
 import { formElapsedMs } from '@/lib/form-timing';
+import TurnstileField, { turnstileClientError } from '@/components/TurnstileField';
 
-import { useState, useEffect } from 'react';
-import { supabase, supabaseAdmin } from '@/lib/supabase';
+import { useState, useEffect, useRef } from 'react';
 import GoogleSignInButton from '@/components/GoogleSignInButton';
 import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
-import { sendNotification } from '@/lib/notifications';
-import { businessInfo } from '@/utils/business-info';
-import emailjs from '@emailjs/browser';
 import Image from 'next/image';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
@@ -51,9 +48,11 @@ export default function SpringCleanupFunnel() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showMessageHelper, setShowMessageHelper] = useState(false);
   const [spotsLeft, setSpotsLeft] = useState(50);
+  const [turnstileToken, setTurnstileToken] = useState('');
+  const [turnstileReset, setTurnstileReset] = useState(0);
+  const honeypotRef = useRef(null);
 
   useEffect(() => {
-    emailjs.init(process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY);
     setShowMessageHelper(true); // Show helper since service is pre-filled
   }, []);
 
@@ -90,223 +89,79 @@ export default function SpringCleanupFunnel() {
     setShowMessageHelper(false);
   };
 
-  const convertServiceTypeToDbFormat = (serviceType) => {
-    if (!serviceType) return 'spring_cleanup';
-    return serviceType.toLowerCase().replace(/\s+/g, '_');
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const turnstileError = turnstileClientError(turnstileToken);
+    if (turnstileError) {
+      setStatus({ type: 'error', message: turnstileError });
+      return;
+    }
     setIsSubmitting(true);
     setStatus({ type: '', message: '' });
 
     try {
-      const templateParams = {
-        user_name: formData.name,
-        user_email: formData.email,
-        user_phone: formData.phone,
-        user_address: `${formData.address}, ${formData.city}, RI`,
-        service_type: convertServiceTypeToDbFormat(formData.service),
-        message: formData.message,
-        to_name: process.env.NEXT_PUBLIC_APP_NAME,
-        reply_to: formData.email
-      };
-
-      const response = await emailjs.send(
-        process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID,
-        process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID,
-        templateParams
-      );
-
-      const isSuccess = response.status === 200 || response.text === 'OK';
-      
-      if (isSuccess) {
-        // Save email and SMS preferences
-        const hasEmailPreferences = emailPreferences.subscribe;
-        const hasSmsPreferences = smsPreferences.subscribe;
-        
-        if (hasEmailPreferences || hasSmsPreferences) {
-          try {
-            const preferencesData = {
-              email: {
-                subscribe: hasEmailPreferences,
-                frequency: emailPreferences.frequency || 'monthly',
-                coupons: hasEmailPreferences,
-                seasonal: hasEmailPreferences,
-                updates: hasEmailPreferences,
-                newsletter: hasEmailPreferences
-              },
-              sms: {
-                subscribe: hasSmsPreferences,
-                confirmations: hasSmsPreferences,
-                reminders: hasSmsPreferences
-              }
-            };
-
-            const { data, error } = await supabaseAdmin
-              .from('email_subscribers')
-              .upsert({
-                name: formData.name,
-                email: formData.email.toLowerCase().trim(),
-                phone: formData.phone || null,
-                city: formData.city || null,
-                source: 'spring_cleanup_funnel',
-                preferences: preferencesData,
-                sms_consent: hasSmsPreferences,
-                subscribed_at: new Date().toISOString(),
-                is_active: true,
-                unsubscribed_at: null,
-                updated_at: new Date().toISOString()
-              }, {
-                onConflict: 'email',
-                ignoreDuplicates: false
-              })
-              .select();
-            
-            if (error) {
-              console.error('Error saving preferences:', error);
-            }
-          } catch (dbError) {
-            console.error('Database error saving preferences:', dbError);
-          }
-        }
-
-        // Create pending customer
-        try {
-          const { data: customerData, error: customerError } = await supabaseAdmin
-            .from('customers')
-            .insert([{
-              name: formData.name,
-              email: formData.email,
-              phone: formData.phone,
-              address: `${formData.address}, ${formData.city}, RI`,
-              service_type: convertServiceTypeToDbFormat(formData.service),
-              status: 'pending',
-              frequency: 'monthly',
-              price: 0,
-              notes: `Spring cleanup funnel inquiry: ${formData.message}`,
-              created_at: new Date().toISOString(),
-              next_service: null
-            }])
-            .select();
-          
-          if (customerError) {
-            console.error('Error creating pending customer:', customerError);
-          }
-        } catch (customerDbError) {
-          console.error('Customer database error:', customerDbError);
-        }
-
-        // Create appointment/lead
-        try {
-          const appointmentDate = new Date();
-          appointmentDate.setDate(appointmentDate.getDate() + 1);
-          appointmentDate.setHours(10, 0);
-
-          const { data: appointmentData, error: appointmentError } = await supabaseAdmin
-            .from('appointments')
-            .insert([{
-              customer_name: formData.name,
-              customer_email: formData.email,
-              customer_phone: formData.phone,
-              service_type: formData.service,
-              city: formData.city,
-              street_address: formData.address || '',
-              date: appointmentDate.toISOString(),
-              notes: `Spring cleanup funnel inquiry: ${formData.message}`,
-              status: 'pending',
-              booking_type: 'Ready to Hire'
-            }])
-            .select();
-          
-          if (appointmentError) {
-            console.error('Error creating appointment:', appointmentError);
-          }
-        } catch (appointmentDbError) {
-          console.error('Appointment database error:', appointmentDbError);
-        }
-
-        // Send notification
-        const emailPrefText = hasEmailPreferences ? 
-          `\n📧 Email Subscription: Yes (${emailPreferences.frequency} emails)` : '';
-        const smsPrefText = hasSmsPreferences ? 
-          `\n📱 SMS Subscription: Yes` : '';
-
-        const notificationMessage = `🌱 New Spring Cleanup Lead!\n\n` +
-          `👤 Name: ${formData.name}\n` +
-          `📧 Email: ${formData.email}\n` +
-          `📞 Phone: ${formData.phone}\n` +
-          `📍 Address: ${formData.address}, ${formData.city}, RI\n` +
-          `💬 Message: ${formData.message}${emailPrefText}${smsPrefText}`;
-
-        try {
-          await sendNotification(notificationMessage);
-        } catch (notificationError) {
-          console.error('Error sending notification:', notificationError);
-        }
-
-        // Send confirmation email
-        let emailSent = false;
-        try {
-          const emailResponse = await fetch('/api/send-contact-confirmation', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              formElapsedMs: formElapsedMs(),
-              email: formData.email,
-              name: formData.name,
-              service: formData.service || 'Spring Cleanup',
-              message: formData.message || '',
-              phone: formData.phone || '',
-              sendSMS: smsPreferences.subscribe
-            })
-          });
-          
-          if (emailResponse.ok) {
-            emailSent = true;
-          }
-        } catch (emailError) {
-          console.error('Error sending confirmation email:', emailError);
-        }
-
-        const successMessage = emailSent 
-          ? '✅ Thank you! Your spring cleanup request has been received. We\'ll contact you within 24 hours to schedule your service. A confirmation email has been sent!'
-          : '✅ Thank you! Your spring cleanup request has been received. We\'ll contact you within 24 hours to schedule your service.';
-        
-        setStatus({
-          type: 'success',
-          message: successMessage
-        });
-        
-        // Clear form
-        setFormData({
-          name: '',
-          email: '',
-          phone: '',
-          address: '',
-          city: '',
-          service: 'Spring Cleanup',
-          message: ''
-        });
-        setEmailPreferences({
-          subscribe: false,
-          frequency: 'monthly'
-        });
-        setSmsPreferences({
-          subscribe: false
-        });
-        
-        setTimeout(() => {
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-        }, 100);
-      } else {
-        throw new Error(`Failed to send message. Status: ${response.status}`);
+      const emailResponse = await fetch('/api/send-contact-confirmation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          formElapsedMs: formElapsedMs(),
+          website: honeypotRef.current?.value || '',
+          turnstileToken,
+          email: formData.email,
+          name: formData.name,
+          service: formData.service || 'Spring Cleanup',
+          message: formData.message || '',
+          phone: formData.phone || '',
+          address: formData.address || '',
+          city: formData.city || '',
+          state: 'RI',
+          sendSMS: smsPreferences.subscribe,
+          emailPreferences,
+          smsPreferences,
+          leadSource: 'spring_cleanup_funnel',
+        }),
+      });
+      const result = await emailResponse.json().catch(() => ({}));
+      if (!emailResponse.ok) {
+        throw new Error(result.error || 'Could not send your request.');
       }
+
+      setStatus({
+        type: 'success',
+        message: '✅ Thank you! Your spring cleanup request has been received. We\'ll contact you within 24 hours to schedule your service. A confirmation email has been sent!',
+      });
+
+      setFormData({
+        name: '',
+        email: '',
+        phone: '',
+        address: '',
+        city: '',
+        service: 'Spring Cleanup',
+        message: '',
+      });
+      setEmailPreferences({
+        subscribe: false,
+        frequency: 'monthly',
+      });
+      setSmsPreferences({
+        subscribe: false,
+      });
+      setTurnstileToken('');
+      setTurnstileReset((value) => value + 1);
+
+      setTimeout(() => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }, 100);
     } catch (error) {
-      console.error('Error sending email:', error);
+      console.error('Error sending spring cleanup request:', error);
+      setTurnstileToken('');
+      setTurnstileReset((value) => value + 1);
       setStatus({
         type: 'error',
-        message: '❌ There was an error sending your request. Please try again or call us directly at (401) 205-3853.'
+        message: error?.message
+          ? `❌ ${error.message}`
+          : '❌ There was an error sending your request. Please try again or call us directly at (401) 205-3853.',
       });
     } finally {
       setIsSubmitting(false);
@@ -558,6 +413,10 @@ export default function SpringCleanupFunnel() {
             {/* Contact Form */}
             <div className="bg-gradient-to-br from-white to-green-50 rounded-2xl shadow-xl p-8 border-t-4 border-green-500">
               <form onSubmit={handleSubmit} className="space-y-6">
+                <div aria-hidden="true" style={{ position: 'absolute', left: '-10000px', top: 'auto', width: '1px', height: '1px', overflow: 'hidden' }}>
+                  <label htmlFor="website">Leave this field empty</label>
+                  <input ref={honeypotRef} type="text" id="website" name="website" tabIndex={-1} autoComplete="off" defaultValue="" />
+                </div>
                 {/* Customer Account Link */}
                 <div className="bg-gradient-to-r from-green-50 to-green-100 rounded-xl p-6 border-2 border-green-200">
                   <div className="flex items-center mb-3">
@@ -849,6 +708,8 @@ export default function SpringCleanupFunnel() {
                     </div>
                   )}
                 </div>
+
+                <TurnstileField resetKey={turnstileReset} onToken={setTurnstileToken} />
 
                 {/* Submit Button */}
                 <div className="space-y-4">

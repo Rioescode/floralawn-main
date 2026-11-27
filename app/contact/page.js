@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import emailjs from '@emailjs/browser';
 import { formElapsedMs } from '@/lib/form-timing';
+import TurnstileField, { turnstileClientError } from '@/components/TurnstileField';
 import Navigation from "@/components/Navigation";
 import LeafSeason, { LeafGround } from "@/components/LeafSeason";
 import { businessInfo } from "@/utils/business-info";
@@ -16,7 +16,7 @@ import {
   BACKUP_REFERRAL_CONSENT_BODY,
 } from '@/lib/backup-referral-consent';
 import Image from 'next/image';
-import { supabase, supabaseAdmin } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 import GoogleSignInButton from '@/components/GoogleSignInButton';
 import { 
   PhoneIcon, 
@@ -146,6 +146,8 @@ function ContactForm() {
   const [partnerReferralConsent, setPartnerReferralConsent] = useState(false);
   const [status, setStatus] = useState({ type: '', message: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState('');
+  const [turnstileReset, setTurnstileReset] = useState(0);
   const [showMessageHelper, setShowMessageHelper] = useState(true);
   const [referralCode, setReferralCode] = useState('');
   const [selectedPackage, setSelectedPackage] = useState(null);
@@ -165,7 +167,6 @@ function ContactForm() {
   const searchParams = useSearchParams();
 
   useEffect(() => {
-    emailjs.init(process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY);
     const location = searchParams.get('location');
     const service = searchParams.get('service');
     const ref = searchParams.get('ref');
@@ -464,6 +465,11 @@ function ContactForm() {
       if (addressRef.current) addressRef.current.focus();
       return;
     }
+    const turnstileError = turnstileClientError(turnstileToken);
+    if (turnstileError) {
+      setStatus({ type: 'error', message: turnstileError });
+      return;
+    }
     setIsSubmitting(true);
     setSubmissionStep('Verifying Data...');
     try {
@@ -514,22 +520,6 @@ function ContactForm() {
         ? `[PACKAGE: ${selectedPackage.name}]${selectedPackage.services.length ? `\nIncludes: ${selectedPackage.services.join(', ')}` : ''}\n\n`
         : '';
 
-      const templateParams = {
-        user_name: formData.name,
-        user_email: formData.email,
-        user_phone: formData.phone,
-        user_address: fullFormattedAddress,
-        service_type: formData.service.toLowerCase().replace(/\s+/g, '_'),
-        message: `[PREFERS: ${estimatePreference === 'meet_person' ? 'Meet In Person' : 'Walk Around & Email Pricing'}]\n\n` + servicesLine + jobContext + packageContext + cleanupContext + mulchContext + (partnerReferralConsent ? '[BACKUP PROVIDER: YES - Help connect with trusted partner if fully booked/out of area]\n\n' : '') + formData.message,
-        partner_backup_requested: partnerReferralConsent ? 'YES' : 'NO',
-        to_name: process.env.NEXT_PUBLIC_APP_NAME,
-        reply_to: formData.email,
-        promo_code: formData.promoCode || 'NONE',
-        // Visual Quote Metadata (Transmitted to Dashboard Template if used)
-        has_media: mediaFiles.length > 0 ? 'YES' : 'NO',
-        media_count: mediaFiles.length,
-        discount_status: (showMediaSection && (mediaFiles.length > 0 || (isMulchService && mulchAssessment.edgingMeasurement))) ? '10% CONCIERGE CREDIT APPLIED' : 'NONE'
-      };
       setSubmissionStep('Sending Secure Inquiry...');
       
       // --- ELITE MEDIA UPLOAD ---
@@ -569,6 +559,7 @@ function ContactForm() {
           body: JSON.stringify({
             formElapsedMs: formElapsedMs(),
             website: honeypotRef.current?.value || '',
+            turnstileToken,
             name: formData.name,
             email: formData.email,
             phone: formData.phone,
@@ -604,18 +595,13 @@ function ContactForm() {
           throw new Error(result.error || 'Server processing failed');
         }
 
-        // The server checks for spam first. Only then send the EmailJS backup
-        // alert and the Telegram ping, so bots cannot trigger them.
+        // The server checks for spam first. Only then send the Telegram ping,
+        // so bots cannot trigger it. The owner alert is the Resend email.
         if (result.accepted !== false) {
-          if (process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID && process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID) {
-            try {
-              await emailjs.send(process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID, process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID, templateParams);
-            } catch (emailjsError) {
-              console.error('EmailJS backup alert failed:', emailjsError);
-            }
-          }
           await sendNotification(`📬 New Elite Quote Inquiry from ${formData.name} in ${formData.city}!`);
         }
+        setTurnstileToken('');
+        setTurnstileReset((value) => value + 1);
 
         if (accountUser?.id) {
           const addressParts = [formData.address, formData.city, formData.state, formData.zipCode].filter(Boolean);
@@ -1591,6 +1577,7 @@ function ContactForm() {
                         <p className="text-sm text-[#5C6B62]">
                            Optional. Create an account below to see this quote when it is ready. Your name, phone, address, and service are saved on the account.
                         </p>
+                        <TurnstileField resetKey={turnstileReset} onToken={setTurnstileToken} />
                         <button 
                           type="submit"
                           disabled={isSubmitting}

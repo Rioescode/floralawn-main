@@ -4,6 +4,7 @@ import config from '@/config';
 import { sendEmail } from '@/libs/resend';
 import { supabaseAdmin } from '@/lib/supabase';
 import { isSameOrigin } from '@/lib/spam-guard';
+import { turnstileActive, verifyTurnstile } from '@/lib/turnstile';
 import {
   validateApplication,
   normalizeApplication,
@@ -152,6 +153,13 @@ export async function POST(request) {
     if (body && typeof body.companyWebsite === 'string' && body.companyWebsite.trim()) {
       console.log('Job application honeypot dropped a submission.');
       return NextResponse.json({ success: true });
+    }
+
+    if (turnstileActive()) {
+      const turnstile = await verifyTurnstile(body?.turnstileToken, clientIp(request));
+      if (!turnstile.ok) {
+        return NextResponse.json({ error: turnstile.error }, { status: 400 });
+      }
     }
 
     const errors = validateApplication(body);

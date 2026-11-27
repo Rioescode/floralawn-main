@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import fs from 'fs/promises';
 import { sendEmail } from '@/libs/resend';
 import { generalApiLimiter } from '@/lib/rate-limiter';
 import { validateEmail, validatePhone, sanitizeText } from '@/lib/validation';
@@ -25,6 +26,28 @@ import { forwardConsentedFloraLead } from '@/libs/mgr-partner-lead';
 import { contactLeadIntakePayload, sendToMgr } from '@/libs/mgr-crew-intake';
 import { BACKUP_REFERRAL_CONSENT_TEXT } from '@/lib/backup-referral-consent';
 import { isSameOrigin, overLimit, headerSafe, honeypotTripped, tooFast, spamReason, silentDrop, rejectJson } from '@/lib/spam-guard';
+import { turnstileActive, verifyTurnstile } from '@/lib/turnstile';
+
+function isEmailDryRun() {
+  return process.env.EMAIL_DRY_RUN === '1';
+}
+
+// Writes the same payload Resend would send, and does not call Resend.
+async function deliverEmail(payload) {
+  if (!isEmailDryRun()) return sendEmail(payload);
+  const dir = '/tmp/contact-lead-dry-run';
+  await fs.mkdir(dir, { recursive: true });
+  const file = payload.type === 'LEAD' ? 'owner.json' : 'customer.json';
+  await fs.writeFile(`${dir}/${file}`, JSON.stringify({
+    to: payload.to,
+    subject: payload.subject,
+    replyTo: payload.replyTo || '',
+    text: payload.text,
+    type: payload.type || '',
+  }, null, 2));
+  console.log(`EMAIL_DRY_RUN: wrote ${file} (${payload.subject})`);
+  return { id: `dry-run-${file}` };
+}
 
 function getClientIP(request) {
   const forwarded = request.headers.get('x-forwarded-for');
@@ -109,6 +132,13 @@ export async function POST(request) {
     const isQuoteUpdate = Boolean(body.leadId);
     if (honeypotTripped(body)) return silentDrop('honeypot', request);
     if (!isQuoteUpdate && tooFast(body)) return silentDrop('too fast or no timing', request);
+    if (turnstileActive()) {
+      const turnstile = await verifyTurnstile(body.turnstileToken, clientIP);
+      if (!turnstile.ok) return rejectJson(turnstile.error);
+    }
+
+    const rawLeadSource = typeof body.leadSource === 'string' ? body.leadSource : '';
+    const leadSource = /^[a-z0-9_]{1,40}$/.test(rawLeadSource) ? rawLeadSource : 'contact_form';
 
     const partnerBackupRequested = Boolean(
       partnerBackupConsent === true ||
@@ -263,6 +293,10 @@ export async function POST(request) {
     
     // --- SAVE LEAD TO DATABASE ---
     if (body.leadId) {
+      if (isEmailDryRun()) {
+        console.log('EMAIL_DRY_RUN: skipped contact_leads update');
+        return NextResponse.json({ success: true, leadId: body.leadId, updated: true, message: 'Quote updated' });
+      }
       const { data: updated, error: updateError } = await supabaseAdmin
         .from('contact_leads')
         .update({
@@ -294,7 +328,9 @@ export async function POST(request) {
     }
 
     let savedLeadId = null;
-    try {
+    if (isEmailDryRun()) {
+      console.log('EMAIL_DRY_RUN: skipped contact_leads insert');
+    } else try {
       console.log('📝 Saving lead to database...');
       const { data: inserted, error: dbError } = await supabaseAdmin.from('contact_leads').insert([{
         customer_name: sanitizedName,
@@ -312,7 +348,7 @@ export async function POST(request) {
         has_media: hasMedia,
         media_urls: mediaUrls,
         discount_applied: discountApplied,
-        lead_source: 'contact_form',
+        lead_source: leadSource,
         promo_code: promoCode || null,
         created_at: new Date().toISOString()
       }]).select('id').maybeSingle();
@@ -329,7 +365,7 @@ export async function POST(request) {
           service_type: sanitizedService,
           city: sanitizedCity,
           status: 'pending',
-          notes: `[Pref: ${body.estimatePreference || 'walk_around'}] [Partner Backup: ${partnerBackupRequested ? 'YES' : 'NO'}] [Source: contact_form]\n\n${message}`,
+          notes: `[Pref: ${body.estimatePreference || 'walk_around'}] [Partner Backup: ${partnerBackupRequested ? 'YES' : 'NO'}] [Source: ${leadSource}]\n\n${message}`,
         }]).select('id').maybeSingle();
         if (fallbackError) console.error('❌ Fallback lead insert also failed:', fallbackError.message);
         else {
@@ -389,7 +425,7 @@ export async function POST(request) {
     pendingForwards = Promise.all(forwards);
 
     // --- SAVE TO COMMUNICATION PREFERENCES (10DLC AUDIT TRAIL) ---
-    try {
+    if (!isEmailDryRun()) try {
       console.log('📝 Upserting into communication_preferences for audit trail...');
       // Extract boolean values directly since the frontend passes them in a nested object sometimes
       const emailConsent = body.emailPreferences?.subscribe === true || body.emailPreferences === true;
@@ -402,7 +438,7 @@ export async function POST(request) {
         last_name: sanitizedName.split(' ').slice(1).join(' ') || null,
         email_consent: emailConsent,
         sms_consent: smsConsent,
-        opt_in_source: 'contact_form',
+        opt_in_source: leadSource,
         ip_address: clientIP,
         updated_at: new Date().toISOString()
       }, { onConflict: 'email' });
@@ -417,14 +453,14 @@ export async function POST(request) {
     }
 
     // --- SAVE TO EMAIL SUBSCRIBERS (LEGACY SUPPORT) ---
-    try {
+    if (!isEmailDryRun()) try {
       console.log('📝 Upserting email subscriber...');
       const { error: subError } = await supabaseAdmin.from('email_subscribers').upsert({
         name: sanitizedName,
         email: sanitizedEmail,
         phone: phone,
         city: sanitizedCity,
-        source: 'contact_form',
+        source: leadSource,
         preferences: { 
           email: body.emailPreferences?.subscribe ?? true, 
           sms: body.smsPreferences?.subscribe ?? true 
@@ -441,7 +477,7 @@ export async function POST(request) {
     console.log('📧 Sending confirmation email via Resend to:', sanitizedEmail);
     
     try {
-      const customerEmailResult = await sendEmail({
+      const customerEmailResult = await deliverEmail({
         to: sanitizedEmail,
         subject: `We got your request: ${headerSafe(serviceText, 150)}`,
         text: [
@@ -531,7 +567,7 @@ export async function POST(request) {
       });
 
       console.log('📧 Sending lead alert to admin');
-      await sendEmail({
+      await deliverEmail({
         to: 'floralawncareri@gmail.com',
         subject: headerSafe(`New lead: ${sanitizedName} · ${serviceText}${sanitizedCity ? ` · ${sanitizedCity}` : ''}`, 200),
         text: [
@@ -555,7 +591,7 @@ export async function POST(request) {
 
       // Send SMS if opted in and phone number provided
       let smsSent = false;
-      if (sendSMS && phone) {
+      if (sendSMS && phone && !isEmailDryRun()) {
         // Validate phone number before sending SMS
         if (validatePhone(phone)) {
           try {
