@@ -1,6 +1,7 @@
 'use client';
 
 import { formElapsedMs } from '@/lib/form-timing';
+import TurnstileField, { turnstileClientError } from '@/components/TurnstileField';
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
@@ -157,6 +158,10 @@ export default function YardAccount({
   const [seasonPicked, setSeasonPicked] = useState([]);
   const [seasonSending, setSeasonSending] = useState(false);
   const [seasonMessage, setSeasonMessage] = useState('');
+  const [seasonTurnstileToken, setSeasonTurnstileToken] = useState('');
+  const [seasonTurnstileReset, setSeasonTurnstileReset] = useState(0);
+  const [quoteTurnstileToken, setQuoteTurnstileToken] = useState('');
+  const [quoteTurnstileReset, setQuoteTurnstileReset] = useState(0);
   const addressRef = useRef(null);
   const extraAddressRefs = useRef({});
 
@@ -309,6 +314,11 @@ export default function YardAccount({
       setSeasonMessage('Check at least one job.');
       return;
     }
+    const seasonTurnstileError = turnstileClientError(seasonTurnstileToken);
+    if (seasonTurnstileError) {
+      setSeasonMessage(seasonTurnstileError);
+      return;
+    }
     const serviceSummary = seasonPicked.join(', ');
     const quoteBody = [
       `Services: ${serviceSummary}`,
@@ -326,6 +336,7 @@ export default function YardAccount({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           formElapsedMs: formElapsedMs(),
+          turnstileToken: seasonTurnstileToken,
           name: quoteName,
           email: quoteEmail,
           phone: phone || yard?.phone || '',
@@ -346,6 +357,8 @@ export default function YardAccount({
         notes: quoteBody,
       }, ...current]);
       setSeasonPicked([]);
+      setSeasonTurnstileToken('');
+      setSeasonTurnstileReset((value) => value + 1);
       setSeasonMessage('Sent. We reply in 1–6 hours.');
     } catch (err) {
       setSeasonMessage(err.message || 'Could not send.');
@@ -573,6 +586,7 @@ export default function YardAccount({
             );
           })}
         </ul>
+        <TurnstileField resetKey={seasonTurnstileReset} onToken={setSeasonTurnstileToken} />
         <button
           type="submit"
           disabled={seasonSending || seasonPicked.length === 0}
@@ -688,6 +702,11 @@ export default function YardAccount({
                 setQuoteMessage('Pick a date, or choose a flexible time.');
                 return;
               }
+              const quoteTurnstileError = turnstileClientError(quoteTurnstileToken);
+              if (quoteTurnstileError) {
+                setQuoteMessage(quoteTurnstileError);
+                return;
+              }
               const whenLabel = quoteWhen === 'date'
                 ? `On ${quoteDate}`
                 : quoteWhen === 'this-week'
@@ -713,6 +732,7 @@ export default function YardAccount({
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({
                     formElapsedMs: formElapsedMs(),
+                    turnstileToken: quoteTurnstileToken,
                     name: quoteName,
                     email: quoteEmail,
                     phone: phone || yard?.phone || '',
@@ -745,6 +765,8 @@ export default function YardAccount({
                 setQuotePrimarySelected(true);
                 setQuotePrimaryService('');
                 setExtraAddresses([]);
+                setQuoteTurnstileToken('');
+                setQuoteTurnstileReset((value) => value + 1);
                 setEditingQuoteId(null);
                 setShowQuote(false);
                 setQuoteMessage(result.updated ? 'Quote updated.' : 'Quote sent. We reply in 1–6 hours.');
@@ -876,6 +898,7 @@ export default function YardAccount({
                 className="mt-1 w-full min-h-11 border border-[#C9D4CC] bg-white px-3"
               />
             </label>
+            <TurnstileField resetKey={quoteTurnstileReset} onToken={setQuoteTurnstileToken} />
             <div className="mt-4 flex flex-wrap gap-3">
               <button type="submit" disabled={quoteSending} className="min-h-11 px-4 bg-[#1B2838] text-white font-semibold disabled:opacity-60">
                 {quoteSending ? 'Saving' : editingQuoteId ? 'Save quote' : 'Send quote request'}

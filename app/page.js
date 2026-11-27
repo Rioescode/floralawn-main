@@ -10,8 +10,6 @@ import { reviews } from '@/data/reviews-data';
 import { motion } from 'framer-motion';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import emailjs from '@emailjs/browser';
-import { sendNotification } from '@/lib/notifications';
 import { 
   PhoneIcon, 
   MapPinIcon,
@@ -37,16 +35,12 @@ import PapercutLightbox from "@/components/PapercutLightbox";
 
 export default function HomePage() {
   const [address, setAddress] = useState('');
-  const [quickFormData, setQuickFormData] = useState({ name: '', phone: '', message: '' });
-  const [isQuickSubmitting, setIsQuickSubmitting] = useState(false);
-  const [quickStatus, setQuickStatus] = useState(null);
   
   const addressRef = useRef(null);
   const footerAddressRef = useRef(null);
   const router = useRouter();
 
   useEffect(() => {
-    emailjs.init(process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY);
     let heroAutocomplete, footerAutocomplete;
     const initAutocompletes = async () => {
       if (!window.google || !window.google.maps) return;
@@ -94,33 +88,6 @@ export default function HomePage() {
     }, 1000);
     return () => clearInterval(interval);
   }, [router]);
-
-  const handleQuickSubmit = async (e) => {
-    e.preventDefault();
-    setIsQuickSubmitting(true);
-    try {
-      const templateParams = {
-        user_name: quickFormData.name,
-        user_phone: quickFormData.phone,
-        message: quickFormData.message,
-        service_type: 'Home Hero Inquiry',
-        to_name: 'FloraLawn Admin'
-      };
-      await emailjs.send(
-        process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID, 
-        process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID, 
-        templateParams
-      );
-      await sendNotification(`⚡ QUICK HERO LEAD: ${quickFormData.name} (${quickFormData.phone}) wants a quote!`);
-      setQuickStatus({ type: 'success', message: 'Request sent! We will call you within 1-6 hours.' });
-      setQuickFormData({ name: '', phone: '', message: '' });
-      e.target.reset();
-    } catch (err) {
-      setQuickStatus({ type: 'error', message: 'Failed to send. Please call (401) 205-3853' });
-    } finally {
-      setIsQuickSubmitting(false);
-    }
-  };
 
   return (
     <div className="min-h-screen bg-white text-slate-900 overflow-x-hidden">

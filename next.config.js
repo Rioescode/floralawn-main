@@ -1,3 +1,7 @@
+// Turnstile stays out of the client bundle unless both keys exist at build time.
+const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || process.env.TURNSTILE_SITE_KEY || '';
+const turnstileEnabled = Boolean(turnstileSiteKey && process.env.TURNSTILE_SECRET_KEY);
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'standalone',
@@ -50,6 +54,7 @@ const nextConfig = {
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
     NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
+    NEXT_PUBLIC_TURNSTILE_SITE_KEY: turnstileEnabled ? turnstileSiteKey : '',
   },
   async redirects() {
     return [
@@ -107,13 +112,13 @@ const nextConfig = {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://cdn.emailjs.com https://api.anthropic.com https://maps.googleapis.com https://accounts.google.com https://mygreenrobot.com https://unpkg.com",
+              "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://challenges.cloudflare.com https://api.anthropic.com https://maps.googleapis.com https://accounts.google.com https://mygreenrobot.com https://unpkg.com",
               "worker-src 'self' blob: https://unpkg.com",
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "font-src 'self' https://fonts.gstatic.com",
               "img-src 'self' data: https: blob: https://maps.gstatic.com https://maps.googleapis.com *.googleapis.com *.gstatic.com https://mygreenrobot.com",
-              "connect-src 'self' https://api.deepseek.com https://api.anthropic.com https://*.supabase.co https://api.emailjs.com https://maps.googleapis.com https://accounts.google.com https://mygreenrobot.com https://api.elevenlabs.io https://api.us.elevenlabs.io https://api.eu.residency.elevenlabs.io https://api.in.residency.elevenlabs.io wss://api.elevenlabs.io wss://api.us.elevenlabs.io wss://api.eu.residency.elevenlabs.io wss://api.in.residency.elevenlabs.io wss://livekit.rtc.elevenlabs.io https://livekit.rtc.elevenlabs.io",
-              "frame-src 'self' https://www.google.com https://maps.googleapis.com https://accounts.google.com https://mygreenrobot.com",
+              "connect-src 'self' https://challenges.cloudflare.com https://api.deepseek.com https://api.anthropic.com https://*.supabase.co https://maps.googleapis.com https://accounts.google.com https://mygreenrobot.com https://api.elevenlabs.io https://api.us.elevenlabs.io https://api.eu.residency.elevenlabs.io https://api.in.residency.elevenlabs.io wss://api.elevenlabs.io wss://api.us.elevenlabs.io wss://api.eu.residency.elevenlabs.io wss://api.in.residency.elevenlabs.io wss://livekit.rtc.elevenlabs.io https://livekit.rtc.elevenlabs.io",
+              "frame-src 'self' https://challenges.cloudflare.com https://www.google.com https://maps.googleapis.com https://accounts.google.com https://mygreenrobot.com",
               "frame-ancestors 'none'",
               "base-uri 'self'",
               "form-action 'self' https://accounts.google.com"

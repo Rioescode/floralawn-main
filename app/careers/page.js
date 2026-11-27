@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
 import { CheckCircleIcon, PhoneIcon } from '@heroicons/react/24/outline';
+import TurnstileField, { turnstileClientError } from '@/components/TurnstileField';
 
 const POSITIONS = [
   'Lawn care and mowing',
@@ -103,6 +104,8 @@ export default function CareersPage() {
   const [formError, setFormError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submittedName, setSubmittedName] = useState('');
+  const [turnstileToken, setTurnstileToken] = useState('');
+  const [turnstileReset, setTurnstileReset] = useState(0);
   const cardRef = useRef(null);
 
   useEffect(() => {
@@ -151,13 +154,18 @@ export default function CareersPage() {
     setFieldErrors(nextErrors);
     setFormError('');
     if (Object.keys(nextErrors).length) return;
+    const turnstileError = turnstileClientError(turnstileToken);
+    if (turnstileError) {
+      setFormError(turnstileError);
+      return;
+    }
 
     setIsSubmitting(true);
     try {
       const response = await fetch('/api/job-application', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, turnstileToken }),
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok || !data.success) {
@@ -169,6 +177,8 @@ export default function CareersPage() {
     } catch {
       setFormError(FAILURE);
     } finally {
+      setTurnstileToken('');
+      setTurnstileReset((value) => value + 1);
       setIsSubmitting(false);
     }
   };
@@ -444,6 +454,8 @@ export default function CareersPage() {
                       className={inputClass}
                     />
                   </Field>
+
+                  <TurnstileField resetKey={turnstileReset} onToken={setTurnstileToken} />
 
                   <button
                     type="submit"
